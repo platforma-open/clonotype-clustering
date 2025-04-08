@@ -7,6 +7,7 @@ export type BlockArgs = {
   inputAnchor?: PlRef;
   clonotypingRunId?: string;
   chain?: string;
+  dataType?: string;
 };
 
 export type UiState = {
@@ -52,7 +53,7 @@ export const model = BlockModel.create()
         || spec.domain?.['pl7.app/vdj/scClonotypeChain/index'] === 'primary')),
   )
 
-  .output('anchorPcols', (ctx) => {
+  .output('anchorSpecs', (ctx) => {
     if (ctx.args.inputAnchor === undefined)
       return undefined;
     return ctx.resultPool.getSpecByRef(ctx.args.inputAnchor);

@@ -13,7 +13,7 @@ import { PlBlockPage,
 import type { PlRef, PTableColumnSpec } from '@platforma-sdk/model';
 import { plRefsEqual } from '@platforma-sdk/model';
 import { useApp } from '../app';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const app = useApp();
 
@@ -46,10 +46,27 @@ const tableSettings = computed<PlDataTableSettings | undefined>(() =>
       }
     : undefined,
 );
+
+// If input dataset changes we check again if data is bulk or single cell
+watch(() => app.model.outputs.anchorSpecs, (_) => {
+  if (app.model.outputs.anchorSpecs) {
+    if (app.model.outputs.anchorSpecs?.annotations?.['mixcr.com/cellTags'] === '') {
+      app.model.args.dataType = 'bulk';
+    } else {
+      app.model.args.dataType = 'singleCell';
+      app.model.args.chain = undefined;
+    }
+  } else {
+    app.model.args.dataType = undefined;
+    app.model.args.chain = undefined;
+  }
+});
+
 const columns = ref<PTableColumnSpec[]>([]);
 </script>
 
 <template>
+  {{ app.model.args.dataType }}
   <PlBlockPage>
     <template #title>
       Clonotype Clustering{{ app.model.ui.title ? ` - ${app.model.ui.title}` : '' }}
@@ -83,7 +100,8 @@ const columns = ref<PTableColumnSpec[]>([]);
       clearable
       @update:model-value="setAnchorColumn"
     />
-    <template v-if="app.model.outputs.anchorPcols?.annotations?.['mixcr.com/cellTags'] === ''">
+    <!-- Only allow chain selection in bulk datasets -->
+    <template v-if="app.model.args.dataType === 'bulk'">
       <PlDropdown v-model="app.model.args.chain" :options="chainOptions" label="Define clustering chain" />
     </template>
   </PlSlideModal>
