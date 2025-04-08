@@ -28,6 +28,7 @@ function setAnchorColumn(ref: PlRef | undefined) {
 }
 
 // Generate list of all available Ig chains
+// @TODO: convert names to light or heavy
 const chainOptions = computed(() => {
   const options: string[] = [];
   if (app.model.outputs.chainOptions !== undefined) {
@@ -35,6 +36,11 @@ const chainOptions = computed(() => {
       options.push(obj.label);
     }
   }
+  // in single-cell both chains is a valid option too
+  if (options.some((item) => item.includes('CDR3 aa Primary'))) {
+    options.push('Both chains');
+  }
+
   return listToOptions(options);
 });
 
@@ -66,7 +72,6 @@ const columns = ref<PTableColumnSpec[]>([]);
 </script>
 
 <template>
-  {{ app.model.args.dataType }}
   <PlBlockPage>
     <template #title>
       Clonotype Clustering{{ app.model.ui.title ? ` - ${app.model.ui.title}` : '' }}
@@ -101,8 +106,6 @@ const columns = ref<PTableColumnSpec[]>([]);
       @update:model-value="setAnchorColumn"
     />
     <!-- Only allow chain selection in bulk datasets -->
-    <template v-if="app.model.args.dataType === 'bulk'">
-      <PlDropdown v-model="app.model.args.chain" :options="chainOptions" label="Define clustering chain" />
-    </template>
+    <PlDropdown v-model="app.model.args.chain" :options="chainOptions" label="Define clustering chain" />
   </PlSlideModal>
 </template>

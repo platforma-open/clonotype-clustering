@@ -2,13 +2,109 @@
 wf := import("@platforma-sdk/workflow-tengo:workflow")
 exec := import("@platforma-sdk/workflow-tengo:exec")
 assets:= import("@platforma-sdk/workflow-tengo:assets")
+xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
+text := import("text")
+
+wf.prepare(func(args) {
+
+	clonotypingRunId := args.clonotypingRunId
+	dataType := args.dataType
+	chain := args.chain
+
+	// get chain value in same format as domain (only in bulk) 
+	formattedChain := ""
+	// define both chains by default in singleCell
+	if dataType == "bulk" {
+		formattedChain = text.replace(chain, " ", "", -1)
+	}
+	
+	// Get Pcolumns matching the specified values
+	query := func(label) {
+		domain := {
+						"pl7.app/vdj/clonotypingRunId": clonotypingRunId,
+						"pl7.app/alphabet": "aminoacid",
+						"pl7.app/vdj/feature": "CDR3"
+					}
+		if dataType == "bulk" {
+			domain["pl7.app/vdj/chain"] = formattedChain
+		} else if dataType == "singleCell" {
+			domain["pl7.app/vdj/scClonotypeChain/index"] = "primary"
+		}
+
+		r := {
+			type: "And",
+			operands:  [
+				{
+					type: "Annotation",
+					annotation: "pl7.app/label",
+					value: label
+				},
+				{
+					type: "Domain",
+					domain: domain,
+					domainExactMatch: false
+				}
+			]
+		}
+
+		return r
+	}
+	
+
+	ops := {
+		single: true
+	}
+
+	if dataType == "singleCell" {
+		// ll := import("@platforma-sdk/workflow-tengo:ll")
+		// maps := import("@platforma-sdk/workflow-tengo:maps")
+		// ll.panic("%v", chain)
+		outputs := {}
+		if chain == "Both chains" {
+				outputs["selectedChains1"] = wf.query(query("Heavy CDR3 aa Primary"), ops) 
+				outputs["selectedChains2"] = wf.query(query("Light CDR3 aa Primary"), ops)
+		} else {
+			outputs["selectedChains"] = wf.query(query(chain), ops) 
+		}
+		return  outputs
+
+	} else if dataType == "bulk" {
+		return  { 
+			selectedChains: wf.query(query("CDR3 aa"), ops)
+		}
+	}
+})
 
 wf.body(func(args) {
-	tengoMessage := "Hello from Tengo, " + args.name + "!"
+	selectedChains := args.selectedChains
+	clonotypingRunId := args.clonotypingRunId
+	chain := args.chain
+	dataType := args.dataType
+
+	if dataType == "bulk" {
+		selectedChains = [selectedChains]
+	} else {
+		if chain == "Both chains" {
+			selectedChains = [args.selectedChains1, args.selectedChains2]
+		} else {
+			selectedChains = [args.selectedChains]
+		}
+		
+	}
+	
+	
+	csv := xsv.exportFrame(selectedChains, "csv", {})
+	testCmd := exec.builder().
+		cmd("sleep 100").
+		addFile("input.csv", csv).
+		saveFile("input.csv").
+		run()
+
+	result := testCmd.getFile("result.tsv")
 
 	return {
 		outputs: {
-			tengoMessage: tengoMessage
+			testCmd:testCmd
 		},
 
 		exports: {}
