@@ -169,9 +169,7 @@ wf.body(func(args) {
 	return {
 		outputs: {
 			clustersPf: clustersPf,
-			UMAPPf: UMAPPf,
-			testCmd: testCmd
-			// TSNEPf: TSNEPf
+			UMAPPf: UMAPPf
 		},
 		exports: {
 			clustersPf: {
