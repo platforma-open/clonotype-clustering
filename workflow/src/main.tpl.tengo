@@ -96,17 +96,20 @@ wf.prepare(func(args) {
 })
 
 wf.body(func(args) {
-	selectedChains := args.selectedChains
 	clonotypingRunId := args.clonotypingRunId
 	chain := args.chain
 	dataType := args.dataType
-	selectedChainsSpec := selectedChains.spec
 
 	// Convert chain selection to Pframe
 	selectedChainsPf := []
+	selectedChainsSpec := {}
 	if dataType == "bulk" {
+		selectedChains := args.selectedChains
+		selectedChainsSpec = selectedChains.spec
+
 		selectedChainsPf = [selectedChains]
 	} else {
+		selectedChainsSpec = args.selectedChains1.spec
 		if chain == "Both chains" {
 			selectedChainsPf = [args.selectedChains1, args.selectedChains2]
 		} else {
@@ -119,11 +122,17 @@ wf.body(func(args) {
 
 	metric := "levenshtein"
 	resolution := 1.0
+	// get sequence ID labels (future column names)
+	sequenceIds := []
+	for pcol in selectedChainsPf {
+		sequenceIds = sequenceIds + [pcol.spec.annotations["pl7.app/label"]]
+	}
 
 	clonotypeClustering := exec.builder().
 		software(assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:clonotype-clustering")).
 		addFile("input.csv", csv).
 		arg("--input").arg("input.csv").
+		arg("--seq_column").arg(string(sequenceIds)).
 		arg("--output_clusters").arg("clusters.csv").
 		arg("--output_umap").arg("umap.csv").
 		arg("--output_tsne").arg("tsne.csv").
