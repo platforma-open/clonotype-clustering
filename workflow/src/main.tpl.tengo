@@ -168,8 +168,8 @@ wf.body(func(args) {
 
 	return {
 		outputs: {
-			clustersPf: clustersPf,
-			UMAPPf: UMAPPf
+			clustersPf: pframes.exportFrame(clustersPf),
+			UMAPPf: pframes.exportFrame(UMAPPf)
 		},
 		exports: {
 			clustersPf: {
