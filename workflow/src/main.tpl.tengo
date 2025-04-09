@@ -10,35 +10,36 @@ wf.prepare(func(args) {
 	clonotypingRunId := args.clonotypingRunId
 	dataType := args.dataType
 	chain := args.chain
-
-	// get chain value in same format as domain (only in bulk) 
-	formattedChain := ""
-	// define both chains by default in singleCell
-	if dataType == "bulk" {
-		formattedChain = text.replace(chain, " ", "", -1)
-	}
 	
 	// Get Pcolumns matching the specified values
 	query := func(label) {
+		// define elements to search in domain sections
 		domain := {
-						"pl7.app/vdj/clonotypingRunId": clonotypingRunId,
-						"pl7.app/alphabet": "aminoacid",
-						"pl7.app/vdj/feature": "CDR3"
+					"pl7.app/vdj/clonotypingRunId": clonotypingRunId,
+					"pl7.app/alphabet": "aminoacid",
+					"pl7.app/vdj/feature": "CDR3"
 					}
 		if dataType == "bulk" {
-			domain["pl7.app/vdj/chain"] = formattedChain
+			domain["pl7.app/vdj/chain"] = chain
 		} else if dataType == "singleCell" {
 			domain["pl7.app/vdj/scClonotypeChain/index"] = "primary"
-		}
+		} 
+		// else if dataType == "scFv" {
+		// 	// scFv has chain info both in label and domain, so we might skip this
+		// 	domain["pl7.app/vdj/scClonotypeChain"] = specificChain
+		// }
 
+		// define whole query 
 		r := {
 			type: "And",
 			operands:  [
+				// Exact match in annotation field
 				{
 					type: "Annotation",
 					annotation: "pl7.app/label",
 					value: label
 				},
+				// Exact match in elements defined before in domain fields
 				{
 					type: "Domain",
 					domain: domain,
@@ -50,15 +51,14 @@ wf.prepare(func(args) {
 		return r
 	}
 	
-
 	ops := {
 		single: true
 	}
 
+	// Defined different returns for single-cell and bulk 
 	if dataType == "singleCell" {
-		// ll := import("@platforma-sdk/workflow-tengo:ll")
-		// maps := import("@platforma-sdk/workflow-tengo:maps")
-		// ll.panic("%v", chain)
+		// In single-cell datasets have info for both chains and user can 
+		// define specific chain or both
 		outputs := {}
 		if chain == "Both chains" {
 				outputs["selectedChains1"] = wf.query(query("Heavy CDR3 aa Primary"), ops) 
@@ -68,11 +68,25 @@ wf.prepare(func(args) {
 		}
 		return  outputs
 
+	} else if dataType == "scFv" {
+		// In scFv datasets datasets have info for both chains and user can 
+		// define specific chain or both
+		outputs := {}
+		if chain == "Both chains" {
+				outputs["selectedChains1"] = wf.query(query("CDR3 aa (heavy)"), ops) 
+				outputs["selectedChains2"] = wf.query(query("CDR3 aa (light)"), ops)
+		} else {
+			outputs["selectedChains"] = wf.query(query(chain), ops) 
+		}
+		return  outputs
+
 	} else if dataType == "bulk" {
+		// In bulk datasets usually are split by chain and users main 
+		// selection already indicates it
 		return  { 
 			selectedChains: wf.query(query("CDR3 aa"), ops)
 		}
-	}
+	} 
 })
 
 wf.body(func(args) {
@@ -81,26 +95,28 @@ wf.body(func(args) {
 	chain := args.chain
 	dataType := args.dataType
 
+	// Convert chain selection to Pframe
+	selectedChainsPf := []
 	if dataType == "bulk" {
-		selectedChains = [selectedChains]
+		selectedChainsPf = [selectedChains]
 	} else {
 		if chain == "Both chains" {
-			selectedChains = [args.selectedChains1, args.selectedChains2]
+			selectedChainsPf = [args.selectedChains1, args.selectedChains2]
 		} else {
-			selectedChains = [args.selectedChains]
+			selectedChainsPf = [args.selectedChains]
 		}
 		
 	}
 	
 	
-	csv := xsv.exportFrame(selectedChains, "csv", {})
+	csv := xsv.exportFrame(selectedChainsPf, "csv", {})
 	testCmd := exec.builder().
 		cmd("sleep 100").
 		addFile("input.csv", csv).
 		saveFile("input.csv").
 		run()
 
-	result := testCmd.getFile("result.tsv")
+	result := testCmd.getFile("input.csv")
 
 	return {
 		outputs: {

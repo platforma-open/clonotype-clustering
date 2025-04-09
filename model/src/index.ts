@@ -1,9 +1,8 @@
-import type { InferOutputsType, PlDataTableState, PlRef } from '@platforma-sdk/model';
+import type { InferOutputsType, PColumn, PColumnSpec, PlDataTableState, PlRef, PObjectSpec, TreeNodeAccessor } from '@platforma-sdk/model';
 import { BlockModel, isPColumnSpec } from '@platforma-sdk/model';
 
 export type BlockArgs = {
   name?: string;
-  /** Anchor column from the clonotyping output (must have sampleId and clonotypeKey axes) */
   inputAnchor?: PlRef;
   clonotypingRunId?: string;
   chain?: string;
@@ -32,9 +31,15 @@ export const model = BlockModel.create()
     ctx.resultPool.getOptions([{
       axes: [
         { name: 'pl7.app/sampleId' },
+        { name: 'pl7.app/vdj/clonotypeKey' },
       ],
-      annotations: { 'pl7.app/label': 'MiXCR Clonesets' },
-      name: 'mixcr.com/clns',
+      annotations: { 'pl7.app/isAnchor': 'true' },
+    }, {
+      axes: [
+        { name: 'pl7.app/sampleId' },
+        { name: 'pl7.app/vdj/scClonotypeKey' },
+      ],
+      annotations: { 'pl7.app/isAnchor': 'true' },
     }]),
   )
 
@@ -46,6 +51,7 @@ export const model = BlockModel.create()
 
   .output('chainOptions', (ctx) =>
     ctx.resultPool.getOptions((spec) => isPColumnSpec(spec)
+      && spec.name === 'pl7.app/vdj/sequence'
       && spec.domain?.['pl7.app/vdj/clonotypingRunId'] === ctx.args.clonotypingRunId
       && spec.domain?.['pl7.app/alphabet'] === 'aminoacid'
       && spec.domain?.['pl7.app/vdj/feature'] === 'CDR3'
@@ -56,7 +62,7 @@ export const model = BlockModel.create()
   .output('anchorSpecs', (ctx) => {
     if (ctx.args.inputAnchor === undefined)
       return undefined;
-    return ctx.resultPool.getSpecByRef(ctx.args.inputAnchor);
+    return ctx.resultPool.getPColumnSpecByRef(ctx.args.inputAnchor);
   })
 
   .sections((_ctx) => [{ type: 'link', href: '/', label: 'Main' }])

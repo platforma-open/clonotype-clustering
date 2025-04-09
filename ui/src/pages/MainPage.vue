@@ -31,14 +31,15 @@ function setAnchorColumn(ref: PlRef | undefined) {
 // @TODO: convert names to light or heavy
 const chainOptions = computed(() => {
   const options: string[] = [];
+  // Chain selection will only be available in cases in which
+  // by default we want to select both chains in most cases
+  options.push('Both chains');
+
+  // Get individual chain list
   if (app.model.outputs.chainOptions !== undefined) {
     for (const obj of app.model.outputs.chainOptions) {
       options.push(obj.label);
     }
-  }
-  // in single-cell both chains is a valid option too
-  if (options.some((item) => item.includes('CDR3 aa Primary'))) {
-    options.push('Both chains');
   }
 
   return listToOptions(options);
@@ -55,16 +56,24 @@ const tableSettings = computed<PlDataTableSettings | undefined>(() =>
 
 // If input dataset changes we check again if data is bulk or single cell
 watch(() => app.model.outputs.anchorSpecs, (_) => {
-  if (app.model.outputs.anchorSpecs) {
-    if (app.model.outputs.anchorSpecs?.annotations?.['mixcr.com/cellTags'] === '') {
-      app.model.args.dataType = 'bulk';
-    } else {
-      app.model.args.dataType = 'singleCell';
-      app.model.args.chain = undefined;
-    }
-  } else {
+  if (!app.model.outputs.anchorSpecs) {
     app.model.args.dataType = undefined;
     app.model.args.chain = undefined;
+  } else {
+    if (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'molecules') {
+      app.model.args.dataType = 'bulk';
+      app.model.args.chain = app.model.outputs.anchorSpecs?.domain?.['pl7.app/vdj/chain'];
+    } else if (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'cells') {
+      app.model.args.dataType = 'singleCell';
+      app.model.args.chain = 'Both chains';
+      // in scFv we work as in single-cell
+    } else if (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'reads') {
+      app.model.args.dataType = 'scFv';
+      app.model.args.chain = 'Both chains';
+    } else {
+      app.model.args.dataType = undefined;
+      app.model.args.chain = undefined;
+    }
   }
 });
 
@@ -105,7 +114,9 @@ const columns = ref<PTableColumnSpec[]>([]);
       clearable
       @update:model-value="setAnchorColumn"
     />
-    <!-- Only allow chain selection in bulk datasets -->
-    <PlDropdown v-model="app.model.args.chain" :options="chainOptions" label="Define clustering chain" />
+    <!-- Bulk datasets are splitted by chain, only allow selection in single-cell -->
+    <template v-if="['singleCell', 'scFv'].includes(app.model.args.dataType ?? '')">
+      <PlDropdown v-model="app.model.args.chain" :options="chainOptions" label="Define clustering chain" />
+    </template>
   </PlSlideModal>
 </template>
