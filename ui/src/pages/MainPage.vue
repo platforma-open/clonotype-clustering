@@ -9,7 +9,8 @@ import { PlBlockPage,
   PlSlideModal,
   PlDropdownRef,
   PlDropdown,
-  listToOptions } from '@platforma-sdk/ui-vue';
+  listToOptions,
+  PlNumberField } from '@platforma-sdk/ui-vue';
 import type { PlRef } from '@platforma-sdk/model';
 import { plRefsEqual } from '@platforma-sdk/model';
 import { useApp } from '../app';
@@ -73,6 +74,11 @@ watch(() => app.model.outputs.anchorSpecs, (_) => {
   }
 });
 
+const metricOptions = [
+  { text: 'Levenshtein', value: 'levenshtein' },
+  { text: 'Alignment', value: 'alignment' },
+];
+
 </script>
 
 <template>
@@ -104,6 +110,15 @@ watch(() => app.model.outputs.anchorSpecs, (_) => {
         clearable
         @update:model-value="setAnchorColumn"
       />
+      <PlDropdown v-model="app.model.args.metric" :options="metricOptions" label="Select metric" />
+      <PlNumberField
+        v-model="app.model.args.resolution"
+        label="Resolution" :minValue="0.1" :step="0.1"
+      >
+        <template #tooltip>
+          Select resolution for clustering. The bigger the resolution, the more clusters will be found.
+        </template>
+      </PlNumberField>
       <!-- Bulk datasets are splitted by chain, only allow selection in single-cell -->
       <template v-if="['singleCell', 'scFv'].includes(app.model.args.dataType ?? '')">
         <PlDropdown v-model="app.model.args.chain" :options="chainOptions" label="Define clustering chain" />

@@ -9,6 +9,8 @@ export type BlockArgs = {
   chain?: string;
   dataType?: string;
   title?: string;
+  metric?: string;
+  resolution: number;
 };
 
 export type UiState = {
@@ -21,7 +23,10 @@ export type UiState = {
 
 export const model = BlockModel.create()
 
-  .withArgs<BlockArgs>({})
+  .withArgs<BlockArgs>({
+    metric: 'levenshtein',
+    resolution: 1.0,
+  })
 
   .withUiState<UiState>({
     title: 'Clonotype Clustering',

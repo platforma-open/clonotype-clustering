@@ -99,6 +99,8 @@ wf.body(func(args) {
 	clonotypingRunId := args.clonotypingRunId
 	chain := args.chain
 	dataType := args.dataType
+	metric := args.metric
+	resolution := args.resolution
 
 	// Convert chain selection to Pframe
 	selectedChainsPf := []
@@ -120,8 +122,6 @@ wf.body(func(args) {
 	
 	csv := xsv.exportFrame(selectedChainsPf, "csv", {})
 
-	metric := "levenshtein"
-	resolution := 1.0
 	// get sequence ID labels (future column names)
 	sequenceIds := []
 	for pcol in selectedChainsPf {
