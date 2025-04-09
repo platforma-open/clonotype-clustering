@@ -37,20 +37,20 @@ const defaultOptions: GraphMakerProps['defaultOptions'] = [
       ],
     },
   },
-  // {
-  //   inputName: 'grouping',
-  //   selectedSource: {
-  //     kind: 'PColumn',
-  //     name: 'pl7.app/vdj/clonotypeCluster',
-  //     valueType: 'String',
-  //     axesSpec: [
-  //       {
-  //         name: 'pl7.app/vdj/clonotypeKey',
-  //         type: 'String',
-  //       },
-  //     ],
-  //   },
-  // },
+  {
+    inputName: 'grouping',
+    selectedSource: {
+      kind: 'PColumn',
+      name: 'pl7.app/vdj/clonotypeCluster',
+      valueType: 'String',
+      axesSpec: [
+        {
+          name: 'pl7.app/vdj/clonotypeKey',
+          type: 'String',
+        },
+      ],
+    },
+  },
 ];
 
 </script>

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type {
-  PlDataTableSettings } from '@platforma-sdk/ui-vue';
+// import type {
+//   PlDataTableSettings } from '@platforma-sdk/ui-vue';
 import { PlBlockPage,
   PlAgDataTableToolsPanel,
   PlBtnGhost,
-  PlAgDataTable,
+  // PlAgDataTable,
   PlMaskIcon24,
   PlSlideModal,
   PlDropdownRef,
@@ -45,10 +45,10 @@ const chainOptions = computed(() => {
   return listToOptions(options);
 });
 
-const tableSettings = computed<PlDataTableSettings>(() => ({
-  sourceType: 'ptable',
-  pTable: app.model.outputs.clustersTable,
-}));
+// const tableSettings = computed<PlDataTableSettings>(() => ({
+//   sourceType: 'ptable',
+//   pTable: app.model.outputs.clustersTable,
+// }));
 
 // If input dataset changes we check again if data is bulk or single cell
 watch(() => app.model.outputs.anchorSpecs, (_) => {
@@ -89,12 +89,12 @@ watch(() => app.model.outputs.anchorSpecs, (_) => {
         </template>
       </PlBtnGhost>
     </template>
-    <PlAgDataTable
+    <!-- <PlAgDataTable
       v-model="app.model.ui.tableState"
       :settings="tableSettings"
       show-columns-panel
       show-export-button
-    />
+    /> -->
     <PlSlideModal v-model="app.model.ui.settingsOpen" :close-on-outside-click="true">
       <template #title>Settings</template>
       <PlDropdownRef
