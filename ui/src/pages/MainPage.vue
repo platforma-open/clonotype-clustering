@@ -48,7 +48,7 @@ const chainOptions = computed(() => {
 
 const tableSettings = computed<PlDataTableSettings>(() => ({
   sourceType: 'ptable',
-  pTable: app.model.outputs.clustersTable,
+  pTable: app.model.outputs.metricsTable,
 }));
 
 // If input dataset changes we check again if data is bulk or single cell

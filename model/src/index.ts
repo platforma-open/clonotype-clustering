@@ -118,13 +118,13 @@ export const model = BlockModel.create()
     return createPlDataTable(ctx, pCols, ctx.uiState?.tableState);
   })
 
-  .output('test', (ctx) => {
-    const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
+  .output('metricsTable', (ctx) => {
+    const pCols = ctx.outputs?.resolve('metricsPf')?.getPColumns();
     if (pCols === undefined) {
       return undefined;
     }
 
-    return pCols;
+    return createPlDataTable(ctx, pCols, ctx.uiState?.tableState);
   })
 
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)

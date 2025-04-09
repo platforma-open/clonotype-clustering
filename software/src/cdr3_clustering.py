@@ -91,7 +91,7 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
         if "cdr3_heavy" in df.columns:
             sequences = df["cdr3_heavy"]
         elif "cdr3" in df.columns:
-            sequences = df["cdr3"]  # ⭐ <--- Bulk support: use "cdr3" if no "cdr3_heavy"
+            sequences = df["cdr3"]  # ⭐ Bulk support: use "cdr3" if no "cdr3_heavy"
         else:
             raise ValueError("Heavy chain data not found.")
     elif chain == "light":
@@ -128,7 +128,7 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
     knn_graph = nbrs.kneighbors_graph(dist_matrix, mode="connectivity")
     adata.obsp["connectivities"] = csr_matrix(knn_graph)
 
-    # ✨ Important: manually fill .uns["neighbors"]
+    # ✨ Manually fill .uns["neighbors"]
     adata.uns["neighbors"] = {
         "connectivities_key": "connectivities",
         "distances_key": "connectivities",
@@ -171,7 +171,25 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
     })
     tsne_df.to_csv(output_tsne, index=False)
 
-    print("✅ Clustering and dimensionality reduction completed successfully.")
+    # ➡️ Save global cluster metrics (ADDED BELOW ONLY)
+    print("Saving global cluster summary metrics...")
+    cluster_sizes = clusters_df["cluster"].value_counts()
+
+    metrics = {
+        "Total Clonotypes": len(clusters_df),
+        "Total Clusters": cluster_sizes.shape[0],
+        "Average Cluster Size": round(cluster_sizes.mean(), 2),
+        "Median Cluster Size": cluster_sizes.median(),
+        "Min Cluster Size": cluster_sizes.min(),
+        "Max Cluster Size": cluster_sizes.max(),
+        "Std Cluster Size": round(cluster_sizes.std(), 2),
+        "Clusters with 1 Clonotype": (cluster_sizes == 1).sum(),
+    }
+
+    metrics_df = pd.DataFrame(list(metrics.items()), columns=["Metric", "Value"])
+    metrics_df.to_csv("cluster_summary_metrics.csv", index=False)
+
+    print("✅ Clustering, dimensionality reduction, and summary metrics completed successfully.")
 
 # ---------------------- Argument parsing ---------------------- #
 

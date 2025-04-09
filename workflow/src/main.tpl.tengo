@@ -10,6 +10,7 @@ pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 pfClustersConv := import(":pf-clusters-conv")
 pfUMAPConv := import(":pf-umap-conv")
 pfTSNEConv := import(":pf-tsne-conv")
+pfMetricsConv := import(":pf-metrics-conv")
 
 wf.prepare(func(args) {
 
@@ -140,7 +141,8 @@ wf.body(func(args) {
 		arg("--resolution").arg(string(resolution)).
 		saveFile("clusters.csv").
 		saveFile("umap.csv").
-		saveFile("tsne.csv").
+		// saveFile("tsne.csv").
+		saveFile("cluster_summary_metrics.csv").
 		printErrStreamToStdout().
 		saveStdoutContent().
 		cache(24 * 60 * 60 * 1000).
@@ -155,10 +157,14 @@ wf.body(func(args) {
 	// TSNEImportParams := pfTSNEConv.getColumns(selectedChainsSpec, metric)
 	// TSNEPf := xsv.importFile(clonotypeClustering.getFile("tsne.csv"), "csv", TSNEImportParams)
 
+	metricsImportParams := pfMetricsConv.getColumns(selectedChainsSpec, metric)
+	metricsPf := xsv.importFile(clonotypeClustering.getFile("cluster_summary_metrics.csv"), "csv", metricsImportParams)
+
 	return {
 		outputs: {
 			clustersPf: pframes.exportFrame(clustersPf),
-			UMAPPf: pframes.exportFrame(UMAPPf)
+			UMAPPf: pframes.exportFrame(UMAPPf),
+			metricsPf: pframes.exportFrame(metricsPf)
 		},
 		exports: {
 			clustersPf: {
