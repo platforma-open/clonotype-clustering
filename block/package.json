@@ -28,10 +28,14 @@
       "url": "https://github.com/milaboratory/platforma-clonotype-clustering",
       "docs": "https://github.com/milaboratory/platforma-clonotype-clustering/docs",
       "support": "mailto:support@milaboratories.com",
-      "description": "Block to cluster clonotypes based on CDR3 aa sequence.",
+      "description": "Fast clonotype clustering based on CDR3 aa sequence.",
       "longDescription": "file:../docs/description.md",
       "changelog": "file:../CHANGELOG.md",
-      "tags": ["downstream", "clustering"],
+      "tags": [
+        "airr",
+        "downstream", 
+        "clustering"
+      ],
       "organization": {
         "name": "MiLaboratories Inc",
         "url": "https://milaboratories.com/",
