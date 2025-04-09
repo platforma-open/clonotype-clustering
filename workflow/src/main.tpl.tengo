@@ -1,0 +1,177 @@
+// "hello world"
+wf := import("@platforma-sdk/workflow-tengo:workflow")
+exec := import("@platforma-sdk/workflow-tengo:exec")
+assets:= import("@platforma-sdk/workflow-tengo:assets")
+xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
+text := import("text")
+pframes := import("@platforma-sdk/workflow-tengo:pframes")
+pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
+
+pfClustersConv := import(":pf-clusters-conv")
+pfUMAPConv := import(":pf-umap-conv")
+pfTSNEConv := import(":pf-tsne-conv")
+pfMetricsConv := import(":pf-metrics-conv")
+
+wf.prepare(func(args) {
+
+	clonotypingRunId := args.clonotypingRunId
+	dataType := args.dataType
+	chain := args.chain
+	
+	// Get Pcolumns matching the specified values
+	query := func(label) {
+		// define elements to search in domain sections
+		domain := {
+					"pl7.app/vdj/clonotypingRunId": clonotypingRunId,
+					"pl7.app/alphabet": "aminoacid",
+					"pl7.app/vdj/feature": "CDR3"
+					}
+		if dataType == "bulk" {
+			domain["pl7.app/vdj/chain"] = chain
+		} else if dataType == "singleCell" {
+			domain["pl7.app/vdj/scClonotypeChain/index"] = "primary"
+		} 
+		// else if dataType == "scFv" {
+		// 	// scFv has chain info both in label and domain, so we might skip this
+		// 	domain["pl7.app/vdj/scClonotypeChain"] = specificChain
+		// }
+
+		// define whole query 
+		r := {
+			type: "And",
+			operands:  [
+				// Exact match in annotation field
+				{
+					type: "Annotation",
+					annotation: "pl7.app/label",
+					value: label
+				},
+				// Exact match in elements defined before in domain fields
+				{
+					type: "Domain",
+					domain: domain,
+					domainExactMatch: false
+				}
+			]
+		}
+
+		return r
+	}
+	
+	ops := {
+		single: true
+	}
+
+	// Defined different returns for single-cell and bulk 
+	if dataType == "singleCell" {
+		// In single-cell datasets have info for both chains and user can 
+		// define specific chain or both
+		outputs := {}
+		if chain == "Both chains" {
+				outputs["selectedChains1"] = wf.query(query("Heavy CDR3 aa Primary"), ops) 
+				outputs["selectedChains2"] = wf.query(query("Light CDR3 aa Primary"), ops)
+		} else {
+			outputs["selectedChains"] = wf.query(query(chain), ops) 
+		}
+		return  outputs
+
+	} else if dataType == "scFv" {
+		// In scFv datasets datasets have info for both chains and user can 
+		// define specific chain or both
+		outputs := {}
+		if chain == "Both chains" {
+				outputs["selectedChains1"] = wf.query(query("CDR3 aa (heavy)"), ops) 
+				outputs["selectedChains2"] = wf.query(query("CDR3 aa (light)"), ops)
+		} else {
+			outputs["selectedChains"] = wf.query(query(chain), ops) 
+		}
+		return  outputs
+
+	} else if dataType == "bulk" {
+		// In bulk datasets usually are split by chain and users main 
+		// selection already indicates it
+		return  { 
+			selectedChains: wf.query(query("CDR3 aa"), ops)
+		}
+	} 
+})
+
+wf.body(func(args) {
+	clonotypingRunId := args.clonotypingRunId
+	chain := args.chain
+	dataType := args.dataType
+	metric := args.metric
+	resolution := args.resolution
+
+	// Convert chain selection to Pframe
+	selectedChainsPf := []
+	selectedChainsSpec := {}
+	if dataType == "bulk" {
+		selectedChains := args.selectedChains
+		selectedChainsSpec = selectedChains.spec
+
+		selectedChainsPf = [selectedChains]
+	} else {
+		selectedChainsSpec = args.selectedChains1.spec
+		if chain == "Both chains" {
+			selectedChainsPf = [args.selectedChains1, args.selectedChains2]
+		} else {
+			selectedChainsPf = [args.selectedChains]
+		}
+		
+	}
+	
+	csv := xsv.exportFrame(selectedChainsPf, "csv", {})
+
+	// get sequence ID labels (future column names)
+	sequenceIds := []
+	for pcol in selectedChainsPf {
+		sequenceIds = sequenceIds + [pcol.spec.annotations["pl7.app/label"]]
+	}
+
+	clonotypeClustering := exec.builder().
+		software(assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:clonotype-clustering")).
+		addFile("input.csv", csv).
+		arg("--input").arg("input.csv").
+		arg("--seq_column").arg(string(sequenceIds)).
+		arg("--output_clusters").arg("clusters.csv").
+		arg("--output_umap").arg("umap.csv").
+		arg("--output_tsne").arg("tsne.csv").
+		arg("--metric").arg(metric).
+		arg("--resolution").arg(string(resolution)).
+		saveFile("clusters.csv").
+		saveFile("umap.csv").
+		// saveFile("tsne.csv").
+		saveFile("cluster_summary_metrics.csv").
+		printErrStreamToStdout().
+		saveStdoutContent().
+		cache(24 * 60 * 60 * 1000).
+		run()
+
+	clustersImportParams := pfClustersConv.getColumns(selectedChainsSpec, resolution, metric)
+	clustersPf := xsv.importFile(clonotypeClustering.getFile("clusters.csv"), "csv", clustersImportParams)
+
+	UMAPImportParams := pfUMAPConv.getColumns(selectedChainsSpec, metric)
+	UMAPPf := xsv.importFile(clonotypeClustering.getFile("umap.csv"), "csv", UMAPImportParams)
+
+	// TSNEImportParams := pfTSNEConv.getColumns(selectedChainsSpec, metric)
+	// TSNEPf := xsv.importFile(clonotypeClustering.getFile("tsne.csv"), "csv", TSNEImportParams)
+
+	metricsImportParams := pfMetricsConv.getColumns(selectedChainsSpec, metric)
+	metricsPf := xsv.importFile(clonotypeClustering.getFile("cluster_summary_metrics.csv"), "csv", metricsImportParams)
+
+	return {
+		outputs: {
+			clustersPf: pframes.exportFrame(clustersPf),
+			UMAPPf: pframes.exportFrame(UMAPPf),
+			metricsPf: pframes.exportFrame(metricsPf)
+		},
+		exports: {
+			clustersPf: {
+				spec: clustersPf["clonotypeCluster.spec"],
+				data: clustersPf["clonotypeCluster.data"]
+			}
+		}
+	}
+})
+

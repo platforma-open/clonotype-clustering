@@ -1,0 +1,50 @@
+{
+  "name": "@platforma-open/milaboratories.clonotype-clustering",
+  "version": "1.0.0",
+  "scripts": {
+    "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json,vue}\"",
+    "build": "rm -rf ./block-pack && block-tools pack",
+    "mark-stable": "block-tools mark-stable -r 's3://milab-euce1-prod-pkgs-s3-block-registry/pub/releases/?region=eu-central-1'",
+    "prepublishOnly": "block-tools pack && block-tools publish -r 's3://milab-euce1-prod-pkgs-s3-block-registry/pub/releases/?region=eu-central-1'"
+  },
+  "files": [
+    "index.d.ts",
+    "index.js"
+  ],
+  "dependencies": {
+    "@platforma-open/milaboratories.clonotype-clustering.workflow": "workspace:*",
+    "@platforma-open/milaboratories.clonotype-clustering.model": "workspace:*",
+    "@platforma-open/milaboratories.clonotype-clustering.ui": "workspace:*"
+  },
+  "block": {
+    "components": {
+      "workflow": "@platforma-open/milaboratories.clonotype-clustering.workflow/dist/tengo/tpl/main.plj.gz",
+      "model": "@platforma-open/milaboratories.clonotype-clustering.model/dist/model.json",
+      "ui": "@platforma-open/milaboratories.clonotype-clustering.ui/dist"
+    },
+    "meta": {
+      "title": "Clonotype clustering",
+      "logo": "file:../logos/block-logo.png",
+      "url": "https://github.com/milaboratory/platforma-clonotype-clustering",
+      "docs": "https://github.com/milaboratory/platforma-clonotype-clustering/docs",
+      "support": "mailto:support@milaboratories.com",
+      "description": "Fast clonotype clustering based on CDR3 aa sequence.",
+      "longDescription": "file:../docs/description.md",
+      "changelog": "file:../CHANGELOG.md",
+      "tags": [
+        "airr",
+        "downstream", 
+        "clustering"
+      ],
+      "organization": {
+        "name": "MiLaboratories Inc",
+        "url": "https://milaboratories.com/",
+        "logo": "file:../logos/organization-logo.png"
+      }
+    }
+  },
+  "devDependencies": {
+    "@platforma-sdk/block-tools": "catalog:"
+  },
+  "packageManager": "pnpm@9.12.0"
+}
