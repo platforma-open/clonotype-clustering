@@ -13,6 +13,7 @@
     "@platforma-open/milaboratories.clonotype-clustering.model": "workspace:*",
     "@platforma-sdk/ui-vue": "catalog:",
     "@platforma-sdk/model": "catalog:",
+    "@milaboratories/graph-maker": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
-import type { InferOutputsType, PColumn, PColumnSpec, PlDataTableState, PlRef, PObjectSpec, TreeNodeAccessor } from '@platforma-sdk/model';
-import { BlockModel, isPColumnSpec } from '@platforma-sdk/model';
+import type { GraphMakerState } from '@milaboratories/graph-maker';
+import type { InferOutputsType, PFrameHandle, PlDataTableState, PlRef, PColumn, PColumnSpec, PObjectSpec, TreeNodeAccessor } from '@platforma-sdk/model';
+import { BlockModel, createPFrameForGraphs, isPColumnSpec } from '@platforma-sdk/model';
 
 export type BlockArgs = {
   name?: string;
@@ -7,12 +8,15 @@ export type BlockArgs = {
   clonotypingRunId?: string;
   chain?: string;
   dataType?: string;
+  title?: string;
 };
 
 export type UiState = {
   title?: string;
   tableState: PlDataTableState;
   settingsOpen: boolean;
+  graphStateUMAP: GraphMakerState;
+  graphStateTSNE: GraphMakerState;
 };
 
 export const model = BlockModel.create()
@@ -24,6 +28,14 @@ export const model = BlockModel.create()
     settingsOpen: true,
     tableState: {
       gridState: {},
+    },
+    graphStateUMAP: {
+      title: 'UMAP',
+      template: 'dots',
+    },
+    graphStateTSNE: {
+      title: 'tSNE',
+      template: 'dots',
     },
   })
 
@@ -65,7 +77,39 @@ export const model = BlockModel.create()
     return ctx.resultPool.getPColumnSpecByRef(ctx.args.inputAnchor);
   })
 
-  .sections((_ctx) => [{ type: 'link', href: '/', label: 'Main' }])
+  .output('clustersPf', (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return createPFrameForGraphs(ctx, pCols);
+  })
+
+  .output('UMAPPf', (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.outputs?.resolve('UMAPPf')?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return createPFrameForGraphs(ctx, pCols);
+  })
+
+// .output('TSNEPf', (ctx): PFrameHandle | undefined => {
+//   const pCols = ctx.outputs?.resolve('TSNEPf')?.getPColumns();
+//   if (pCols === undefined) {
+//     return undefined;
+//   }
+
+//   return createPFrameForGraphs(ctx, pCols);
+// })
+
+  .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
+
+  .sections((_ctx) => ([
+    { type: 'link', href: '/', label: 'Main' },
+    { type: 'link', href: '/umap', label: 'UMAP' },
+  ]))
 
   .done();
 

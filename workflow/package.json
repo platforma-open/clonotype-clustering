@@ -9,10 +9,13 @@
     "format": "/usr/bin/env emacs --script ./format.el"
   },
   "dependencies": {
-    "@platforma-sdk/workflow-tengo": "catalog:"
+    "@platforma-sdk/workflow-tengo": "catalog:",
+    "@platforma-open/milaboratories.clonotype-clustering.software": "workspace:*"
   },
   "devDependencies": {
     "@platforma-sdk/tengo-builder": "catalog:",
+    "@platforma-sdk/workflow-tengo": "catalog:",
+    "@milaboratories/software-pframes-conv": "catalog:",
     "@platforma-sdk/test": "catalog:",
     "vitest": "catalog:"
   }
