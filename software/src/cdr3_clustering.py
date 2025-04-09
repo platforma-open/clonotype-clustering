@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import scanpy as sc
 import umap
+from sklearn.neighbors import NearestNeighbors
 from joblib import Parallel, delayed
 import parasail
 from rapidfuzz.distance import Levenshtein
@@ -18,16 +19,36 @@ def compute_levenshtein(seq1, seq2):
     return Levenshtein.distance(seq1, seq2)
 
 def compute_alignment(seq1, seq2):
-    result = parasail.nw_trace_scan_16(seq1, seq2, parasail.blosum62)
-    return -result.score  # Negative score to treat as distance
+    # Global alignment with BLOSUM62, normalized
+    result = parasail.nw_trace_scan_16(seq1, seq2, 10, 1, parasail.blosum62)
+    score = result.score
+    max_len = max(len(seq1), len(seq2))
+    max_score = max_len * parasail.blosum62.max
+    normalized_score = score / max_score if max_score != 0 else 0
+    distance = 1 - normalized_score  # Now, 0 = identical, 1 = maximally different
+    return distance
 
-def select_metric_function(metric_name):
-    if metric_name == "levenshtein":
-        return compute_levenshtein
-    elif metric_name == "alignment":
-        return compute_alignment
-    else:
-        raise ValueError(f"Unsupported metric {metric_name}")
+def build_distance_matrix(sequences, metric, n_jobs=-1):
+    n = len(sequences)
+    dist_matrix = np.zeros((n, n))
+    
+    def compute_row(i):
+        row = np.zeros(n)
+        for j in range(i):
+            if metric == "levenshtein":
+                row[j] = compute_levenshtein(sequences[i], sequences[j])
+            elif metric == "alignment":
+                row[j] = compute_alignment(sequences[i], sequences[j])
+        return i, row
+
+    results = Parallel(n_jobs=n_jobs)(delayed(compute_row)(i) for i in tqdm(range(n)))
+    
+    for i, row in results:
+        dist_matrix[i, :i] = row[:i]
+    
+    dist_matrix = dist_matrix + dist_matrix.T
+    np.fill_diagonal(dist_matrix, 0)
+    return dist_matrix
 
 # ---------------------- Main script ---------------------- #
 
@@ -37,8 +58,8 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
     df = pd.read_csv(input_file)
 
     # Rename columns
-    df = df.rename(columns={"Clonotype key": "clonotype_id", "SC Clonotype key": "clonotype_id"})
-
+    df = df.rename(columns={"Clonotype key": "clonotype_id",
+                            "SC Clonotype key": "clonotype_id"})
     renameDict = {}
     for colname in seq_column:
         if 'heavy' in colname.lower():
@@ -52,53 +73,51 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
     df = df.rename(columns=renameDict)
     allColumns = list(renameDict.values())
 
-    # Apply filters
+    # Prepare sequences
     if len(allColumns) == 1:
         colname = allColumns[0]
         sequences = df[colname].dropna()
-
     elif len(allColumns) == 2:
         df.replace(np.nan, '', inplace=True)
-        sequences = df.apply(lambda x: (x.get("cdr3_heavy", "") or "") + (x.get("cdr3_light", "") or ""), axis=1)
+        sequences = df.apply(lambda x: (x["cdr3_heavy"] or "") + (x["cdr3_light"] or ""), axis=1)
         sequences = sequences.replace('', np.nan).dropna()
-
     else:
         raise ValueError("Input CSV format not recognized. Unexpected number of chain columns")
-
+    
     clonotype_ids = df.loc[sequences.index, "clonotype_id"]
 
+    # Warn about missing sequences
     dropped = len(df) - len(sequences)
     if dropped > 0:
         print(f"Warning: Dropped {dropped} entries with missing CDR3 sequences.")
 
     print(f"Number of sequences after filtering: {len(sequences)}")
 
+    # Adjust n_neighbors dynamically
     n_sequences = len(sequences)
     n_neighbors = max(5, min(20, n_sequences // 100))
     print(f"Setting n_neighbors to {n_neighbors} based on {n_sequences} sequences.")
 
-    # Compute UMAP directly with custom distance
-    metric_function = select_metric_function(metric)
+    # Compute distance matrix
+    print(f"Computing {metric} distance matrix for {n_sequences} sequences...")
+    dist_matrix = build_distance_matrix(sequences.tolist(), metric=metric)
 
-    print(f"Computing UMAP with {metric} metric...")
-    umap_model = umap.UMAP(
-        metric=lambda x, y: metric_function(x[0], y[0]),
-        n_neighbors=n_neighbors,
-        random_state=42
-    )
-    X_umap = umap_model.fit_transform(sequences.values.reshape(-1, 1))
-
-    # Compute tSNE
-    print("Running tSNE...")
-    tsne_model = sc.tl.tsne(sc.AnnData(X=np.zeros((len(sequences), 1))), random_state=42, copy=True)
-    X_tsne = tsne_model.obsm["X_tsne"]
-
-    # Cluster using UMAP graph
-    print("Building kNN graph for clustering...")
-    adata = sc.AnnData(X=X_umap)
+    # Create AnnData object
+    adata = sc.AnnData(X=dist_matrix)
     adata.obs["clonotype_id"] = clonotype_ids.values
-    sc.pp.neighbors(adata, use_rep="X", n_neighbors=n_neighbors)
 
+    # Build neighbors graph
+    print("Building kNN graph...")
+    sc.pp.neighbors(adata, use_rep="X", metric="precomputed", n_neighbors=n_neighbors)
+
+    # Dimensionality reduction
+    print("Running UMAP...")
+    sc.tl.umap(adata)
+
+    print("Running tSNE...")
+    sc.tl.tsne(adata)
+
+    # Clustering
     print("Running Leiden clustering...")
     sc.tl.leiden(adata, resolution=resolution)
 
@@ -111,15 +130,15 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
 
     umap_df = pd.DataFrame({
         "clonotype_id": adata.obs["clonotype_id"].values,
-        "UMAP_1": X_umap[:, 0],
-        "UMAP_2": X_umap[:, 1],
+        "UMAP_1": adata.obsm["X_umap"][:, 0],
+        "UMAP_2": adata.obsm["X_umap"][:, 1],
     })
     umap_df.to_csv(output_umap, index=False)
 
     tsne_df = pd.DataFrame({
         "clonotype_id": adata.obs["clonotype_id"].values,
-        "tSNE_1": X_tsne[:, 0],
-        "tSNE_2": X_tsne[:, 1],
+        "tSNE_1": adata.obsm["X_tsne"][:, 0],
+        "tSNE_2": adata.obsm["X_tsne"][:, 1],
     })
     tsne_df.to_csv(output_tsne, index=False)
 
