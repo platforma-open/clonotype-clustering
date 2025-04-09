@@ -1,6 +1,6 @@
 import type { GraphMakerState } from '@milaboratories/graph-maker';
-import type { InferOutputsType, PFrameHandle, PlDataTableState, PlRef, PColumn, PColumnSpec, PObjectSpec, TreeNodeAccessor } from '@platforma-sdk/model';
-import { BlockModel, createPFrameForGraphs, isPColumnSpec } from '@platforma-sdk/model';
+import type { InferOutputsType, PFrameHandle, PlDataTableState, PlRef } from '@platforma-sdk/model';
+import { BlockModel, createPFrameForGraphs, createPlDataTable, isPColumnSpec } from '@platforma-sdk/model';
 
 export type BlockArgs = {
   name?: string;
@@ -103,6 +103,24 @@ export const model = BlockModel.create()
 
 //   return createPFrameForGraphs(ctx, pCols);
 // })
+
+  .output('clustersTable', (ctx) => {
+    const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return createPlDataTable(ctx, pCols, ctx.uiState?.tableState);
+  })
+
+  .output('test', (ctx) => {
+    const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return pCols;
+  })
 
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 

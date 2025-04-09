@@ -46,7 +46,7 @@ def build_distance_matrix(sequences, metric, n_jobs=-1):
 
 # ---------------------- Main script ---------------------- #
 
-def main(input_file, output_clusters, output_umap, output_tsne, metric, resolution, chain):
+def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metric, resolution, chain):
 
     # Load data
     df = pd.read_csv(input_file)
@@ -66,11 +66,11 @@ def main(input_file, output_clusters, output_umap, output_tsne, metric, resoluti
         else:
             raise ValueError(f"Invalid input columns: {', '.join(colname)}")
     df = df.rename(columns=renameDict)
-    allColumns = renameDict.values()
+    allColumns = list(renameDict.values())
 
     # Apply filters
     if len(allColumns) == 1:
-        colname = allColumns[1]
+        colname = allColumns[0]
         sequences = df[colname].dropna()
 
     elif len(allColumns) == 2:

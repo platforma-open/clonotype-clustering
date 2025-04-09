@@ -10,10 +10,10 @@ import { PlBlockPage,
   PlDropdownRef,
   PlDropdown,
   listToOptions } from '@platforma-sdk/ui-vue';
-import type { PlRef, PTableColumnSpec } from '@platforma-sdk/model';
+import type { PlRef } from '@platforma-sdk/model';
 import { plRefsEqual } from '@platforma-sdk/model';
 import { useApp } from '../app';
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 
 const app = useApp();
 
@@ -45,14 +45,10 @@ const chainOptions = computed(() => {
   return listToOptions(options);
 });
 
-const tableSettings = computed<PlDataTableSettings | undefined>(() =>
-  app.model.args.inputAnchor
-    ? {
-        sourceType: 'ptable',
-        pTable: app.model.outputs.table,
-      }
-    : undefined,
-);
+const tableSettings = computed<PlDataTableSettings>(() => ({
+  sourceType: 'ptable',
+  pTable: app.model.outputs.clustersTable,
+}));
 
 // If input dataset changes we check again if data is bulk or single cell
 watch(() => app.model.outputs.anchorSpecs, (_) => {
@@ -77,7 +73,6 @@ watch(() => app.model.outputs.anchorSpecs, (_) => {
   }
 });
 
-const columns = ref<PTableColumnSpec[]>([]);
 </script>
 
 <template>
@@ -96,12 +91,10 @@ const columns = ref<PTableColumnSpec[]>([]);
     </template>
     <div style="flex: 1">
       <PlAgDataTable
-        ref="tableInstance"
         v-model="app.model.ui.tableState"
         :settings="tableSettings"
         show-columns-panel
         show-export-button
-        @columns-changed="(newColumns) => (columns = newColumns)"
       />
     </div>
   </PlBlockPage>
