@@ -89,27 +89,25 @@ watch(() => app.model.outputs.anchorSpecs, (_) => {
         </template>
       </PlBtnGhost>
     </template>
-    <div style="flex: 1">
-      <PlAgDataTable
-        v-model="app.model.ui.tableState"
-        :settings="tableSettings"
-        show-columns-panel
-        show-export-button
-      />
-    </div>
-  </PlBlockPage>
-  <PlSlideModal v-model="app.model.ui.settingsOpen" :close-on-outside-click="true">
-    <template #title>Settings</template>
-    <PlDropdownRef
-      :options="app.model.outputs.inputOptions"
-      :model-value="app.model.args.inputAnchor"
-      label="Select dataset"
-      clearable
-      @update:model-value="setAnchorColumn"
+    <PlAgDataTable
+      v-model="app.model.ui.tableState"
+      :settings="tableSettings"
+      show-columns-panel
+      show-export-button
     />
-    <!-- Bulk datasets are splitted by chain, only allow selection in single-cell -->
-    <template v-if="['singleCell', 'scFv'].includes(app.model.args.dataType ?? '')">
-      <PlDropdown v-model="app.model.args.chain" :options="chainOptions" label="Define clustering chain" />
-    </template>
-  </PlSlideModal>
+    <PlSlideModal v-model="app.model.ui.settingsOpen" :close-on-outside-click="true">
+      <template #title>Settings</template>
+      <PlDropdownRef
+        :options="app.model.outputs.inputOptions"
+        :model-value="app.model.args.inputAnchor"
+        label="Select dataset"
+        clearable
+        @update:model-value="setAnchorColumn"
+      />
+      <!-- Bulk datasets are splitted by chain, only allow selection in single-cell -->
+      <template v-if="['singleCell', 'scFv'].includes(app.model.args.dataType ?? '')">
+        <PlDropdown v-model="app.model.args.chain" :options="chainOptions" label="Define clustering chain" />
+      </template>
+    </PlSlideModal>
+  </PlBlockPage>
 </template>
