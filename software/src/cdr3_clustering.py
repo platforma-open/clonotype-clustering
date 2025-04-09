@@ -2,8 +2,8 @@ import argparse
 import pandas as pd
 import numpy as np
 import scanpy as sc
-import umap
 from sklearn.neighbors import NearestNeighbors
+from scipy.sparse import csr_matrix
 from joblib import Parallel, delayed
 import parasail
 from rapidfuzz.distance import Levenshtein
@@ -25,7 +25,7 @@ def compute_alignment(seq1, seq2):
     max_len = max(len(seq1), len(seq2))
     max_score = max_len * parasail.blosum62.max
     normalized_score = score / max_score if max_score != 0 else 0
-    distance = 1 - normalized_score  # Now, 0 = identical, 1 = maximally different
+    distance = 1 - normalized_score  # 0 = identical, 1 = maximally different
     return distance
 
 def build_distance_matrix(sequences, metric, n_jobs=-1):
@@ -57,7 +57,7 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
     # Load data
     df = pd.read_csv(input_file)
 
-    # Rename columns
+    # Rename columns dynamically
     df = df.rename(columns={"Clonotype key": "clonotype_id",
                             "SC Clonotype key": "clonotype_id"})
     renameDict = {}
@@ -73,17 +73,33 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
     df = df.rename(columns=renameDict)
     allColumns = list(renameDict.values())
 
+    # Auto-set default chain
+    if chain is None:
+        if len(allColumns) == 2:
+            chain = "both"
+        else:
+            chain = "heavy"
+            print("⚠️ Only one chain column provided. Defaulting to heavy chain (use --chain light to override).")
+
     # Prepare sequences
-    if len(allColumns) == 1:
-        colname = allColumns[0]
-        sequences = df[colname].dropna()
-    elif len(allColumns) == 2:
+    if chain == "both":
+        if len(allColumns) != 2:
+            raise ValueError("Both chains selected but only one chain column provided.")
         df.replace(np.nan, '', inplace=True)
         sequences = df.apply(lambda x: (x["cdr3_heavy"] or "") + (x["cdr3_light"] or ""), axis=1)
-        sequences = sequences.replace('', np.nan).dropna()
+    elif chain == "heavy":
+        if "cdr3_heavy" in df.columns:
+            sequences = df["cdr3_heavy"]
+        elif "cdr3" in df.columns:
+            sequences = df["cdr3"]  # ⭐ <--- Bulk support: use "cdr3" if no "cdr3_heavy"
+        else:
+            raise ValueError("Heavy chain data not found.")
+    elif chain == "light":
+        sequences = df["cdr3_light"]
     else:
-        raise ValueError("Input CSV format not recognized. Unexpected number of chain columns")
-    
+        raise ValueError(f"Invalid chain: {chain}")
+
+    sequences = sequences.replace('', np.nan).dropna()
     clonotype_ids = df.loc[sequences.index, "clonotype_id"]
 
     # Warn about missing sequences
@@ -106,9 +122,22 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
     adata = sc.AnnData(X=dist_matrix)
     adata.obs["clonotype_id"] = clonotype_ids.values
 
-    # Build neighbors graph
-    print("Building kNN graph...")
-    sc.pp.neighbors(adata, use_rep="X", metric="precomputed", n_neighbors=n_neighbors)
+    # Build neighbors manually
+    print("Building kNN graph manually...")
+    nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric="precomputed").fit(dist_matrix)
+    knn_graph = nbrs.kneighbors_graph(dist_matrix, mode="connectivity")
+    adata.obsp["connectivities"] = csr_matrix(knn_graph)
+
+    # ✨ Important: manually fill .uns["neighbors"]
+    adata.uns["neighbors"] = {
+        "connectivities_key": "connectivities",
+        "distances_key": "connectivities",
+        "params": {
+            "n_neighbors": n_neighbors,
+            "method": "manual",
+            "metric": "precomputed",
+        }
+    }
 
     # Dimensionality reduction
     print("Running UMAP...")
@@ -149,13 +178,13 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Cluster CDR3 sequences based on Levenshtein or Alignment distances.")
     parser.add_argument("--input", required=True, help="Input CSV file")
-    parser.add_argument("--seq_column", required=True, help="Json string with a list of the names of the columns with the sequence information")
+    parser.add_argument("--seq_column", required=True, help="Json string with list of columns with sequence information")
     parser.add_argument("--output_clusters", required=True, help="Output CSV with cluster assignments")
     parser.add_argument("--output_umap", required=True, help="Output CSV with UMAP coordinates")
     parser.add_argument("--output_tsne", required=True, help="Output CSV with tSNE coordinates")
     parser.add_argument("--metric", default="alignment", choices=["alignment", "levenshtein"], help="Distance metric to use")
     parser.add_argument("--resolution", type=float, default=1.0, help="Resolution parameter for Leiden clustering")
-    parser.add_argument("--chain", default="both", choices=["both", "heavy", "light"], help="For single-cell data, which chains to use")
+    parser.add_argument("--chain", default=None, choices=["both", "heavy", "light"], help="Which chains to use (both/heavy/light)")
     args = parser.parse_args()
 
     main(
