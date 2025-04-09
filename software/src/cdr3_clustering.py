@@ -9,6 +9,7 @@ import parasail
 from rapidfuzz.distance import Levenshtein
 from tqdm import tqdm
 import warnings
+import json
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -49,31 +50,38 @@ def main(input_file, output_clusters, output_umap, output_tsne, metric, resoluti
 
     # Load data
     df = pd.read_csv(input_file)
-    columns = df.columns
-
-    # Determine if bulk or single-cell
-    if {"Clonotype key", "CDR3 aa"}.issubset(columns):
-        print("Detected BULK dataset.")
-        df = df.rename(columns={"Clonotype key": "clonotype_id", "CDR3 aa": "cdr3"})
-        sequences = df["cdr3"].dropna()
-        clonotype_ids = df.loc[sequences.index, "clonotype_id"]
-    elif {"SC Clonotype key", "Heavy CDR3 aa Primary", "Light CDR3 aa Primary"}.issubset(columns):
-        print("Detected SINGLE-CELL dataset.")
-        df = df.rename(columns={"SC Clonotype key": "clonotype_id",
-                                "Heavy CDR3 aa Primary": "cdr3_heavy",
-                                "Light CDR3 aa Primary": "cdr3_light"})
-        if chain == "heavy":
-            sequences = df["cdr3_heavy"].dropna()
-        elif chain == "light":
-            sequences = df["cdr3_light"].dropna()
-        elif chain == "both":
-            sequences = df.apply(lambda x: (x["cdr3_heavy"] or "") + (x["cdr3_light"] or ""), axis=1)
-            sequences = sequences.replace('', np.nan).dropna()
+    
+    # rename columns
+    ## First Id
+    df = df.rename(columns={"Clonotype key": "clonotype_id"})
+    ## Then additional columns
+    renameDict = {}
+    for colname in seq_column:
+        if 'heavy' in colname.lower():
+            renameDict[colname] = "cdr3_heavy"
+        elif 'light' in colname.lower():
+            renameDict[colname] = "cdr3_light"
+        elif colname == "CDR3 aa":
+            renameDict[colname] = "cdr3"
         else:
-            raise ValueError(f"Invalid chain choice: {chain}")
-        clonotype_ids = df.loc[sequences.index, "clonotype_id"]
+            raise ValueError(f"Invalid input columns: {', '.join(colname)}")
+    df = df.rename(columns=renameDict)
+    allColumns = renameDict.values()
+
+    # Apply filters
+    if len(allColumns) == 1:
+        colname = allColumns[1]
+        sequences = df[colname].dropna()
+
+    elif len(allColumns) == 2:
+        sequences = df.apply(lambda x: (x["cdr3_heavy"] or "") + (x["cdr3_light"] or ""), axis=1)
+        sequences = sequences.replace('', np.nan).dropna()
+
     else:
-        raise ValueError("Input CSV format not recognized.")
+        raise ValueError("Input CSV format not recognized. Unexpected number of chain columns")
+    
+    clonotype_ids = df.loc[sequences.index, "clonotype_id"]
+
 
     # Warn about missing sequences
     dropped = len(df) - len(sequences)
@@ -136,6 +144,7 @@ def main(input_file, output_clusters, output_umap, output_tsne, metric, resoluti
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Cluster CDR3 sequences based on Levenshtein or Alignment distances.")
     parser.add_argument("--input", required=True, help="Input CSV file")
+    parser.add_argument("--seq_column", required=True, help="Json string with a list of the names of the columns with the sequence information")
     parser.add_argument("--output_clusters", required=True, help="Output CSV with cluster assignments")
     parser.add_argument("--output_umap", required=True, help="Output CSV with UMAP coordinates")
     parser.add_argument("--output_tsne", required=True, help="Output CSV with tSNE coordinates")
@@ -146,6 +155,7 @@ if __name__ == "__main__":
 
     main(
         input_file=args.input,
+        seq_column=json.loads(args.seq_column),
         output_clusters=args.output_clusters,
         output_umap=args.output_umap,
         output_tsne=args.output_tsne,
