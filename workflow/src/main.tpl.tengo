@@ -146,8 +146,6 @@ wf.body(func(args) {
 		cache(24 * 60 * 60 * 1000).
 		run()
 
-
-
 	clustersImportParams := pfClustersConv.getColumns(selectedChainsSpec, resolution, metric)
 	clustersPf := xsv.importFile(clonotypeClustering.getFile("clusters.csv"), "csv", clustersImportParams)
 
@@ -156,15 +154,6 @@ wf.body(func(args) {
 
 	// TSNEImportParams := pfTSNEConv.getColumns(selectedChainsSpec, metric)
 	// TSNEPf := xsv.importFile(clonotypeClustering.getFile("tsne.csv"), "csv", TSNEImportParams)
-
-	testcsv := xsv.exportFrame(UMAPPf, "csv", {})
-	testCmd := exec.builder().
-		cmd("sleep 100").
-		addFile("input.csv", testcsv).
-		saveFile("input.csv").
-		run()
-
-	result := testCmd.getFile("input.csv")
 
 	return {
 		outputs: {

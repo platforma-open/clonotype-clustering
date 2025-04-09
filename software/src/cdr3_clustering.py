@@ -53,7 +53,8 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
     
     # rename columns
     ## First Id
-    df = df.rename(columns={"Clonotype key": "clonotype_id"})
+    df = df.rename(columns={"Clonotype key": "clonotype_id",
+                            "SC Clonotype key": "clonotype_id"})
     ## Then additional columns
     renameDict = {}
     for colname in seq_column:
@@ -74,6 +75,10 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
         sequences = df[colname].dropna()
 
     elif len(allColumns) == 2:
+        # scFv empty data is returned as NaN wheres MiXCR returns empty string
+        # Lets make all equal
+        df.replace(np.nan, '', inplace = True)
+        # Now concatenate
         sequences = df.apply(lambda x: (x["cdr3_heavy"] or "") + (x["cdr3_light"] or ""), axis=1)
         sequences = sequences.replace('', np.nan).dropna()
 
