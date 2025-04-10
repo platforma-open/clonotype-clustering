@@ -59,7 +59,8 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
 
     # Rename columns dynamically
     df = df.rename(columns={"Clonotype key": "clonotype_id",
-                            "SC Clonotype key": "clonotype_id"})
+                            "SC Clonotype key": "clonotype_id",
+                            "Clone label": "clonotype_id"})
     renameDict = {}
     for colname in seq_column:
         if 'heavy' in colname.lower():

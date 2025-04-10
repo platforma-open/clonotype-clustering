@@ -59,7 +59,9 @@ watch(() => app.model.outputs.anchorSpecs, (_) => {
   } else {
     if (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'molecules') {
       app.model.args.dataType = 'bulk';
-      app.model.args.chain = app.model.outputs.anchorSpecs?.domain?.['pl7.app/vdj/chain'];
+      app.model.args.chain = app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/chain'];
+      // old
+      // app.model.args.chain = app.model.outputs.anchorSpecs?.domain?.['pl7.app/vdj/chain'];
     } else if (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'cells') {
       app.model.args.dataType = 'singleCell';
       app.model.args.chain = 'Both chains';

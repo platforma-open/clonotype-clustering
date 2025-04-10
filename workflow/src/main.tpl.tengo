@@ -20,21 +20,19 @@ wf.prepare(func(args) {
 	
 	// Get Pcolumns matching the specified values
 	query := func(label) {
+		bulkMatcher := []
 		// define elements to search in domain sections
 		domain := {
-					"pl7.app/vdj/clonotypingRunId": clonotypingRunId,
 					"pl7.app/alphabet": "aminoacid",
 					"pl7.app/vdj/feature": "CDR3"
 					}
-		if dataType == "bulk" {
-			domain["pl7.app/vdj/chain"] = chain
-		} else if dataType == "singleCell" {
+		if dataType == "singleCell" {
+			// Pending to add domain somewhere
+			// ALERT
 			domain["pl7.app/vdj/scClonotypeChain/index"] = "primary"
-		} 
-		// else if dataType == "scFv" {
-		// 	// scFv has chain info both in label and domain, so we might skip this
-		// 	domain["pl7.app/vdj/scClonotypeChain"] = specificChain
-		// }
+		} else if dataType == "scFv" {
+			domain["pl7.app/vdj/clonotypingRunId"] = clonotypingRunId
+		}
 
 		// define whole query 
 		r := {
@@ -55,6 +53,36 @@ wf.prepare(func(args) {
 			]
 		}
 
+		if dataType == "bulk" {
+			// we have to create an axes key matcher
+			bulkMatcher = [{
+								type: "AxesKeys",
+								axesKeys: [
+									{
+									name: "pl7.app/vdj/clonotypeKey",
+									domain: {"pl7.app/vdj/chain": chain},
+									domainExactMatch: false
+									}
+								],
+								partialMatch: true  // true allows subset of axes to match
+							},
+							{
+								type: "AxesKeys",
+								axesKeys: [
+									{
+									name: "pl7.app/vdj/clonotypeKey",
+									domain: {"pl7.app/vdj/clonotypingRunId": clonotypingRunId},
+									domainExactMatch: false
+									}
+								],
+								partialMatch: true  // true allows subset of axes to match
+							}]
+
+			r["operands"] = r["operands"] + bulkMatcher
+			// old version
+			// domain["pl7.app/vdj/chain"] = chain
+			// domain["pl7.app/vdj/clonotypingRunId"] = clonotypingRunId
+		}
 		return r
 	}
 	
@@ -80,8 +108,11 @@ wf.prepare(func(args) {
 		// define specific chain or both
 		outputs := {}
 		if chain == "Both chains" {
-				outputs["selectedChains1"] = wf.query(query("CDR3 aa (heavy)"), ops) 
-				outputs["selectedChains2"] = wf.query(query("CDR3 aa (light)"), ops)
+				outputs["selectedChains1"] = wf.query(query("Heavy CDR3 aa"), ops) 
+				outputs["selectedChains2"] = wf.query(query("Light CDR3 aa"), ops)
+				// old scFv version query
+				// outputs["selectedChains1"] = wf.query(query("CDR3 aa (heavy)"), ops) 
+				// outputs["selectedChains2"] = wf.query(query("CDR3 aa (light)"), ops)
 		} else {
 			outputs["selectedChains"] = wf.query(query(chain), ops) 
 		}
