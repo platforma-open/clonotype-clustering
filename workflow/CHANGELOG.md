@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 1.2.1
+
+### Patch Changes
+
+- ed9c62b: Updated export specifications
+
 ## 1.2.0
 
 ### Minor Changes
