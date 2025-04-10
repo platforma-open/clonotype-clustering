@@ -1,11 +1,11 @@
 ll := import("@platforma-sdk/workflow-tengo:ll")
 
-getColumns := func(selectedChainsSpec, resolution, metric) {
+getColumns := func(combinedSpec, resolution, metric) {
   return {
     "axes": [
       {
         "column": "clonotype_id",
-        "spec": selectedChainsSpec.axesSpec[0]
+        "spec": combinedSpec.axesSpec[0]
       }
       ],
     "columns": [
@@ -16,9 +16,14 @@ getColumns := func(selectedChainsSpec, resolution, metric) {
         "spec": {
           "name": "pl7.app/vdj/clonotypeCluster",
           "valueType": "String",
+          "domain": {
+            "pl7.app/alphabet": combinedSpec.domain["pl7.app/alphabet"],
+            "pl7.app/vdj/feature": combinedSpec.domain["pl7.app/vdj/feature"]
+          },
           "annotations": {
             "pl7.app/label": "Cluster Resolution " + resolution,
-            "pl7.app/vdj/clusteringMetric": metric
+            "pl7.app/vdj/clusteringMetric": metric,
+            "pl7.app/vdj/isScore": "true"
           }
         }
       }
