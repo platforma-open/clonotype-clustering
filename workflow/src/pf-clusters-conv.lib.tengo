@@ -23,7 +23,9 @@ getColumns := func(combinedSpec, resolution, metric) {
           "annotations": {
             "pl7.app/label": "Cluster Resolution " + resolution,
             "pl7.app/vdj/clusteringMetric": metric,
-            "pl7.app/vdj/isScore": "true"
+            "pl7.app/vdj/isScore": "true",
+            "pl7.app/table/orderPriority": "11000",
+            "pl7.app/table/visibility": "default"
           }
         }
       }
