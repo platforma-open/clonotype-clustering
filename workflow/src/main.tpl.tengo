@@ -11,6 +11,7 @@ pfClustersConv := import(":pf-clusters-conv")
 pfUMAPConv := import(":pf-umap-conv")
 pfTSNEConv := import(":pf-tsne-conv")
 pfMetricsConv := import(":pf-metrics-conv")
+json := import("json")
 
 wf.prepare(func(args) {
 
@@ -105,20 +106,54 @@ wf.body(func(args) {
 
 	// Convert chain selection to Pframe
 	selectedChainsPf := []
-	selectedChainsSpec := {}
+	selectedChainsSpec := []
 	if dataType == "bulk" {
 		selectedChains := args.selectedChains
-		selectedChainsSpec = selectedChains.spec
+		selectedChainsSpec = [selectedChains.spec]
 
 		selectedChainsPf = [selectedChains]
 	} else {
-		selectedChainsSpec = args.selectedChains1.spec
+		selectedChainsSpec = [args.selectedChains1.spec, args.selectedChains2.spec]
 		if chain == "Both chains" {
 			selectedChainsPf = [args.selectedChains1, args.selectedChains2]
 		} else {
 			selectedChainsPf = [args.selectedChains]
 		}
 		
+	}
+
+	// Make a copy of one of the specs and fill it with more data
+	combinedSpec := copy(selectedChainsSpec[0])
+
+	// Fill specs
+	// @TODO: update and reduce when old MiXCR and scFv stop to be used
+	if combinedSpec.axesSpec[0].domain["pl7.app/vdj/clonotypingRunId"] == undefined {
+		combinedSpec.axesSpec[0].domain["pl7.app/vdj/clonotypingRunId"] = combinedSpec.domain["pl7.app/vdj/clonotypingRunId"]
+	}
+	// Only bulk data has chain info
+	if combinedSpec.domain["pl7.app/vdj/chain"] != undefined {
+		combinedSpec.axesSpec[0].domain["pl7.app/vdj/chain"] = combinedSpec.domain["pl7.app/vdj/chain"]
+	}
+	// For SC and scFv we can have multiple scClonotypeChain values clustered
+	if combinedSpec.domain["pl7.app/vdj/scClonotypeChain"] != undefined {
+		// we assume the posibility of having concatenated multiple chains from same index
+		if len(selectedChainsSpec) > 1 {
+			tempLabel := []
+			for s in selectedChainsSpec{
+				tempLabel = tempLabel + [s.domain["pl7.app/vdj/scClonotypeChain"]]
+			}
+			combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode(copy(tempLabel)))
+		} else {
+			combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode([combinedSpec.domain["pl7.app/vdj/scClonotypeChain"]]))
+		}
+	}
+	// sc-data has index info but scFv not
+	if combinedSpec.domain["pl7.app/vdj/scClonotypeChain/index"] != undefined {
+		combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain/index"] = combinedSpec.domain["pl7.app/vdj/scClonotypeChain/index"]
+	}
+	// single-cell and scFv data contain receptor information
+	if combinedSpec.domain["pl7.app/vdj/receptor"] != undefined {
+		combinedSpec.axesSpec[0].domain["pl7.app/vdj/receptor"] = combinedSpec.domain["pl7.app/vdj/receptor"]
 	}
 	
 	csv := xsv.exportFrame(selectedChainsPf, "csv", {})
@@ -148,16 +183,16 @@ wf.body(func(args) {
 		cache(24 * 60 * 60 * 1000).
 		run()
 
-	clustersImportParams := pfClustersConv.getColumns(selectedChainsSpec, resolution, metric)
+	clustersImportParams := pfClustersConv.getColumns(combinedSpec, resolution, metric)
 	clustersPf := xsv.importFile(clonotypeClustering.getFile("clusters.csv"), "csv", clustersImportParams)
 
-	UMAPImportParams := pfUMAPConv.getColumns(selectedChainsSpec, metric)
+	UMAPImportParams := pfUMAPConv.getColumns(combinedSpec, metric)
 	UMAPPf := xsv.importFile(clonotypeClustering.getFile("umap.csv"), "csv", UMAPImportParams)
 
-	// TSNEImportParams := pfTSNEConv.getColumns(selectedChainsSpec, metric)
+	// TSNEImportParams := pfTSNEConv.getColumns(combinedSpec, metric)
 	// TSNEPf := xsv.importFile(clonotypeClustering.getFile("tsne.csv"), "csv", TSNEImportParams)
 
-	metricsImportParams := pfMetricsConv.getColumns(selectedChainsSpec, metric)
+	metricsImportParams := pfMetricsConv.getColumns(combinedSpec, metric)
 	metricsPf := xsv.importFile(clonotypeClustering.getFile("cluster_summary_metrics.csv"), "csv", metricsImportParams)
 
 	return {
