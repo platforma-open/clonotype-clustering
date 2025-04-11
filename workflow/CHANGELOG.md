@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 1.3.0
+
+### Minor Changes
+
+- e94a414: spec update
+
 ## 1.2.1
 
 ### Patch Changes
