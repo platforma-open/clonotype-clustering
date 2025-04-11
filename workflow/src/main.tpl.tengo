@@ -133,8 +133,10 @@ wf.body(func(args) {
 	// Only bulk data has chain info
 	if combinedSpec.domain["pl7.app/vdj/chain"] != undefined {
 		combinedSpec.axesSpec[0].domain["pl7.app/vdj/chain"] = combinedSpec.domain["pl7.app/vdj/chain"]
+		// combinedSpec.domain["pl7.app/vdj/chain"] = combinedSpec.domain["pl7.app/vdj/chain"]
 	}
 	// For SC and scFv we can have multiple scClonotypeChain values clustered
+	// @TODO: Move chain info to axis domain? scFv does not have it
 	if combinedSpec.domain["pl7.app/vdj/scClonotypeChain"] != undefined {
 		// we assume the posibility of having concatenated multiple chains from same index
 		if len(selectedChainsSpec) > 1 {
@@ -142,18 +144,24 @@ wf.body(func(args) {
 			for s in selectedChainsSpec{
 				tempLabel = tempLabel + [s.domain["pl7.app/vdj/scClonotypeChain"]]
 			}
-			combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode(copy(tempLabel)))
+			// combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode(copy(tempLabel)))
+			combinedSpec.domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode(copy(tempLabel)))
 		} else {
-			combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode([combinedSpec.domain["pl7.app/vdj/scClonotypeChain"]]))
+			// combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode([combinedSpec.domain["pl7.app/vdj/scClonotypeChain"]]))
+			combinedSpec.domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode([combinedSpec.domain["pl7.app/vdj/scClonotypeChain"]]))
 		}
 	}
 	// sc-data has index info but scFv not
+	// @TODO: Move chain info to axis domain? scFv does not have it
 	if combinedSpec.domain["pl7.app/vdj/scClonotypeChain/index"] != undefined {
-		combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain/index"] = combinedSpec.domain["pl7.app/vdj/scClonotypeChain/index"]
+		// combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain/index"] = combinedSpec.domain["pl7.app/vdj/scClonotypeChain/index"]
+		combinedSpec.domain["pl7.app/vdj/scClonotypeChain/index"] = combinedSpec.domain["pl7.app/vdj/scClonotypeChain/index"]
 	}
 	// single-cell and scFv data contain receptor information
+	// @TODO: Move chain info to axis domain? scFv does not have it
 	if combinedSpec.domain["pl7.app/vdj/receptor"] != undefined {
-		combinedSpec.axesSpec[0].domain["pl7.app/vdj/receptor"] = combinedSpec.domain["pl7.app/vdj/receptor"]
+		// combinedSpec.axesSpec[0].domain["pl7.app/vdj/receptor"] = combinedSpec.domain["pl7.app/vdj/receptor"]
+		combinedSpec.domain["pl7.app/vdj/receptor"] = combinedSpec.domain["pl7.app/vdj/receptor"]
 	}
 	
 	csv := xsv.exportFrame(selectedChainsPf, "csv", {})
