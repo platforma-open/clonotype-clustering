@@ -63,13 +63,11 @@ watch(() => app.model.outputs.anchorSpecs, (_) => {
     } else {
       if (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'cells') {
         app.model.args.dataType = 'singleCell';
-        // app.model.args.chain = 'Both chains';
         app.model.args.receptor = app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/receptor'];
-        // in scFv we work as in single-cell
+        // in scFv we work as in single-cell but never have cells as unit
       } else if ((app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'reads')
         || (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'molecules')) {
         app.model.args.dataType = 'scFv';
-        // app.model.args.chain = 'Both chains';
         app.model.args.receptor = app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/receptor'];
       } else {
         app.model.args.dataType = undefined;
