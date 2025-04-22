@@ -90,10 +90,6 @@ wf.prepare(func(args) {
 		single: true
 	}
 
-	// ll := import("@platforma-sdk/workflow-tengo:ll")
-	// maps := import("@platforma-sdk/workflow-tengo:maps")
-	// ll.panic("%v", query("Heavy CDR3 aa"))
-
 	// Defined different returns for single-cell and bulk 
 	if dataType == "singleCell" {
 		// In single-cell datasets have info for both chains and user can 
