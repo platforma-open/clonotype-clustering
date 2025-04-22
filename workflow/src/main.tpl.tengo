@@ -137,8 +137,6 @@ wf.body(func(args) {
 	if dataType == "bulk" {
 		selectedChainsPf = [args.selectedChains]
 		selectedChainsSpec = [args.selectedChains.spec]
-
-		
 	} else {
 		if chain == "Both chains" {
 			selectedChainsPf = [args.selectedChains1, args.selectedChains2]

@@ -57,23 +57,24 @@ watch(() => app.model.outputs.anchorSpecs, (_) => {
     app.model.args.dataType = undefined;
     app.model.args.chain = undefined;
   } else {
-    if (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'molecules') {
+    if (app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/chain'] !== undefined) {
       app.model.args.dataType = 'bulk';
       app.model.args.chain = app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/chain'];
-      // old
-      // app.model.args.chain = app.model.outputs.anchorSpecs?.domain?.['pl7.app/vdj/chain'];
-    } else if (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'cells') {
-      app.model.args.dataType = 'singleCell';
-      // app.model.args.chain = 'Both chains';
-      app.model.args.receptor = app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/receptor'];
-      // in scFv we work as in single-cell
-    } else if (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'reads') {
-      app.model.args.dataType = 'scFv';
-      // app.model.args.chain = 'Both chains';
-      app.model.args.receptor = app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/receptor'];
     } else {
-      app.model.args.dataType = undefined;
-      app.model.args.chain = undefined;
+      if (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'cells') {
+        app.model.args.dataType = 'singleCell';
+        // app.model.args.chain = 'Both chains';
+        app.model.args.receptor = app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/receptor'];
+        // in scFv we work as in single-cell
+      } else if ((app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'reads')
+        || (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'molecules')) {
+        app.model.args.dataType = 'scFv';
+        // app.model.args.chain = 'Both chains';
+        app.model.args.receptor = app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/receptor'];
+      } else {
+        app.model.args.dataType = undefined;
+        app.model.args.chain = undefined;
+      }
     }
   }
 });
