@@ -59,7 +59,8 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
 
     # Rename columns dynamically
     df = df.rename(columns={"Clonotype key": "clonotype_id",
-                            "SC Clonotype key": "clonotype_id"})
+                            "SC Clonotype key": "clonotype_id",
+                            "Clone label": "clonotype_id"})
     renameDict = {}
     for colname in seq_column:
         if 'heavy' in colname.lower():
@@ -95,7 +96,13 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
         else:
             raise ValueError("Heavy chain data not found.")
     elif chain == "light":
-        sequences = df["cdr3_light"]
+        if "cdr3_light" in df.columns:
+            sequences = df["cdr3_light"]
+        elif "cdr3" in df.columns:
+            sequences = df["cdr3"]
+        else:
+            raise ValueError("Light chain data not found.")
+        
     else:
         raise ValueError(f"Invalid chain: {chain}")
 

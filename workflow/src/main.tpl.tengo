@@ -6,6 +6,7 @@ xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
 text := import("text")
 pframes := import("@platforma-sdk/workflow-tengo:pframes")
 pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
+ll := import("@platforma-sdk/workflow-tengo:ll")
 
 pfClustersConv := import(":pf-clusters-conv")
 pfUMAPConv := import(":pf-umap-conv")
@@ -18,24 +19,19 @@ wf.prepare(func(args) {
 	clonotypingRunId := args.clonotypingRunId
 	dataType := args.dataType
 	chain := args.chain
+	receptor := args.receptor
 	
 	// Get Pcolumns matching the specified values
 	query := func(label) {
+		axisMatcher := []
 		// define elements to search in domain sections
 		domain := {
-					"pl7.app/vdj/clonotypingRunId": clonotypingRunId,
 					"pl7.app/alphabet": "aminoacid",
 					"pl7.app/vdj/feature": "CDR3"
 					}
-		if dataType == "bulk" {
-			domain["pl7.app/vdj/chain"] = chain
-		} else if dataType == "singleCell" {
+		if (dataType == "singleCell") || (dataType == "scFv") {
 			domain["pl7.app/vdj/scClonotypeChain/index"] = "primary"
 		} 
-		// else if dataType == "scFv" {
-		// 	// scFv has chain info both in label and domain, so we might skip this
-		// 	domain["pl7.app/vdj/scClonotypeChain"] = specificChain
-		// }
 
 		// define whole query 
 		r := {
@@ -55,6 +51,37 @@ wf.prepare(func(args) {
 				}
 			]
 		}
+
+		if dataType == "bulk" {
+			// we have to create an axes key matcher
+			axisMatcher = [{
+							type: "AxesKeys",
+							axesKeys: [
+								{
+								name: "pl7.app/vdj/clonotypeKey",
+								domain: {"pl7.app/vdj/chain": chain,
+										"pl7.app/vdj/clonotypingRunId": clonotypingRunId},
+								domainExactMatch: false
+								}
+							],
+							partialMatch: true  // true allows subset of axes to match
+							}]
+		} else if (dataType == "singleCell") || (dataType == "scFv") {
+			// we have to create an axes key matcher
+			axisMatcher = [{
+							type: "AxesKeys",
+							axesKeys: [
+								{
+								name: "pl7.app/vdj/scClonotypeKey",
+								domain: {"pl7.app/vdj/receptor": receptor,
+										"pl7.app/vdj/clonotypingRunId": clonotypingRunId},
+								domainExactMatch: false
+								}
+							],
+							partialMatch: true  // true allows subset of axes to match
+							}]
+		} 
+		r["operands"] = r["operands"] + axisMatcher
 
 		return r
 	}
@@ -81,8 +108,8 @@ wf.prepare(func(args) {
 		// define specific chain or both
 		outputs := {}
 		if chain == "Both chains" {
-				outputs["selectedChains1"] = wf.query(query("CDR3 aa (heavy)"), ops) 
-				outputs["selectedChains2"] = wf.query(query("CDR3 aa (light)"), ops)
+				outputs["selectedChains1"] = wf.query(query("Heavy CDR3 aa"), ops) 
+				outputs["selectedChains2"] = wf.query(query("Light CDR3 aa"), ops)
 		} else {
 			outputs["selectedChains"] = wf.query(query(chain), ops) 
 		}
@@ -108,60 +135,50 @@ wf.body(func(args) {
 	selectedChainsPf := []
 	selectedChainsSpec := []
 	if dataType == "bulk" {
-		selectedChains := args.selectedChains
-		selectedChainsSpec = [selectedChains.spec]
-
-		selectedChainsPf = [selectedChains]
+		selectedChainsPf = [args.selectedChains]
+		selectedChainsSpec = [args.selectedChains.spec]
 	} else {
-		selectedChainsSpec = [args.selectedChains1.spec, args.selectedChains2.spec]
 		if chain == "Both chains" {
 			selectedChainsPf = [args.selectedChains1, args.selectedChains2]
+			selectedChainsSpec = [args.selectedChains1.spec, args.selectedChains2.spec]
 		} else {
 			selectedChainsPf = [args.selectedChains]
+			selectedChainsSpec = [args.selectedChains.spec]
+			
 		}
-		
+	}
+
+	// define chain variable for python script
+	chainPy := ""
+	if chain == "Both chains" {
+		chainPy = "both"
+	} else {
+		// lowerChain := text.to_lower(chain)
+		// if (text.contains(lowerChain, "heavy")) 
+		if (chain == "Heavy CDR3 aa") || (chain == "Heavy CDR3 aa Primary") || (chain == "IGHeavy") {
+			chainPy = "heavy"
+		} else if (chain == "Light CDR3 aa") || (chain == "Light CDR3 aa Primary") || (chain == "IGLight") {
+			chainPy = "light"
+		} else {
+			ll.panic("%v", "ERROR: MiXCR specs might have changed and chain annotation values do not match reference: Heavy/Light CDR3 aa, Heavy/Light CDR3 aa Primary or IG Heavy/Light. Input was ", chain)
+		}
 	}
 
 	// Make a copy of one of the specs and fill it with more data
 	combinedSpec := copy(selectedChainsSpec[0])
 
-	// Fill specs
-	// @TODO: update and reduce when old MiXCR and scFv stop to be used
-	if combinedSpec.axesSpec[0].domain["pl7.app/vdj/clonotypingRunId"] == undefined {
-		combinedSpec.axesSpec[0].domain["pl7.app/vdj/clonotypingRunId"] = combinedSpec.domain["pl7.app/vdj/clonotypingRunId"]
-	}
-	// Only bulk data has chain info
-	if combinedSpec.domain["pl7.app/vdj/chain"] != undefined {
-		combinedSpec.axesSpec[0].domain["pl7.app/vdj/chain"] = combinedSpec.domain["pl7.app/vdj/chain"]
-		// combinedSpec.domain["pl7.app/vdj/chain"] = combinedSpec.domain["pl7.app/vdj/chain"]
-	}
 	// For SC and scFv we can have multiple scClonotypeChain values clustered
-	// @TODO: Move chain info to axis domain? scFv does not have it
-	if combinedSpec.domain["pl7.app/vdj/scClonotypeChain"] != undefined {
-		// we assume the posibility of having concatenated multiple chains from same index
+	if (dataType == "singleCell") || (dataType == "scFv") {
+		// we assume the possibility of having concatenated multiple chains from same index
 		if len(selectedChainsSpec) > 1 {
 			tempLabel := []
 			for s in selectedChainsSpec{
 				tempLabel = tempLabel + [s.domain["pl7.app/vdj/scClonotypeChain"]]
 			}
-			// combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode(copy(tempLabel)))
 			combinedSpec.domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode(copy(tempLabel)))
 		} else {
-			// combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode([combinedSpec.domain["pl7.app/vdj/scClonotypeChain"]]))
 			combinedSpec.domain["pl7.app/vdj/scClonotypeChain"] = string(json.encode([combinedSpec.domain["pl7.app/vdj/scClonotypeChain"]]))
 		}
-	}
-	// sc-data has index info but scFv not
-	// @TODO: Move chain info to axis domain? scFv does not have it
-	if combinedSpec.domain["pl7.app/vdj/scClonotypeChain/index"] != undefined {
-		// combinedSpec.axesSpec[0].domain["pl7.app/vdj/scClonotypeChain/index"] = combinedSpec.domain["pl7.app/vdj/scClonotypeChain/index"]
-		combinedSpec.domain["pl7.app/vdj/scClonotypeChain/index"] = combinedSpec.domain["pl7.app/vdj/scClonotypeChain/index"]
-	}
-	// single-cell and scFv data contain receptor information
-	// @TODO: Move chain info to axis domain? scFv does not have it
-	if combinedSpec.domain["pl7.app/vdj/receptor"] != undefined {
-		// combinedSpec.axesSpec[0].domain["pl7.app/vdj/receptor"] = combinedSpec.domain["pl7.app/vdj/receptor"]
-		combinedSpec.domain["pl7.app/vdj/receptor"] = combinedSpec.domain["pl7.app/vdj/receptor"]
 	}
 	
 	csv := xsv.exportFrame(selectedChainsPf, "csv", {})
@@ -182,6 +199,7 @@ wf.body(func(args) {
 		arg("--output_tsne").arg("tsne.csv").
 		arg("--metric").arg(metric).
 		arg("--resolution").arg(string(resolution)).
+		arg("--chain").arg(string(chainPy)).
 		saveFile("clusters.csv").
 		saveFile("umap.csv").
 		// saveFile("tsne.csv").

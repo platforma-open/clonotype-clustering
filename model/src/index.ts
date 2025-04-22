@@ -7,6 +7,7 @@ export type BlockArgs = {
   inputAnchor?: PlRef;
   clonotypingRunId?: string;
   chain?: string;
+  receptor?: string;
   dataType?: string;
   title?: string;
   metric?: string;
@@ -26,6 +27,7 @@ export const model = BlockModel.create()
   .withArgs<BlockArgs>({
     metric: 'levenshtein',
     resolution: 1.0,
+    chain: 'Both chains',
   })
 
   .withUiState<UiState>({
@@ -69,7 +71,7 @@ export const model = BlockModel.create()
   .output('chainOptions', (ctx) =>
     ctx.resultPool.getOptions((spec) => isPColumnSpec(spec)
       && spec.name === 'pl7.app/vdj/sequence'
-      && spec.domain?.['pl7.app/vdj/clonotypingRunId'] === ctx.args.clonotypingRunId
+      && spec.axesSpec[0]?.domain?.['pl7.app/vdj/clonotypingRunId'] === ctx.args.clonotypingRunId
       && spec.domain?.['pl7.app/alphabet'] === 'aminoacid'
       && spec.domain?.['pl7.app/vdj/feature'] === 'CDR3'
       && (spec.domain?.['pl7.app/vdj/scClonotypeChain/index'] === undefined
