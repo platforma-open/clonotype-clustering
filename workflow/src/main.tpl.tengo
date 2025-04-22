@@ -13,7 +13,6 @@ pfUMAPConv := import(":pf-umap-conv")
 pfTSNEConv := import(":pf-tsne-conv")
 pfMetricsConv := import(":pf-metrics-conv")
 json := import("json")
-json := import("json")
 
 wf.prepare(func(args) {
 
@@ -135,7 +134,6 @@ wf.body(func(args) {
 	// Convert chain selection to Pframe
 	selectedChainsPf := []
 	selectedChainsSpec := []
-	selectedChainsSpec := []
 	if dataType == "bulk" {
 		selectedChainsPf = [args.selectedChains]
 		selectedChainsSpec = [args.selectedChains.spec]
@@ -212,18 +210,14 @@ wf.body(func(args) {
 		run()
 
 	clustersImportParams := pfClustersConv.getColumns(combinedSpec, resolution, metric)
-	clustersImportParams := pfClustersConv.getColumns(combinedSpec, resolution, metric)
 	clustersPf := xsv.importFile(clonotypeClustering.getFile("clusters.csv"), "csv", clustersImportParams)
 
-	UMAPImportParams := pfUMAPConv.getColumns(combinedSpec, metric)
 	UMAPImportParams := pfUMAPConv.getColumns(combinedSpec, metric)
 	UMAPPf := xsv.importFile(clonotypeClustering.getFile("umap.csv"), "csv", UMAPImportParams)
 
 	// TSNEImportParams := pfTSNEConv.getColumns(combinedSpec, metric)
-	// TSNEImportParams := pfTSNEConv.getColumns(combinedSpec, metric)
 	// TSNEPf := xsv.importFile(clonotypeClustering.getFile("tsne.csv"), "csv", TSNEImportParams)
 
-	metricsImportParams := pfMetricsConv.getColumns(combinedSpec, metric)
 	metricsImportParams := pfMetricsConv.getColumns(combinedSpec, metric)
 	metricsPf := xsv.importFile(clonotypeClustering.getFile("cluster_summary_metrics.csv"), "csv", metricsImportParams)
 
