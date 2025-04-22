@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 2.0.0
+
+### Major Changes
+
+- d299403: Compatible only with new MiXCR and scFv versions
+
+### Patch Changes
+
+- Updated dependencies [d299403]
+  - @platforma-open/milaboratories.clonotype-clustering.software@2.0.0
+
 ## 1.3.0
 
 ### Minor Changes
