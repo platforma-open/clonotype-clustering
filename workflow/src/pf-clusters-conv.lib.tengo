@@ -1,11 +1,11 @@
 ll := import("@platforma-sdk/workflow-tengo:ll")
 
-getColumns := func(combinedSpec, resolution, metric) {
+getColumns := func(aaSeqCDR3Spec, resolution, metric) {
   return {
     "axes": [
       {
         "column": "clonotype_id",
-        "spec": combinedSpec.axesSpec[0]
+        "spec": aaSeqCDR3Spec.axesSpec[0]
       }
       ],
     "columns": [
@@ -16,10 +16,7 @@ getColumns := func(combinedSpec, resolution, metric) {
         "spec": {
           "name": "pl7.app/vdj/clonotypeCluster",
           "valueType": "String",
-          "domain": {
-            "pl7.app/alphabet": combinedSpec.domain["pl7.app/alphabet"],
-            "pl7.app/vdj/feature": combinedSpec.domain["pl7.app/vdj/feature"]
-          },
+          "domain": aaSeqCDR3Spec.domain,
           "annotations": {
             "pl7.app/label": "Cluster Resolution " + resolution,
             "pl7.app/vdj/clusteringMetric": metric,

@@ -1,6 +1,6 @@
 ll := import("@platforma-sdk/workflow-tengo:ll")
 
-getColumns := func(selectedChainsSpec, metric) {
+getColumns := func(metric) {
   return {
     "axes": [
       {

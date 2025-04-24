@@ -1,81 +1,28 @@
 <script setup lang="ts">
 import type {
-  PlDataTableSettings } from '@platforma-sdk/ui-vue';
-import { PlBlockPage,
-  PlAgDataTableToolsPanel,
-  PlBtnGhost,
+  PlDataTableSettings,
+} from '@platforma-sdk/ui-vue';
+import {
   PlAgDataTable,
-  PlMaskIcon24,
-  PlSlideModal,
-  PlDropdownRef,
+  PlAgDataTableToolsPanel,
+  PlBlockPage,
+  PlBtnGhost,
+  PlCheckbox,
   PlDropdown,
-  listToOptions,
-  PlNumberField } from '@platforma-sdk/ui-vue';
-import type { PlRef } from '@platforma-sdk/model';
-import { plRefsEqual } from '@platforma-sdk/model';
+  PlDropdownRef,
+  PlMaskIcon24,
+  PlNumberField,
+  PlSlideModal,
+} from '@platforma-sdk/ui-vue';
+import { computed } from 'vue';
 import { useApp } from '../app';
-import { computed, watch } from 'vue';
 
 const app = useApp();
-
-function setAnchorColumn(ref: PlRef | undefined) {
-  app.model.args.inputAnchor = ref;
-  app.model.args.clonotypingRunId = ref?.blockId;
-  app.model.ui.title = ref
-    ? app.model.outputs.inputOptions?.find((o) =>
-      plRefsEqual(o.ref, ref),
-    )?.label
-    : undefined;
-}
-
-// Generate list of all available Ig chains
-// @TODO: convert names to light or heavy
-const chainOptions = computed(() => {
-  const options: string[] = [];
-  // Chain selection will only be available in cases in which
-  // by default we want to select both chains in most cases
-  options.push('Both chains');
-
-  // Get individual chain list
-  if (app.model.outputs.chainOptions !== undefined) {
-    for (const obj of app.model.outputs.chainOptions) {
-      options.push(obj.label);
-    }
-  }
-
-  return listToOptions(options);
-});
 
 const tableSettings = computed<PlDataTableSettings>(() => ({
   sourceType: 'ptable',
   pTable: app.model.outputs.metricsTable,
 }));
-
-// If input dataset changes we check again if data is bulk or single cell
-watch(() => app.model.outputs.anchorSpecs, (_) => {
-  if (!app.model.outputs.anchorSpecs) {
-    app.model.args.dataType = undefined;
-    app.model.args.chain = undefined;
-  } else {
-    if (app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/chain'] !== undefined) {
-      app.model.args.dataType = 'bulk';
-      app.model.args.chain = app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/chain'];
-    } else {
-      if (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'cells') {
-        app.model.args.dataType = 'singleCell';
-        app.model.args.receptor = app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/receptor'];
-        // in scFv we work as in single-cell but never have cells as unit
-      } else if ((app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'reads')
-        || (app.model.outputs.anchorSpecs?.annotations?.['pl7.app/abundance/unit'] === 'molecules')) {
-        app.model.args.dataType = 'scFv';
-        app.model.args.receptor = app.model.outputs.anchorSpecs?.axesSpec[1]?.domain?.['pl7.app/vdj/receptor'];
-      } else {
-        app.model.args.dataType = undefined;
-        app.model.args.chain = undefined;
-      }
-    }
-  }
-});
 
 const metricOptions = [
   { text: 'Levenshtein', value: 'levenshtein' },
@@ -107,11 +54,10 @@ const metricOptions = [
     <PlSlideModal v-model="app.model.ui.settingsOpen" :close-on-outside-click="true">
       <template #title>Settings</template>
       <PlDropdownRef
-        :options="app.model.outputs.inputOptions"
-        :model-value="app.model.args.inputAnchor"
+        v-model="app.model.args.aaSeqCDR3Ref"
+        :options="app.model.outputs.cdr3Options"
         label="Select dataset"
         clearable
-        @update:model-value="setAnchorColumn"
       />
       <PlDropdown v-model="app.model.args.metric" :options="metricOptions" label="Select metric" />
       <PlNumberField
@@ -122,10 +68,13 @@ const metricOptions = [
           Select resolution for clustering. The bigger the resolution, the more clusters will be found.
         </template>
       </PlNumberField>
-      <!-- Bulk datasets are splitted by chain, only allow selection in single-cell -->
-      <template v-if="['singleCell', 'scFv'].includes(app.model.args.dataType ?? '')">
-        <PlDropdown v-model="app.model.args.chain" :options="chainOptions" label="Define clustering chain" />
-      </template>
+
+      <PlCheckbox
+        v-if="app.model.outputs.isSingleCell"
+        v-model="app.model.args.clusterBothChains"
+      >
+        Cluster both chains
+      </PlCheckbox>
     </PlSlideModal>
   </PlBlockPage>
 </template>
