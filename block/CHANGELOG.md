@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 1.2.0
+
+### Minor Changes
+
+- 0eea3f6: Package updates
+
 ## 1.1.4
 
 ### Patch Changes
