@@ -2,7 +2,6 @@ pandas==2.2.3
 numpy==1.26.4
 scipy==1.14.0
 scanpy==1.11.1
-umap-learn==0.5.5
 scikit-learn==1.5.0
 tqdm==4.66.2
 joblib==1.4.2

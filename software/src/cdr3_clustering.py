@@ -129,29 +129,19 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
     adata = sc.AnnData(X=dist_matrix)
     adata.obs["clonotype_id"] = clonotype_ids.values
 
-    # Build neighbors manually
-    print("Building kNN graph manually...")
-    nbrs = NearestNeighbors(n_neighbors=n_neighbors, metric="precomputed").fit(dist_matrix)
-    knn_graph = nbrs.kneighbors_graph(dist_matrix, mode="connectivity")
-    adata.obsp["connectivities"] = csr_matrix(knn_graph)
-
-    # ✨ Manually fill .uns["neighbors"]
-    adata.uns["neighbors"] = {
-        "connectivities_key": "connectivities",
-        "distances_key": "connectivities",
-        "params": {
-            "n_neighbors": n_neighbors,
-            "method": "manual",
-            "metric": "precomputed",
-        }
-    }
+    # Build neighbors using scanpy's function with the precomputed metric
+    print("Building neighbors graph using scanpy with precomputed distances...")
+    sc.pp.neighbors(adata, n_neighbors=n_neighbors, metric='precomputed', use_rep='X')
 
     # Dimensionality reduction
     print("Running UMAP...")
+    print(adata)
+    # UMAP should now correctly use the graph computed by sc.pp.neighbors
     sc.tl.umap(adata)
 
     print("Running tSNE...")
-    sc.tl.tsne(adata)
+    # Similarly for tSNE, use precomputed neighbors
+    sc.tl.tsne(adata, use_rep="X_umap") # Often better to init tSNE with UMAP
 
     # Clustering
     print("Running Leiden clustering...")
