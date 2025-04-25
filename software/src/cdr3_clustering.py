@@ -52,59 +52,16 @@ def build_distance_matrix(sequences, metric, n_jobs=-1):
 
 # ---------------------- Main script ---------------------- #
 
-def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metric, resolution, chain):
+def main(input_file, output_clusters, output_umap, output_tsne, metric, resolution):
 
-    # Load data
     df = pd.read_csv(input_file)
+    df = df.fillna('')
 
-    # Rename columns dynamically
-    df = df.rename(columns={"Clonotype key": "clonotype_id",
-                            "SC Clonotype key": "clonotype_id",
-                            "Clone label": "clonotype_id"})
-    renameDict = {}
-    for colname in seq_column:
-        if 'heavy' in colname.lower():
-            renameDict[colname] = "cdr3_heavy"
-        elif 'light' in colname.lower():
-            renameDict[colname] = "cdr3_light"
-        elif colname == "CDR3 aa":
-            renameDict[colname] = "cdr3"
-        else:
-            raise ValueError(f"Invalid input columns: {', '.join(colname)}")
-    df = df.rename(columns=renameDict)
-    allColumns = list(renameDict.values())
-
-    # Auto-set default chain
-    if chain is None:
-        if len(allColumns) == 2:
-            chain = "both"
-        else:
-            chain = "heavy"
-            print("⚠️ Only one chain column provided. Defaulting to heavy chain (use --chain light to override).")
-
-    # Prepare sequences
-    if chain == "both":
-        if len(allColumns) != 2:
-            raise ValueError("Both chains selected but only one chain column provided.")
-        df.replace(np.nan, '', inplace=True)
-        sequences = df.apply(lambda x: (x["cdr3_heavy"] or "") + (x["cdr3_light"] or ""), axis=1)
-    elif chain == "heavy":
-        if "cdr3_heavy" in df.columns:
-            sequences = df["cdr3_heavy"]
-        elif "cdr3" in df.columns:
-            sequences = df["cdr3"]  # ⭐ Bulk support: use "cdr3" if no "cdr3_heavy"
-        else:
-            raise ValueError("Heavy chain data not found.")
-    elif chain == "light":
-        if "cdr3_light" in df.columns:
-            sequences = df["cdr3_light"]
-        elif "cdr3" in df.columns:
-            sequences = df["cdr3"]
-        else:
-            raise ValueError("Light chain data not found.")
-        
+    if "aaCDR3_second" in df.columns:
+        sequences = df["aaCDR3"] + df["aaCDR3_second"]
     else:
-        raise ValueError(f"Invalid chain: {chain}")
+        sequences = df["aaCDR3"]
+
 
     sequences = sequences.replace('', np.nan).dropna()
     clonotype_ids = df.loc[sequences.index, "clonotype_id"]
@@ -193,22 +150,18 @@ def main(input_file, seq_column, output_clusters, output_umap, output_tsne, metr
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Cluster CDR3 sequences based on Levenshtein or Alignment distances.")
     parser.add_argument("--input", required=True, help="Input CSV file")
-    parser.add_argument("--seq_column", required=True, help="Json string with list of columns with sequence information")
     parser.add_argument("--output_clusters", required=True, help="Output CSV with cluster assignments")
     parser.add_argument("--output_umap", required=True, help="Output CSV with UMAP coordinates")
     parser.add_argument("--output_tsne", required=True, help="Output CSV with tSNE coordinates")
     parser.add_argument("--metric", default="alignment", choices=["alignment", "levenshtein"], help="Distance metric to use")
     parser.add_argument("--resolution", type=float, default=1.0, help="Resolution parameter for Leiden clustering")
-    parser.add_argument("--chain", default=None, choices=["both", "heavy", "light"], help="Which chains to use (both/heavy/light)")
     args = parser.parse_args()
 
     main(
         input_file=args.input,
-        seq_column=json.loads(args.seq_column),
         output_clusters=args.output_clusters,
         output_umap=args.output_umap,
         output_tsne=args.output_tsne,
         metric=args.metric,
-        resolution=args.resolution,
-        chain=args.chain,
+        resolution=args.resolution
     )

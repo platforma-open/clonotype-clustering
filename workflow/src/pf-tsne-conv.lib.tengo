@@ -1,11 +1,11 @@
 ll := import("@platforma-sdk/workflow-tengo:ll")
 
-getColumns := func(selectedChainsSpec, metric) {
+getColumns := func(aaSeqCDR3Spec, metric) {
   return {
     "axes": [
       {
         "column": "clonotype_id",
-        "spec": selectedChainsSpec.axesSpec[0]
+        "spec": aaSeqCDR3Spec.axesSpec[0]
       }
       ],
     "columns": [

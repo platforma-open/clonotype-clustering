@@ -9,14 +9,15 @@ pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 ll := import("@platforma-sdk/workflow-tengo:ll")
 
 pfClustersConv := import(":pf-clusters-conv")
-pfUMAPConv := import(":pf-umap-conv")
-pfTSNEConv := import(":pf-tsne-conv")
+pfUmapConv := import(":pf-umap-conv")
+pfTsneConv := import(":pf-tsne-conv")
 pfMetricsConv := import(":pf-metrics-conv")
 json := import("json")
 
 
 wf.prepare(func(args) {
 	bundleBuilder := wf.createPBundleBuilder()
+	bundleBuilder.ignoreMissingDomains() // to make query work for both bulk and single cell data
 	bundleBuilder.addAnchor("main", args.aaSeqCDR3Ref) 
 	if args.clusterBothChains {
 		bundleBuilder.addSingle({
@@ -44,12 +45,12 @@ wf.body(func(args) {
 	columns := args.columns
 
 	aaSeqCDR3Spec := columns.getSpec(args.aaSeqCDR3Ref)
+	isSingleCell := aaSeqCDR3Spec.axesSpec[0].name == "pl7.app/vdj/scClonotypeKey"
 	
 	table := columns.xsvTableBuilder()
-
-	table.setAxisHeader(aaSeqCDR3Spec.axesSpec[0].name, "cloneKey")
+	table.setAxisHeader(aaSeqCDR3Spec.axesSpec[0].name, "clonotype_id")
 	table.add(args.aaSeqCDR3Ref, {header: "aaCDR3"})
-	if args.clusterBothChains {
+	if isSingleCell && args.clusterBothChains {
 		table.add("secondChain", {header: "aaCDR3_second"})
 	}
 	csv := table.build("csv")
@@ -75,19 +76,24 @@ wf.body(func(args) {
 	clustersImportParams := pfClustersConv.getColumns(aaSeqCDR3Spec, resolution, metric)
 	clustersPf := xsv.importFile(clonotypeClustering.getFile("clusters.csv"), "csv", clustersImportParams)
 
-	UMAPImportParams := pfUMAPConv.getColumns(combinedSpec, metric)
-	UMAPPf := xsv.importFile(clonotypeClustering.getFile("umap.csv"), "csv", UMAPImportParams)
+	umapPf := xsv.importFile(
+		clonotypeClustering.getFile("umap.csv"), 
+		"csv", 
+		pfUmapConv.getColumns(aaSeqCDR3Spec, metric))
 
-	// TSNEImportParams := pfTSNEConv.getColumns(combinedSpec, metric)
-	// TSNEPf := xsv.importFile(clonotypeClustering.getFile("tsne.csv"), "csv", TSNEImportParams)
+	// tsnePf := xsv.importFile(
+	// 	clonotypeClustering.getFile("tsne.csv"),
+	// 	"csv",
+	// 	pfTsneConv.getColumns(combinedSpec, metric)
+	// )
 
-	metricsImportParams := pfMetricsConv.getColumns(combinedSpec, metric)
+	metricsImportParams := pfMetricsConv.getColumns(metric)
 	metricsPf := xsv.importFile(clonotypeClustering.getFile("cluster_summary_metrics.csv"), "csv", metricsImportParams)
 
 	return {
 		outputs: {
 			clustersPf: pframes.exportFrame(clustersPf),
-			UMAPPf: pframes.exportFrame(UMAPPf),
+			umapPf: pframes.exportFrame(umapPf),
 			metricsPf: pframes.exportFrame(metricsPf)
 		},
 		exports: {

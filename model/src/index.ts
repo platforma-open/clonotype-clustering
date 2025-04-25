@@ -14,8 +14,7 @@ export type UiState = {
   title?: string;
   tableState: PlDataTableState;
   settingsOpen: boolean;
-  graphStateUMAP: GraphMakerState;
-  graphStateTSNE: GraphMakerState;
+  graphStateUmap: GraphMakerState;
 };
 
 export const model = BlockModel.create()
@@ -32,12 +31,8 @@ export const model = BlockModel.create()
     tableState: {
       gridState: {},
     },
-    graphStateUMAP: {
+    graphStateUmap: {
       title: 'UMAP',
-      template: 'dots',
-    },
-    graphStateTSNE: {
-      title: 'tSNE',
       template: 'dots',
     },
   })
@@ -80,8 +75,8 @@ export const model = BlockModel.create()
     return createPFrameForGraphs(ctx, pCols);
   })
 
-  .output('UMAPPf', (ctx): PFrameHandle | undefined => {
-    const pCols = ctx.outputs?.resolve('UMAPPf')?.getPColumns();
+  .output('umapPf', (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.outputs?.resolve('umapPf')?.getPColumns();
     if (pCols === undefined) {
       return undefined;
     }
