@@ -34,6 +34,7 @@ export const model = BlockModel.create()
     graphStateUmap: {
       title: 'UMAP',
       template: 'dots',
+      currentTab: null,
     },
   })
 
