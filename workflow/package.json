@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@platforma-sdk/workflow-tengo": "catalog:",
-    "@platforma-open/milaboratories.clonotype-clustering.software": "workspace:*"
+    "@platforma-open/milaboratories.clonotype-clustering.software": "workspace:*",
+    "@platforma-open/soedinglab.software-mmseqs2": "catalog:"
   },
   "devDependencies": {
     "@platforma-sdk/tengo-builder": "catalog:",

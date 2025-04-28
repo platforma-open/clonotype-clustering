@@ -28,7 +28,7 @@
       "url": "https://github.com/milaboratory/platforma-clonotype-clustering",
       "docs": "https://github.com/milaboratory/platforma-clonotype-clustering/docs",
       "support": "mailto:support@milaboratories.com",
-      "description": "Fast clonotype clustering based on CDR3 aa sequence.",
+      "description": "Fast, sequence-based clonotype clustering.",
       "longDescription": "file:../docs/description.md",
       "changelog": "file:../CHANGELOG.md",
       "tags": [

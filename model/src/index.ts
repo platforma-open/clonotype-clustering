@@ -1,115 +1,88 @@
 import type { GraphMakerState } from '@milaboratories/graph-maker';
-import type { InferOutputsType, PFrameHandle, PlDataTableState, PlRef } from '@platforma-sdk/model';
-import { BlockModel, createPFrameForGraphs, createPlDataTable, isPColumnSpec } from '@platforma-sdk/model';
+import type { InferOutputsType, PColumnSpec, PFrameHandle, PlDataTableState, PlRef, SUniversalPColumnId } from '@platforma-sdk/model';
+import {
+  BlockModel,
+  createPFrameForGraphs,
+  createPlDataTable,
+  isPColumnSpec,
+} from '@platforma-sdk/model';
 
 export type BlockArgs = {
   name?: string;
-  inputAnchor?: PlRef;
-  clonotypingRunId?: string;
-  chain?: string;
-  receptor?: string;
-  dataType?: string;
-  title?: string;
-  metric?: string;
-  resolution: number;
+  aaSeqCDR3Ref?: PlRef;
+  abundanceRef?: SUniversalPColumnId;
+  identity: number;
+  clusterBothChains: boolean;
 };
 
 export type UiState = {
   title?: string;
   tableState: PlDataTableState;
-  settingsOpen: boolean;
-  graphStateUMAP: GraphMakerState;
-  graphStateTSNE: GraphMakerState;
+  graphStateBubble: GraphMakerState;
 };
 
 export const model = BlockModel.create()
 
   .withArgs<BlockArgs>({
-    metric: 'levenshtein',
-    resolution: 1.0,
-    chain: 'Both chains',
+    identity: 0.8,
+    clusterBothChains: true,
   })
 
   .withUiState<UiState>({
     title: 'Clonotype Clustering',
-    settingsOpen: true,
     tableState: {
       gridState: {},
     },
-    graphStateUMAP: {
-      title: 'UMAP',
-      template: 'dots',
-    },
-    graphStateTSNE: {
-      title: 'tSNE',
-      template: 'dots',
+    graphStateBubble: {
+      title: 'Clusters Plot',
+      template: 'bubble',
+      currentTab: null,
+      layersSettings: {
+        bubble: {
+          normalizationDirection: null,
+        },
+      },
     },
   })
 
-  .output('inputOptions', (ctx) =>
-    ctx.resultPool.getOptions([{
-      axes: [
-        { name: 'pl7.app/sampleId' },
-        { name: 'pl7.app/vdj/clonotypeKey' },
-      ],
-      annotations: { 'pl7.app/isAnchor': 'true' },
-    }, {
-      axes: [
-        { name: 'pl7.app/sampleId' },
-        { name: 'pl7.app/vdj/scClonotypeKey' },
-      ],
-      annotations: { 'pl7.app/isAnchor': 'true' },
-    }]),
+  .argsValid((ctx) => ctx.args.aaSeqCDR3Ref !== undefined && ctx.args.abundanceRef !== undefined)
+
+  .output('cdr3Options', (ctx) =>
+    ctx.resultPool.getOptions(
+      (c) =>
+        isPColumnSpec(c)
+        && c.valueType === 'String'
+        && c.name === 'pl7.app/vdj/sequence'
+        && c.domain?.['pl7.app/vdj/feature'] === 'CDR3'
+        && c.domain?.['pl7.app/alphabet'] === 'aminoacid'
+        && (!c.domain?.['pl7.app/vdj/scClonotypeChain'] || c.domain?.['pl7.app/vdj/scClonotypeChain'] === 'A')
+        && (!c.domain?.['pl7.app/vdj/scClonotypeChain/index'] || c.domain?.['pl7.app/vdj/scClonotypeChain/index'] === 'primary'),
+    ),
   )
 
-  // Clustering result table
-  .output('table', (ctx) => {
-    if (ctx.args.inputAnchor === undefined)
-      return undefined;
+  .output('abundanceOptions', (ctx) => {
+    const aaSeqCDR3Ref = ctx.args.aaSeqCDR3Ref;
+    if (aaSeqCDR3Ref === undefined) return undefined;
+
+    return ctx.resultPool.getCanonicalOptions({ main: aaSeqCDR3Ref }, {
+      axes: [{ name: 'pl7.app/sampleId' }, { anchor: 'main', idx: 0 }],
+      annotations: {
+        'pl7.app/isAbundance': 'true',
+        'pl7.app/abundance/normalized': 'true',
+      },
+    }, { ignoreMissingDomains: true });
   })
 
-  .output('chainOptions', (ctx) =>
-    ctx.resultPool.getOptions((spec) => isPColumnSpec(spec)
-      && spec.name === 'pl7.app/vdj/sequence'
-      && spec.axesSpec[0]?.domain?.['pl7.app/vdj/clonotypingRunId'] === ctx.args.clonotypingRunId
-      && spec.domain?.['pl7.app/alphabet'] === 'aminoacid'
-      && spec.domain?.['pl7.app/vdj/feature'] === 'CDR3'
-      && (spec.domain?.['pl7.app/vdj/scClonotypeChain/index'] === undefined
-        || spec.domain?.['pl7.app/vdj/scClonotypeChain/index'] === 'primary')),
-  )
+  .output('isSingleCell', (ctx) => {
+    if (ctx.args.aaSeqCDR3Ref === undefined) return undefined;
 
-  .output('anchorSpecs', (ctx) => {
-    if (ctx.args.inputAnchor === undefined)
-      return undefined;
-    return ctx.resultPool.getPColumnSpecByRef(ctx.args.inputAnchor);
-  })
-
-  .output('clustersPf', (ctx): PFrameHandle | undefined => {
-    const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
-    if (pCols === undefined) {
+    const spec = ctx.resultPool.getPColumnSpecByRef(ctx.args.aaSeqCDR3Ref);
+    if (spec === undefined) {
       return undefined;
     }
 
-    return createPFrameForGraphs(ctx, pCols);
+    return spec.axesSpec[0].name === 'pl7.app/vdj/scClonotypeKey';
   })
-
-  .output('UMAPPf', (ctx): PFrameHandle | undefined => {
-    const pCols = ctx.outputs?.resolve('UMAPPf')?.getPColumns();
-    if (pCols === undefined) {
-      return undefined;
-    }
-
-    return createPFrameForGraphs(ctx, pCols);
-  })
-
-// .output('TSNEPf', (ctx): PFrameHandle | undefined => {
-//   const pCols = ctx.outputs?.resolve('TSNEPf')?.getPColumns();
-//   if (pCols === undefined) {
-//     return undefined;
-//   }
-
-//   return createPFrameForGraphs(ctx, pCols);
-// })
 
   .output('clustersTable', (ctx) => {
     const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
@@ -120,21 +93,29 @@ export const model = BlockModel.create()
     return createPlDataTable(ctx, pCols, ctx.uiState?.tableState);
   })
 
-  .output('metricsTable', (ctx) => {
-    const pCols = ctx.outputs?.resolve('metricsPf')?.getPColumns();
+  .output('clusterAbundanceSpec', (ctx) => {
+    const spec = ctx.outputs?.resolve('clusterAbundanceSpec')?.getDataAsJson();
+    if (spec === undefined) return undefined;
+    return spec as PColumnSpec;
+  })
+
+  .output('clustersPf', (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.outputs?.resolve('pf')?.getPColumns();
     if (pCols === undefined) {
       return undefined;
     }
 
-    return createPlDataTable(ctx, pCols, ctx.uiState?.tableState);
+    return createPFrameForGraphs(ctx, pCols);
   })
 
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 
-  .sections((_ctx) => ([
+  .title((ctx) => ctx.uiState?.title ?? 'Clonotype Clustering')
+
+  .sections((_ctx) => [
     { type: 'link', href: '/', label: 'Main' },
-    { type: 'link', href: '/umap', label: 'UMAP' },
-  ]))
+    { type: 'link', href: '/bubble', label: 'Clusters Plot' },
+  ])
 
   .done();
 
