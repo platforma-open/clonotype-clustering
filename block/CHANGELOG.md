@@ -1,5 +1,19 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.0.0
+
+### Major Changes
+
+- 717e08e: Switched to mmseqs2
+
+### Patch Changes
+
+- Updated dependencies [ef2564b]
+- Updated dependencies [717e08e]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.0.0
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.0.0
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.0.0
+
 ## 1.2.0
 
 ### Minor Changes
