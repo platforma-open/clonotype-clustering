@@ -14,20 +14,17 @@ import {
   PlNumberField,
   PlSlideModal,
 } from '@platforma-sdk/ui-vue';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useApp } from '../app';
 
 const app = useApp();
 
+const settingsOpen = ref(app.model.args.aaSeqCDR3Ref === undefined);
+
 const tableSettings = computed<PlDataTableSettings>(() => ({
   sourceType: 'ptable',
-  pTable: app.model.outputs.metricsTable,
+  pTable: app.model.outputs.clustersTable,
 }));
-
-const metricOptions = [
-  { text: 'Levenshtein', value: 'levenshtein' },
-  { text: 'Alignment', value: 'alignment' },
-];
 
 </script>
 
@@ -38,7 +35,7 @@ const metricOptions = [
     </template>
     <template #append>
       <PlAgDataTableToolsPanel/>
-      <PlBtnGhost @click.stop="() => (app.model.ui.settingsOpen = true)">
+      <PlBtnGhost @click.stop="() => (settingsOpen = true)">
         Settings
         <template #append>
           <PlMaskIcon24 name="settings" />
@@ -51,7 +48,7 @@ const metricOptions = [
       show-columns-panel
       show-export-button
     />
-    <PlSlideModal v-model="app.model.ui.settingsOpen" :close-on-outside-click="true">
+    <PlSlideModal v-model="settingsOpen" :close-on-outside-click="true">
       <template #title>Settings</template>
       <PlDropdownRef
         v-model="app.model.args.aaSeqCDR3Ref"
@@ -59,13 +56,19 @@ const metricOptions = [
         label="Select dataset"
         clearable
       />
-      <PlDropdown v-model="app.model.args.metric" :options="metricOptions" label="Select metric" />
+      <PlDropdown
+        v-model="app.model.args.abundanceRef"
+        :options="app.model.outputs.abundanceOptions"
+        label="Abundance"
+        required
+      />
+
       <PlNumberField
-        v-model="app.model.args.resolution"
-        label="Resolution" :minValue="0.1" :step="0.1"
+        v-model="app.model.args.identity"
+        label="Minimal identity" :minValue="0.1" :step="0.1" :maxValue="1.0"
       >
         <template #tooltip>
-          Select resolution for clustering. The bigger the resolution, the more clusters will be found.
+          Select min identity of clonotypes in the cluster.
         </template>
       </PlNumberField>
 

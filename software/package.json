@@ -18,7 +18,7 @@
   },
   "block-software": {
     "entrypoints": {
-      "clonotype-clustering": {
+      "prepare-fasta": {
         "binary": {
           "artifact": {
             "type": "python",
@@ -32,7 +32,25 @@
           },
           "cmd": [
             "python",
-            "{pkg}/cdr3_clustering.py"
+            "{pkg}/prepare_fasta.py"
+          ]
+        }
+      },
+      "process-results": {
+        "binary": {
+          "artifact": {
+            "type": "python",
+            "registry": "platforma-open",
+            "environment": "@platforma-open/milaboratories.runenv-python-3:3.12.6",
+            "dependencies": {
+              "toolset": "pip",
+              "requirements": "requirements.txt"
+            },
+            "root": "./src"
+          },
+          "cmd": [
+            "python",
+            "{pkg}/process_results.py"
           ]
         }
       }
