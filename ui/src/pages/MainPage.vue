@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { plRefsEqual, type PlRef } from '@platforma-sdk/model';
 import type {
   PlDataTableSettings,
 } from '@platforma-sdk/ui-vue';
@@ -21,17 +22,39 @@ const app = useApp();
 
 const settingsOpen = ref(app.model.args.aaSeqCDR3Ref === undefined);
 
-const tableSettings = computed<PlDataTableSettings>(() => ({
-  sourceType: 'ptable',
-  pTable: app.model.outputs.clustersTable,
-}));
+function setInput(inputRef?: PlRef) {
+  app.model.args.aaSeqCDR3Ref = inputRef;
+  if (inputRef) {
+    const datasetLabel = app.model.outputs.cdr3Options?.find((o) => plRefsEqual(o.ref, inputRef))?.label;
+    if (datasetLabel)
+      app.model.ui.title = 'Clonotype Clustering - ' + datasetLabel;
+  }
+}
+
+const tableSettings = computed<PlDataTableSettings | undefined>(() => {
+  const pTable = app.model.outputs.clustersTable;
+  if (pTable === undefined) {
+    // when table is not yet calculated
+    if (app.model.outputs.isRunning) {
+      // @TODO: proper "running" message
+      return undefined;
+    } else {
+      // @TODO: proper "not calculated" message
+      return undefined;
+    }
+  }
+  return {
+    sourceType: 'ptable',
+    pTable: app.model.outputs.clustersTable,
+  };
+});
 
 </script>
 
 <template>
   <PlBlockPage>
     <template #title>
-      Clonotype Clustering{{ app.model.ui.title ? ` - ${app.model.ui.title}` : '' }}
+      {{ app.model.ui.title }}
     </template>
     <template #append>
       <PlAgDataTableToolsPanel/>
@@ -55,6 +78,7 @@ const tableSettings = computed<PlDataTableSettings>(() => ({
         :options="app.model.outputs.cdr3Options"
         label="Select dataset"
         clearable
+        @update:model-value="setInput"
       />
       <PlDropdown
         v-model="app.model.args.abundanceRef"

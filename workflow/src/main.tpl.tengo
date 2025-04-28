@@ -267,6 +267,11 @@ wf.body(func(args) {
 
 	opf := pframes.pFrameBuilder()
 	for k, v in clusterToSeqPf {
+		if k == "clonotypeKeyLabel" {
+			 // avoid putting label into the outputs as it will be already in exports; 
+			 // in future should be safe to add once PlAgDataTable bug is fixed
+			continue
+		}
 		opf.add(k, trace.inject(v.spec), v.data)
 	}
 	opf = opf.build()

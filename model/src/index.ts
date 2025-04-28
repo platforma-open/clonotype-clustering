@@ -110,6 +110,8 @@ export const model = BlockModel.create()
 
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 
+  .title((ctx) => ctx.uiState?.title ?? 'Clonotype Clustering')
+
   .sections((_ctx) => [
     { type: 'link', href: '/', label: 'Main' },
     { type: 'link', href: '/bubble', label: 'Clusters Plot' },
