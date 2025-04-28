@@ -39,6 +39,19 @@ const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
         type: 'String',
       },
     },
+    {
+      inputName: 'filters',
+      selectedSource: {
+        kind: 'PColumn',
+        name: 'pl7.app/vdj/clustering/clusterSize',
+        valueType: 'Int',
+        axesSpec: [],
+      },
+      selectedFilterRange: {
+        min: 3,
+        max: 1000000, // @TODO allow max undefined
+      },
+    },
   ];
 });
 
@@ -47,7 +60,7 @@ const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
 <template>
   <PlBlockPage>
     <GraphMaker
-      v-model="app.model.ui.graphStateUmap"
+      v-model="app.model.ui.graphStateBubble"
       chartType="bubble"
       :p-frame="app.model.outputs.clustersPf"
       :default-options="defaultOptions"

@@ -10,6 +10,7 @@ pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 
 prepareFastaSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:prepare-fasta")
 processResultsSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:process-results")
+mmseqsSw := assets.importSoftware("@platforma-open/soedinglab.software-mmseqs2:main")
 
 setVisibility := func(spec, visibility) {
 	return maps.deepMerge(spec, {
@@ -92,7 +93,7 @@ wf.body(func(args) {
 
 	// run mmseqs2
 	mmseqs := exec.builder().
-		cmd("mmseqs").
+		software(mmseqsSw).
 		arg("easy-cluster").
 		arg("input.fasta").
 		arg("result").
@@ -255,14 +256,14 @@ wf.body(func(args) {
 		columns: seqColumns
 	}, {splitDataAndSpec: true})
 		
-
+	// building outputs & exports
 	trace := pSpec.makeTrace(abundanceSpec,
 		{
 			type: "milaboratories.clonotype-clustering",
 		 	importance: 30,
 		 	label: "Clonotype clusters"
 		})
-		
+
 	opf := pframes.pFrameBuilder()
 	for k, v in clusterToSeqPf {
 		opf.add(k, trace.inject(v.spec), v.data)
@@ -279,12 +280,14 @@ wf.body(func(args) {
 	}
 	epf = epf.build()
 
+	clusterAbundanceSpec := trace.inject(abundancesPf["abundance"].spec)
+
 	return {
 		outputs: {
 			clustersPf: pframes.exportFrame(opf),
 			// for plots; also add specs to outputs for visualization purposes
 			pf: pframes.exportFrame(epf),
-			clusterAbundanceSpec: abundancesPf["abundance"].spec
+			clusterAbundanceSpec: clusterAbundanceSpec
 		},
 		exports: {
 			pf: epf

@@ -18,7 +18,7 @@ export type BlockArgs = {
 export type UiState = {
   title?: string;
   tableState: PlDataTableState;
-  graphStateUmap: GraphMakerState;
+  graphStateBubble: GraphMakerState;
 };
 
 export const model = BlockModel.create()
@@ -33,10 +33,15 @@ export const model = BlockModel.create()
     tableState: {
       gridState: {},
     },
-    graphStateUmap: {
+    graphStateBubble: {
       title: 'Clusters Plot',
       template: 'bubble',
       currentTab: null,
+      layersSettings: {
+        bubble: {
+          normalizationDirection: null,
+        },
+      },
     },
   })
 

@@ -5,6 +5,9 @@ input_file = "input.tsv"
 
 df = pd.read_csv(input_file, sep="\t")
 
+# Replace NA values with empty strings in the dataframe
+df = df.fillna('')
+
 # Create a fasta file from the dataframe
 output_file = "output.fasta"
 
