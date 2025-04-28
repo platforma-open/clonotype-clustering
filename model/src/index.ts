@@ -69,7 +69,6 @@ export const model = BlockModel.create()
       annotations: {
         'pl7.app/isAbundance': 'true',
         'pl7.app/abundance/normalized': 'true',
-        'pl7.app/abundance/isPrimary': 'true',
       },
     }, { ignoreMissingDomains: true });
   })

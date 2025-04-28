@@ -3,11 +3,11 @@
 
 ```
 
-clusterId -> centroid props
+clusterId -> seq, [optional secondary sequence]
 
-[sampleId, clusterId] -> abundance
+[sampleId, clusterId] -> abundance for every abundance available for clonotypes
 
-clonotypeKey -> clusterId
+clonotypeKey -> clusterId (for clone browser)
 
 [clonotypeKey, clusterId] -> 1 (isLinkerColumn=true)
 

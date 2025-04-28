@@ -17,7 +17,7 @@ with open(output_file, "w") as fasta_file:
         fasta_file.write(f">{row['clonotypeKey']}\n")
         sequence = row['aaCDR3']
         if 'aaCDR3_second' in row and pd.notna(row['aaCDR3_second']):
-            sequence += row['aaCDR3_second']
+            sequence += "====" + row['aaCDR3_second']
         # Write sequence line
         fasta_file.write(f"{sequence}\n")
 
