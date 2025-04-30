@@ -92,9 +92,11 @@ wf.body(func(args) {
 		run()
 
 	// run mmseqs2
+	// NOTE: mmseqs2 produces different results for same input (different line order),
+	// so we save the result in the output to prevent CID conflict by deduplication
 	mmseqs := exec.builder().
 		software(mmseqsSw).
-		dontSaveStdoutOrStderr().
+		dontSaveStdoutOrStderr(). // important to avoid CID conflict problems coming from different stdout output on same datasets
 		arg("easy-cluster").
 		arg("input.fasta").
 		arg("result").
@@ -292,9 +294,14 @@ wf.body(func(args) {
 		outputs: {
 			// for table
 			clustersPf: pframes.exportFrame(opf),
-			// for plots; also add specs to outputs for visualization purposes
+			// pf for plots
 			pf: pframes.exportFrame(epf),
-			clusterAbundanceSpec: clusterAbundanceSpec
+			// specs to outputs for visualization purposes
+			clusterAbundanceSpec: clusterAbundanceSpec,
+			
+			// save mmseqs2 result in the output to enable deduplication of mmseqs2 run
+			// NOTE: mmseqs2 produces different results for same input (different line order)
+			mmseqs: clusters
 		},
 		exports: {
 			pf: epf
