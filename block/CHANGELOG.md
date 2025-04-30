@@ -1,5 +1,14 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.0.1
+
+### Patch Changes
+
+- Updated dependencies [d1f13ee]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.0.1
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.0.1
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.0.1
+
 ## 2.0.0
 
 ### Major Changes
