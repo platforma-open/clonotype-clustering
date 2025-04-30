@@ -3,12 +3,11 @@ import type { InferOutputsType, PColumnSpec, PFrameHandle, PlDataTableState, PlR
 import {
   BlockModel,
   createPFrameForGraphs,
-  createPlDataTable,
-  isPColumnSpec,
+  createPlDataTableV2,
+  isPColumnSpec
 } from '@platforma-sdk/model';
 
 export type BlockArgs = {
-  name?: string;
   aaSeqCDR3Ref?: PlRef;
   abundanceRef?: SUniversalPColumnId;
   identity: number;
@@ -90,7 +89,9 @@ export const model = BlockModel.create()
       return undefined;
     }
 
-    return createPlDataTable(ctx, pCols, ctx.uiState?.tableState);
+    return createPlDataTableV2(ctx, pCols,
+      (_) => true,
+      ctx.uiState?.tableState);
   })
 
   .output('clusterAbundanceSpec', (ctx) => {
