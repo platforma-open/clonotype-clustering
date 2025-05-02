@@ -4,12 +4,11 @@ import {
   BlockModel,
   createPFrameForGraphs,
   createPlDataTableV2,
-  isPColumnSpec
 } from '@platforma-sdk/model';
 
 export type BlockArgs = {
-  aaSeqCDR3Ref?: PlRef;
-  abundanceRef?: SUniversalPColumnId;
+  datasetRef?: PlRef;
+  sequenceRef?: SUniversalPColumnId;
   identity: number;
   clusterBothChains: boolean;
 };
@@ -44,43 +43,60 @@ export const model = BlockModel.create()
     },
   })
 
-  .argsValid((ctx) => ctx.args.aaSeqCDR3Ref !== undefined && ctx.args.abundanceRef !== undefined)
+  .argsValid((ctx) => ctx.args.datasetRef !== undefined && ctx.args.sequenceRef !== undefined)
 
-  .output('cdr3Options', (ctx) =>
-    ctx.resultPool.getOptions(
-      (c) =>
-        isPColumnSpec(c)
-        && c.valueType === 'String'
-        && c.name === 'pl7.app/vdj/sequence'
-        && c.domain?.['pl7.app/vdj/feature'] === 'CDR3'
-        && c.domain?.['pl7.app/alphabet'] === 'aminoacid'
-        && (!c.domain?.['pl7.app/vdj/scClonotypeChain'] || c.domain?.['pl7.app/vdj/scClonotypeChain'] === 'A')
-        && (!c.domain?.['pl7.app/vdj/scClonotypeChain/index'] || c.domain?.['pl7.app/vdj/scClonotypeChain/index'] === 'primary'),
-    ),
+  .output('datasetOptions', (ctx) =>
+    ctx.resultPool.getOptions([{
+      axes: [
+        { name: 'pl7.app/sampleId' },
+        { name: 'pl7.app/vdj/clonotypeKey' },
+      ],
+      annotations: { 'pl7.app/isAnchor': 'true' },
+    }, {
+      axes: [
+        { name: 'pl7.app/sampleId' },
+        { name: 'pl7.app/vdj/scClonotypeKey' },
+      ],
+      annotations: { 'pl7.app/isAnchor': 'true' },
+    }],
+    {
+      // suppress native label of the column (e.g. "Number of Reads") to show only the dataset label
+      label: { includeNativeLabel: false },
+    }),
   )
 
-  .output('abundanceOptions', (ctx) => {
-    const aaSeqCDR3Ref = ctx.args.aaSeqCDR3Ref;
-    if (aaSeqCDR3Ref === undefined) return undefined;
+  .output('sequenceOptions', (ctx) => {
+    const ref = ctx.args.datasetRef;
+    if (ref === undefined) return undefined;
 
-    return ctx.resultPool.getCanonicalOptions({ main: aaSeqCDR3Ref }, {
-      axes: [{ name: 'pl7.app/sampleId' }, { anchor: 'main', idx: 0 }],
-      annotations: {
-        'pl7.app/isAbundance': 'true',
-        'pl7.app/abundance/normalized': 'true',
-      },
-    }, { ignoreMissingDomains: true });
+    const sequenceMatchers = [];
+    for (const feature of ['CDR3', 'VDJRegion']) {
+      sequenceMatchers.push({
+        axes: [{ anchor: 'main', idx: 1 }],
+        name: 'pl7.app/vdj/sequence',
+        domain: {
+          'pl7.app/vdj/feature': feature,
+          'pl7.app/vdj/scClonotypeChain': 'A',
+          'pl7.app/vdj/scClonotypeChain/index': 'primary',
+        },
+      });
+    }
+
+    return ctx.resultPool.getCanonicalOptions(
+      { main: ref },
+      sequenceMatchers,
+      { ignoreMissingDomains: true });
   })
 
   .output('isSingleCell', (ctx) => {
-    if (ctx.args.aaSeqCDR3Ref === undefined) return undefined;
+    if (ctx.args.datasetRef === undefined) return undefined;
 
-    const spec = ctx.resultPool.getPColumnSpecByRef(ctx.args.aaSeqCDR3Ref);
+    const spec = ctx.resultPool.getPColumnSpecByRef(ctx.args.datasetRef);
     if (spec === undefined) {
       return undefined;
     }
 
-    return spec.axesSpec[0].name === 'pl7.app/vdj/scClonotypeKey';
+    return spec.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
   })
 
   .output('clustersTable', (ctx) => {

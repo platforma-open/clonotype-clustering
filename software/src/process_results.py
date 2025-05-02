@@ -6,7 +6,7 @@ clusterToSeqTsv = "cluster-to-seq.tsv"
 cloneToClusterTsv = "clone-to-cluster.tsv"
 abundancesTsv = "abundances.tsv"
 
-# sampleId, clonotypeKey, aaCDR3, VGene, JGene
+# sampleId, clonotypeKey, sequence, VGene, JGene
 cloneTable = pd.read_csv(cloneTableTsv, sep="\t")
 
 # clusterId, clonotypeKey
@@ -29,9 +29,9 @@ centroid_data = pd.merge(
     how='inner'
 )
 
-required_cols_cts = ['clusterId', 'clonotypeKeyLabel', 'aaCDR3', 'size']
-if 'aaCDR3_second' in cloneTable.columns:
-    required_cols_cts.append('aaCDR3_second')
+required_cols_cts = ['clusterId', 'clonotypeKeyLabel', 'sequence', 'size']
+if 'sequence_second' in cloneTable.columns:
+    required_cols_cts.append('sequence_second')
 
 # Select necessary columns and ensure uniqueness by clusterId
 cluster_to_seq = centroid_data[required_cols_cts].drop_duplicates(subset=['clusterId'])
@@ -52,6 +52,11 @@ merged_abundances = pd.merge(cloneTable[['sampleId', 'clonotypeKey', 'abundance'
 
 # Group by sample and cluster, summing abundances
 cluster_abundances = merged_abundances.groupby(['sampleId', 'clusterId'])['abundance'].sum().reset_index()
+
+# Calculate normalized abundance within each sample
+cluster_abundances['total_sample_abundance'] = cluster_abundances.groupby('sampleId')['abundance'].transform('sum')
+cluster_abundances['abundance_normalized'] = cluster_abundances['abundance'] / cluster_abundances['total_sample_abundance']
+cluster_abundances = cluster_abundances.drop(columns=['total_sample_abundance']) # Remove the temporary column
 
 # Write abundances.tsv
 cluster_abundances.to_csv(abundancesTsv, sep="\t", index=False)

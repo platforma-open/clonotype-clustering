@@ -1,5 +1,6 @@
 // "hello world"
 wf := import("@platforma-sdk/workflow-tengo:workflow")
+ll := import("@platforma-sdk/workflow-tengo:ll")
 exec := import("@platforma-sdk/workflow-tengo:exec")
 assets:= import("@platforma-sdk/workflow-tengo:assets")
 xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
@@ -23,39 +24,48 @@ setVisibility := func(spec, visibility) {
 wf.prepare(func(args) {
 	bundleBuilder := wf.createPBundleBuilder()
 	bundleBuilder.ignoreMissingDomains() // to make query work for both bulk and single cell data
-	bundleBuilder.addAnchor("main", args.aaSeqCDR3Ref) 
-	bundleBuilder.addSingle(args.abundanceRef)
+	bundleBuilder.addAnchor("main", args.datasetRef) 
+	
+	// abundance
+	bundleBuilder.addSingle({
+		axes: [ { anchor: "main", idx: 0 }, { anchor: "main", idx: 1 }],
+		annotations: {
+				"pl7.app/isAbundance": "true",
+				"pl7.app/abundance/normalized": "false",
+				"pl7.app/abundance/isPrimary": "true"
+			}
+		},
+		"abundance")
+
+	// pull sequences; for single cell data, we pull both chains
+	bundleBuilder.addMulti(args.sequenceRef, "sequences", {
+		overrides: {
+			domain: {
+				 // to pull both "A" and "B" chains in single cell data; not used for bulk data
+				"pl7.app/vdj/scClonotypeChain": undefined
+			}
+		}
+	})
+
+	// pull genes
 	for gene in ["V", "J"] {
 		bundleBuilder.addSingle({
-				axes: [{ anchor: "main", idx: 0 }],
+				axes: [{ anchor: "main", idx: 1 }],
 				name: "pl7.app/vdj/geneHit",
 				domain: {
 					"pl7.app/vdj/reference": gene + "Gene",
-					"pl7.app/vdj/scClonotypeChain": { anchor: "main" },
-					"pl7.app/vdj/scClonotypeChain/index": { anchor: "main" }
+					"pl7.app/vdj/scClonotypeChain": "A",
+					"pl7.app/vdj/scClonotypeChain/index": "primary"
 				}
 			},
 		 gene + "Gene")
-	}
-
-	if args.clusterBothChains {
-		bundleBuilder.addSingle({
-				axes: [{ anchor: "main", idx: 0 }],
-				name: "pl7.app/vdj/sequence",
-				domain: {
-					"pl7.app/vdj/feature": "CDR3",
-					"pl7.app/alphabet": "aminoacid",
-					"pl7.app/vdj/scClonotypeChain": "B",
-					"pl7.app/vdj/scClonotypeChain/index": { anchor: "main" }
-				}
-			}, "secondChain")
 	}
 
 	// mmseqs2 uses same sequence for centroids, so we use same clonotypeKey as a clusterId
 	// and we need to pull corresponding labels from the result pool
 	bundleBuilder.addSingle(
 		{
-			axes: [{ anchor: "main", idx: 0 }],
+			axes: [{ anchor: "main", idx: 1 }],
 			name: "pl7.app/label"
 		}, "clonotypeKeyLabels") 
 	
@@ -68,20 +78,48 @@ wf.body(func(args) {
 	blockId := wf.blockId().getDataAsJson()
 	
 	columns := args.columns
+	datasetSpec := columns.getSpec(args.datasetRef)
+	abundanceSpec := columns.getSpec("abundance")
 
-	aaSeqCDR3Spec := columns.getSpec(args.aaSeqCDR3Ref)
-	abundanceSpec := columns.getSpec(args.abundanceRef)
-	isSingleCell := aaSeqCDR3Spec.axesSpec[0].name == "pl7.app/vdj/scClonotypeKey"
+	// sequence columns
+	sequences := columns.getColumns("sequences")
+	if len(sequences) == 0 || len(sequences) > 2 {
+		ll.panic("expected exactly one or two sequence columns, got ", sequences)
+	}
+
+    isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
+	if isSingleCell && len(sequences) != 2 {
+		ll.panic("expected two sequence columns for single cell data")
+	}
+
+	// primary chain sequence column or just sequence column for bulk data
+	sequencePrimary := undefined
+	// secondary chain sequence column (for sc data)
+	sequenceSecondary := undefined
+
+	if isSingleCell {
+		if sequences[0].spec.domain["pl7.app/vdj/scClonotypeChain"] == "A" {
+			sequencePrimary = sequences[0]
+			sequenceSecondary = sequences[1]
+		} else {
+			sequencePrimary = sequences[1]
+			sequenceSecondary = sequences[0]
+		}
+	} else {
+		sequencePrimary = sequences[0]
+	}	
 	
 	/***** Step 1: do clustering on the clonotype level *****/
 
 	// input table
 	seqTable := columns.xsvTableBuilder()
-	seqTable.setAxisHeader(aaSeqCDR3Spec.axesSpec[0].name, "clonotypeKey")
-	seqTable.add(args.aaSeqCDR3Ref, {header: "aaCDR3"})
+	seqTable.setAxisHeader(datasetSpec.axesSpec[1].name, "clonotypeKey")
+	
+	seqTable.add(sequencePrimary.key, {header: "sequence"})
 	if isSingleCell && args.clusterBothChains {
-		seqTable.add("secondChain", {header: "aaCDR3_second"})
+		seqTable.add(sequenceSecondary.key, {header: "sequence_second"})
 	}
+	
 	seqTable = seqTable.build("tsv")
 
 	// prepare fasta file
@@ -113,11 +151,13 @@ wf.body(func(args) {
 
 	/******* Step 2: aggregate all data and generate results *******/
 	cloneTable := columns.xsvTableBuilder()
-	cloneTable.add(args.abundanceRef, {header: "abundance"})
-	cloneTable.add(args.aaSeqCDR3Ref, {header: "aaCDR3"})
+	cloneTable.add("abundance", {header: "abundance"})
+	
+	cloneTable.add(sequencePrimary.key, {header: "sequence"})
 	if isSingleCell && args.clusterBothChains {
-		cloneTable.add("secondChain", {header: "aaCDR3_second"})
+		cloneTable.add(sequenceSecondary.key, {header: "sequence_second"})
 	}
+	
 	cloneTable.add("clonotypeKeyLabels", {header: "clonotypeKeyLabel"})
 	cloneTable.add("VGene", {header: "VGene"})
 	cloneTable.add("JGene", {header: "JGene"})
@@ -140,7 +180,7 @@ wf.body(func(args) {
 	clusterIdAxisSpec := {
 		name: "pl7.app/vdj/clusterId",
 		type: "String",
-		domain: maps.deepMerge(aaSeqCDR3Spec.axesSpec[0].domain, 
+		domain: maps.deepMerge(datasetSpec.axesSpec[1].domain, 
 		{
 			"pl7.app/vdj/clustering/algorithm": "mmseqs2",
 			"pl7.app/vdj/clustering/blockId": blockId
@@ -151,7 +191,13 @@ wf.body(func(args) {
 			"pl7.app/table/visibility": "default"
 		}
 	}
-	
+
+	ac := {
+		name: abundanceSpec.name,
+		valueType: abundanceSpec.valueType,
+		domain: abundanceSpec.domain,
+		annotations: abundanceSpec.annotations
+	}
 	abundancesPf := xsv.importFile(abundances, "tsv", {
 		axes: [{
 			column: "sampleId",
@@ -162,12 +208,15 @@ wf.body(func(args) {
 		}],
 		columns: [{
 			column: "abundance",
-			spec:  {
-				name: abundanceSpec.name,
-				valueType: abundanceSpec.valueType,
-				domain: abundanceSpec.domain,
-				annotations: abundanceSpec.annotations
-			}
+			spec: ac
+		},
+		{
+			column: "abundance_normalized",
+			spec: maps.deepMerge(ac, {
+				annotations: {
+					"pl7.app/abundance/normalized": "true"
+				}
+			})
 		}]
 	}, {splitDataAndSpec: true})
 
@@ -175,48 +224,49 @@ wf.body(func(args) {
 	cloneToClusterPf := xsv.importFile(cloneToCluster, "tsv", {
 		axes: [{
 			column: "clonotypeKey",
-			spec: aaSeqCDR3Spec.axesSpec[0]
+			spec: datasetSpec.axesSpec[1]
 		}],
 		columns: [{
 			column: "clusterId",
-			spec: {
+			spec: setVisibility({
 				name: "pl7.app/vdj/clusterId",
 				valueType: "String",
 				domain: clusterIdAxisSpec.domain,
 				annotations: clusterIdAxisSpec.annotations
-			}
+			}, false)
 		}]
 	}, {splitDataAndSpec: true})
 
 	cloneToClusterLinkPf := xsv.importFile(cloneToCluster, "tsv", {
 		axes: [{
 			column: "clonotypeKey",
-			spec: aaSeqCDR3Spec.axesSpec[0]
+			spec: datasetSpec.axesSpec[1]
 		}, {
 			column: "clusterId",
 			spec: clusterIdAxisSpec
 		}],
 		columns: [{
 			column: "link",
-			spec: {
+			spec: setVisibility({
 				name: "pl7.app/vdj/link",
 				valueType: "Int",
 				annotations: {
+					"pl7.app/label": "Clone to cluster link",
 					"pl7.app/isLinkerColumn": "true"
 				}
-			}
+			}, false)
 		}]
 	}, {splitDataAndSpec: true})
 	
 	clusterToSeq := result.getFile("cluster-to-seq.tsv")
 
 	seqColumns := [{
-		column: "aaCDR3",
+		column: "sequence",
 		spec: setVisibility({
-			name: aaSeqCDR3Spec.name,
-			valueType: aaSeqCDR3Spec.valueType,
-			domain: aaSeqCDR3Spec.domain,
-			annotations: aaSeqCDR3Spec.annotations
+			name: sequencePrimary.spec.name,
+			valueType: sequencePrimary.spec.valueType,
+			domain: sequencePrimary.spec.domain,
+			annotations: sequencePrimary.spec.annotations
 		}, true)
 	},
 	{
@@ -240,14 +290,13 @@ wf.body(func(args) {
 	}]
 
 	if isSingleCell && args.clusterBothChains {
-		secondChainSpec := columns.getSpec("secondChain")
 		seqColumns = append(seqColumns, {
-			column: "aaCDR3_second",
+			column: "sequence_second",
 			spec: setVisibility({
-				name: secondChainSpec.name,
-				valueType: secondChainSpec.valueType,
-				domain: secondChainSpec.domain,
-				annotations: secondChainSpec.annotations
+				name: sequenceSecondary.spec.name,
+				valueType: sequenceSecondary.spec.valueType,
+				domain: sequenceSecondary.spec.domain,
+				annotations: sequenceSecondary.spec.annotations
 			}, true)
 		})
 	}
