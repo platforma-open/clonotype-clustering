@@ -188,7 +188,8 @@ wf.body(func(args) {
 		}),
 		annotations: {
 			"pl7.app/label": "Cluster Id",
-			"pl7.app/table/visibility": "default"
+			"pl7.app/table/visibility": "default",
+			"pl7.app/table/orderPriority": "990000"
 		}
 	}
 
@@ -284,7 +285,7 @@ wf.body(func(args) {
 			name: "pl7.app/label",
 			valueType: "String",
 			annotations: {
-				"pl7.app/label": "Cluster Label"
+				"pl7.app/label": "Cluster Id"
 			}
 		}
 	}]
