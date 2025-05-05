@@ -20,12 +20,12 @@ import { useApp } from '../app';
 
 const app = useApp();
 
-const settingsOpen = ref(app.model.args.aaSeqCDR3Ref === undefined);
+const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequenceRef === undefined);
 
 function setInput(inputRef?: PlRef) {
-  app.model.args.aaSeqCDR3Ref = inputRef;
+  app.model.args.datasetRef = inputRef;
   if (inputRef) {
-    const datasetLabel = app.model.outputs.cdr3Options?.find((o) => plRefsEqual(o.ref, inputRef))?.label;
+    const datasetLabel = app.model.outputs.datasetOptions?.find((o) => plRefsEqual(o.ref, inputRef))?.label;
     if (datasetLabel)
       app.model.ui.title = 'Clonotype Clustering - ' + datasetLabel;
   }
@@ -34,7 +34,7 @@ function setInput(inputRef?: PlRef) {
 const tableSettings = computed<PlAgDataTableSettings>(() => {
   const pTable = app.model.outputs.clustersTable;
 
-  if (pTable === undefined) {
+  if (pTable === undefined && !app.model.outputs.isRunning) {
     // special case: when block is not yet started at all (no table calculated)
     return undefined;
   }
@@ -79,16 +79,17 @@ const tableLoadingText = computed(() => {
     <PlSlideModal v-model="settingsOpen" :close-on-outside-click="true">
       <template #title>Settings</template>
       <PlDropdownRef
-        v-model="app.model.args.aaSeqCDR3Ref"
-        :options="app.model.outputs.cdr3Options"
+        v-model="app.model.args.datasetRef"
+        :options="app.model.outputs.datasetOptions"
         label="Select dataset"
         clearable
+        required
         @update:model-value="setInput"
       />
       <PlDropdown
-        v-model="app.model.args.abundanceRef"
-        :options="app.model.outputs.abundanceOptions"
-        label="Abundance"
+        v-model="app.model.args.sequenceRef"
+        :options="app.model.outputs.sequenceOptions"
+        label="Select sequence column to cluster"
         required
       />
 
