@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.1.0
+
+### Minor Changes
+
+- fb91da8: Calculate abundance automatically; Add ability to specify sequence/
+
 ## 3.0.0
 
 ### Major Changes

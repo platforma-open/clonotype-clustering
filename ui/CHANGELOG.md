@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.1.0
+
+### Minor Changes
+
+- fb91da8: Calculate abundance automatically; Add ability to specify sequence/
+
+### Patch Changes
+
+- Updated dependencies [fb91da8]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.1.0
+
 ## 3.0.1
 
 ### Patch Changes
