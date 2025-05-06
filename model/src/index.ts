@@ -69,17 +69,28 @@ export const model = BlockModel.create()
     const ref = ctx.args.datasetRef;
     if (ref === undefined) return undefined;
 
+    const isSingleCell = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
     const sequenceMatchers = [];
     for (const feature of ['CDR3', 'VDJRegion']) {
-      sequenceMatchers.push({
-        axes: [{ anchor: 'main', idx: 1 }],
-        name: 'pl7.app/vdj/sequence',
-        domain: {
-          'pl7.app/vdj/feature': feature,
-          'pl7.app/vdj/scClonotypeChain': 'A',
-          'pl7.app/vdj/scClonotypeChain/index': 'primary',
-        },
-      });
+      if (isSingleCell) {
+        sequenceMatchers.push({
+          axes: [{ anchor: 'main', idx: 1 }],
+          name: 'pl7.app/vdj/sequence',
+          domain: {
+            'pl7.app/vdj/feature': feature,
+            'pl7.app/vdj/scClonotypeChain': 'A',
+            'pl7.app/vdj/scClonotypeChain/index': 'primary',
+          },
+        });
+      } else {
+        sequenceMatchers.push({
+          axes: [{ anchor: 'main', idx: 1 }],
+          name: 'pl7.app/vdj/sequence',
+          domain: {
+            'pl7.app/vdj/feature': feature,
+          },
+        });
+      }
     }
 
     return ctx.resultPool.getCanonicalOptions(

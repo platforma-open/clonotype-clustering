@@ -47,19 +47,20 @@ wf.prepare(func(args) {
 		}
 	})
 
-	// pull genes
-	for gene in ["V", "J"] {
-		bundleBuilder.addSingle({
-				axes: [{ anchor: "main", idx: 1 }],
-				name: "pl7.app/vdj/geneHit",
-				domain: {
-					"pl7.app/vdj/reference": gene + "Gene",
-					"pl7.app/vdj/scClonotypeChain": "A",
-					"pl7.app/vdj/scClonotypeChain/index": "primary"
-				}
-			},
-		 gene + "Gene")
-	}
+	// @TODO: Implement in the future
+	// // pull genes
+	// for gene in ["V", "J"] {
+	// 	bundleBuilder.addSingle({
+	// 			axes: [{ anchor: "main", idx: 1 }],
+	// 			name: "pl7.app/vdj/geneHit",
+	// 			domain: {
+	// 				"pl7.app/vdj/reference": gene + "Gene",
+	// 				"pl7.app/vdj/scClonotypeChain": "A",
+	// 				"pl7.app/vdj/scClonotypeChain/index": "primary"
+	// 			}
+	// 		},
+	// 	 gene + "Gene")
+	// }
 
 	// mmseqs2 uses same sequence for centroids, so we use same clonotypeKey as a clusterId
 	// and we need to pull corresponding labels from the result pool
@@ -159,8 +160,8 @@ wf.body(func(args) {
 	}
 	
 	cloneTable.add("clonotypeKeyLabels", {header: "clonotypeKeyLabel"})
-	cloneTable.add("VGene", {header: "VGene"})
-	cloneTable.add("JGene", {header: "JGene"})
+	// cloneTable.add("VGene", {header: "VGene"})
+	// cloneTable.add("JGene", {header: "JGene"})
 	cloneTable.setAxisHeader(abundanceSpec.axesSpec[0].name, "sampleId")
 	cloneTable.setAxisHeader(abundanceSpec.axesSpec[1].name, "clonotypeKey")
 	cloneTable = cloneTable.build("tsv")
