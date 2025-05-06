@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.2.0
+
+### Minor Changes
+
+- 9a8e64d: Fix for bulk data
+
 ## 2.1.0
 
 ### Minor Changes

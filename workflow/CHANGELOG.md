@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.2.0
+
+### Minor Changes
+
+- 9a8e64d: Fix for bulk data
+
 ## 3.1.0
 
 ### Minor Changes
