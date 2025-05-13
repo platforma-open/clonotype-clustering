@@ -47,10 +47,7 @@ const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
         valueType: 'Int',
         axesSpec: [],
       },
-      selectedFilterRange: {
-        min: 3,
-        max: 1000000, // @TODO allow max undefined
-      },
+      selectedFilterRange: { min: 3 },
     },
   ];
 });
