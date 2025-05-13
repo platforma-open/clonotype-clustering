@@ -174,6 +174,7 @@ wf.body(func(args) {
 		saveFile("abundances.tsv").
 		saveFile("cluster-to-seq.tsv").
 		saveFile("clone-to-cluster.tsv").
+		saveFile("abundances-per-cluster.tsv"). // cluster to summed abundances
 		run()
 
 
@@ -219,6 +220,20 @@ wf.body(func(args) {
 					"pl7.app/abundance/normalized": "true"
 				}
 			})
+		}]
+	}, {splitDataAndSpec: true})
+
+
+	abundancesPerCluster := result.getFile("abundances-per-cluster.tsv")
+
+	abundancesPerClusterPf := xsv.importFile(abundancesPerCluster, "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: [{
+			column: "abundance_per_cluster",
+			spec: ac
 		}]
 	}, {splitDataAndSpec: true})
 
@@ -330,10 +345,10 @@ wf.body(func(args) {
 	opf = opf.build()
 
 	epf := pframes.pFrameBuilder() 
-	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf] {
+	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf] {
 		i := 0
 		for k, v in pf {
-			epf.add(k + string(i), trace.inject(v.spec), v.data)
+			epf.add(k + string(i), trace.inject(v.spec), v.data) // label, specs, data
 			i++
 		}
 	}
