@@ -5,6 +5,7 @@ cloneTableTsv = "cloneTable.tsv"
 clusterToSeqTsv = "cluster-to-seq.tsv"
 cloneToClusterTsv = "clone-to-cluster.tsv"
 abundancesTsv = "abundances.tsv"
+abundancesPerClusterTsv = "abundances-per-cluster.tsv"
 
 # sampleId, clonotypeKey, sequence, VGene, JGene
 cloneTable = pd.read_csv(cloneTableTsv, sep="\t")
@@ -60,3 +61,13 @@ cluster_abundances = cluster_abundances.drop(columns=['total_sample_abundance'])
 
 # Write abundances.tsv
 cluster_abundances.to_csv(abundancesTsv, sep="\t", index=False)
+
+# --- Generate abundances-per-cluster.tsv ---
+# Group by sample, summing abundances
+abundances_per_cluster = cluster_abundances.groupby('clusterId')['abundance'].sum().reset_index()
+
+# Rename column header to avoid name conflicts
+abundances_per_cluster.rename(columns={'abundance': 'abundance_per_cluster'}, inplace=True)
+
+# Write abundances-per-cluster.tsv
+abundances_per_cluster.to_csv(abundancesPerClusterTsv, sep="\t", index=False)
