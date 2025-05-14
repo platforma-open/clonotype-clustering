@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.2.1
+
+### Patch Changes
+
+- 9647842: Adjust labels
+
 ## 3.2.0
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.3.1
+
+### Patch Changes
+
+- 9647842: Adjust labels
+- Updated dependencies [9647842]
+  - @platforma-open/milaboratories.clonotype-clustering.software@3.2.1
+
 ## 3.3.0
 
 ### Minor Changes

@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.1.3
+
+### Patch Changes
+
+- 9647842: Adjust labels
+
 ## 3.1.2
 
 ### Patch Changes
