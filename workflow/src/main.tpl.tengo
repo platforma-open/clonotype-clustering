@@ -231,9 +231,13 @@ wf.body(func(args) {
 			column: "clusterId",
 			spec: clusterIdAxisSpec
 		}],
-		columns: [{
+		columns: [{ // modify label according to the data (use a suffix, i.e: Original label + " per cluster"
 			column: "abundance_per_cluster",
-			spec: ac
+			spec: maps.deepMerge(ac, { // re-use abundancePf specs in ac, but change column label
+				annotations: {
+				"pl7.app/label": abundanceSpec.annotations["pl7.app/label"] + " per cluster"
+				}
+			})
 		}]
 	}, {splitDataAndSpec: true})
 
