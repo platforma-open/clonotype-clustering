@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.2.0
+
+### Minor Changes
+
+- f121dfa: Add abundance per cluster to export
+
 ## 3.1.0
 
 ### Minor Changes
