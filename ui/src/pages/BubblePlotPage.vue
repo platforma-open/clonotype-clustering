@@ -13,7 +13,7 @@ const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
   if (app.model.outputs.clusterAbundanceSpec === undefined) return undefined;
   return [
     {
-      inputName: 'valueSize',
+      inputName: 'valueColor',
       selectedSource: {
         kind: 'PColumn',
         name: 'pl7.app/vdj/clustering/clusterSize',
@@ -22,8 +22,8 @@ const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
       },
     },
     {
-      inputName: 'valueColor',
-      //selectedSource: app.model.outputs.clusterAbundanceSpec, // @TODO: figure out why this is not working (Elena)
+      inputName: 'valueSize',
+      // selectedSource: app.model.outputs.clusterAbundanceSpec, // @TODO: figure out why this is not working (Elena)
       selectedSource: {
         kind: 'PColumn',
         name: app.model.outputs.clusterAbundanceSpec.name,

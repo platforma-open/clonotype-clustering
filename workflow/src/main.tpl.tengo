@@ -6,7 +6,8 @@ assets:= import("@platforma-sdk/workflow-tengo:assets")
 xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
 pframes := import("@platforma-sdk/workflow-tengo:pframes")
 maps := import("@platforma-sdk/workflow-tengo:maps")
-pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
+pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec") 
+text := import("text")
 
 
 prepareFastaSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:prepare-fasta")
@@ -201,6 +202,9 @@ wf.body(func(args) {
 		domain: abundanceSpec.domain,
 		annotations: abundanceSpec.annotations
 	}
+
+	abundanceLabel := abundanceSpec.annotations["pl7.app/label"]
+
 	abundancesPf := xsv.importFile(abundances, "tsv", {
 		axes: [{
 			column: "sampleId",
@@ -211,12 +215,18 @@ wf.body(func(args) {
 		}],
 		columns: [{
 			column: "abundance",
-			spec: ac
+			spec: maps.deepMerge(ac, {
+				annotations: {
+					"pl7.app/label": abundanceLabel + " in cluster"
+				}
+			})
 		},
 		{
 			column: "abundance_normalized",
 			spec: maps.deepMerge(ac, {
+				valueType: "Float",
 				annotations: {
+					"pl7.app/label": text.re_replace("Number", abundanceLabel, "Fraction") + " in cluster",
 					"pl7.app/abundance/normalized": "true"
 				}
 			})
@@ -231,11 +241,11 @@ wf.body(func(args) {
 			column: "clusterId",
 			spec: clusterIdAxisSpec
 		}],
-		columns: [{ // modify label according to the data (use a suffix, i.e: Original label + " per cluster"
+		columns: [{
 			column: "abundance_per_cluster",
-			spec: maps.deepMerge(ac, { // re-use abundancePf specs in ac, but change column label
+			spec: maps.deepMerge(ac, {
 				annotations: {
-				"pl7.app/label": abundanceSpec.annotations["pl7.app/label"] + " per cluster"
+					"pl7.app/label": "Total " + abundanceLabel + " in cluster"
 				}
 			})
 		}]

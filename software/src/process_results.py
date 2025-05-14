@@ -37,6 +37,10 @@ if 'sequence_second' in cloneTable.columns:
 # Select necessary columns and ensure uniqueness by clusterId
 cluster_to_seq = centroid_data[required_cols_cts].drop_duplicates(subset=['clusterId'])
 
+# Transform clonotypeKeyLabel from "C-XXXXXX" with "CL-XXXXXX"
+cluster_to_seq['clonotypeKeyLabel'] = cluster_to_seq['clonotypeKeyLabel'].str.replace('C-', 'CL-', n=1)
+
+
 # Write cluster-to-seq.tsv
 cluster_to_seq.to_csv(clusterToSeqTsv, sep="\t", index=False)
 
