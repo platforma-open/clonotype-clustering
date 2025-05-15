@@ -291,13 +291,17 @@ wf.body(func(args) {
 	
 	clusterToSeq := result.getFile("cluster-to-seq.tsv")
 
+	// Get a copy of the sequence column spec and update label
+	sequenceSpec := copy(sequencePrimary.spec)
+	sequenceSpec.annotations["pl7.app/label"] = "Centroid " + sequenceSpec.annotations["pl7.app/label"]
+	
 	seqColumns := [{
 		column: "sequence",
 		spec: setVisibility({
-			name: sequencePrimary.spec.name,
-			valueType: sequencePrimary.spec.valueType,
-			domain: sequencePrimary.spec.domain,
-			annotations: sequencePrimary.spec.annotations
+			name: sequenceSpec.name,
+			valueType: sequenceSpec.valueType,
+			domain: sequenceSpec.domain,
+			annotations: sequenceSpec.annotations
 		}, true)
 	},
 	{
@@ -321,13 +325,17 @@ wf.body(func(args) {
 	}]
 
 	if isSingleCell && args.clusterBothChains {
+		// Get a copy of the sequence column spec and update label
+		sequenceSecondarySpec := copy(sequenceSecondary.spec)
+		sequenceSecondarySpec.annotations["pl7.app/label"] = "Centroid " + sequenceSecondarySpec.annotations["pl7.app/label"]
+
 		seqColumns = append(seqColumns, {
 			column: "sequence_second",
 			spec: setVisibility({
-				name: sequenceSecondary.spec.name,
-				valueType: sequenceSecondary.spec.valueType,
-				domain: sequenceSecondary.spec.domain,
-				annotations: sequenceSecondary.spec.annotations
+				name: sequenceSecondarySpec.name,
+				valueType: sequenceSecondarySpec.valueType,
+				domain: sequenceSecondarySpec.domain,
+				annotations: sequenceSecondarySpec.annotations
 			}, true)
 		})
 	}
