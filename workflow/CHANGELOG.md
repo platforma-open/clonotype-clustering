@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.4.0
+
+### Minor Changes
+
+- 317ac08: Update cluster sequences label
+
 ## 3.3.1
 
 ### Patch Changes
