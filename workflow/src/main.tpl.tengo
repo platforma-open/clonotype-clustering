@@ -302,7 +302,7 @@ wf.body(func(args) {
 			valueType: sequenceSpec.valueType,
 			domain: sequenceSpec.domain,
 			annotations: sequenceSpec.annotations
-		}, true)
+		}, false)
 	},
 	{
 		column: "size",
@@ -336,7 +336,7 @@ wf.body(func(args) {
 				valueType: sequenceSecondarySpec.valueType,
 				domain: sequenceSecondarySpec.domain,
 				annotations: sequenceSecondarySpec.annotations
-			}, true)
+			}, false)
 		})
 	}
 	clusterToSeqPf := xsv.importFile(clusterToSeq, "tsv", {
