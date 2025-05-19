@@ -8,7 +8,9 @@ import {
 
 export type BlockArgs = {
   datasetRef?: PlRef;
-  sequenceRef?: SUniversalPColumnId;
+  sequenceRef: SUniversalPColumnId[];
+  // Added sequenceType here for future use in algorithm selection in workflow
+  sequenceType: 'aminoacid' | 'nucleotide';
   identity: number;
   clusterBothChains: boolean;
 };
@@ -24,6 +26,8 @@ export const model = BlockModel.create()
   .withArgs<BlockArgs>({
     identity: 0.8,
     clusterBothChains: true,
+    sequenceType: 'aminoacid',
+    sequenceRef: [],
   })
 
   .withUiState<UiState>({
@@ -43,7 +47,8 @@ export const model = BlockModel.create()
     },
   })
 
-  .argsValid((ctx) => ctx.args.datasetRef !== undefined && ctx.args.sequenceRef !== undefined)
+  .argsValid((ctx) => ctx.args.datasetRef !== undefined
+    && ctx.args.sequenceRef.length > 0)
 
   .output('datasetOptions', (ctx) =>
     ctx.resultPool.getOptions([{
@@ -71,7 +76,9 @@ export const model = BlockModel.create()
 
     const isSingleCell = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
     const sequenceMatchers = [];
-    for (const feature of ['CDR3', 'VDJRegion']) {
+    const allowedFeatures = ['CDR1', 'CDR2', 'CDR3', 'FR1', 'FR2',
+      'FR3', 'FR4', 'VDJRegion'];
+    for (const feature of allowedFeatures) {
       if (isSingleCell) {
         sequenceMatchers.push({
           axes: [{ anchor: 'main', idx: 1 }],
@@ -80,6 +87,7 @@ export const model = BlockModel.create()
             'pl7.app/vdj/feature': feature,
             'pl7.app/vdj/scClonotypeChain': 'A',
             'pl7.app/vdj/scClonotypeChain/index': 'primary',
+            'pl7.app/alphabet': ctx.args.sequenceType,
           },
         });
       } else {
@@ -88,6 +96,7 @@ export const model = BlockModel.create()
           name: 'pl7.app/vdj/sequence',
           domain: {
             'pl7.app/vdj/feature': feature,
+            'pl7.app/alphabet': ctx.args.sequenceType,
           },
         });
       }

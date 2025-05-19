@@ -7,8 +7,21 @@ cloneToClusterTsv = "clone-to-cluster.tsv"
 abundancesTsv = "abundances.tsv"
 abundancesPerClusterTsv = "abundances-per-cluster.tsv"
 
-# sampleId, clonotypeKey, clonotypeKeyLabel,sequence, VGene, JGene
+# sampleId, clonotypeKey, clonotypeKeyLabel,sequence_..., 
+# sequence_second_...VGene, JGene
 cloneTable = pd.read_csv(cloneTableTsv, sep="\t")
+
+# Concatenate all sequence columns if we have them
+sequence_cols = [col for col in cloneTable.columns 
+                 if col.startswith('sequence_')]
+cloneTable[sequence_cols] = cloneTable[sequence_cols].fillna('')
+cloneTable['sequence'] = cloneTable[sequence_cols].agg(''.join, axis=1)
+
+# If we got both chains merge by groups and then all together
+sequence_cols = [col for col in cloneTable.columns 
+                if col.startswith('sequence_second_')]
+if len(sequence_cols) > 0:
+    cloneTable['sequence_second'] = cloneTable[sequence_cols].agg(''.join, axis=1)
 
 # Transform clonotypeKeyLabel from "C-XXXXXX" with "CL-XXXXXX"
 cloneTable['clusterLabel'] = cloneTable['clonotypeKeyLabel'] \
