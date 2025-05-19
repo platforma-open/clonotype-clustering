@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.2.2
+
+### Patch Changes
+
+- 3e98e66: Fix exports
+
 ## 3.2.1
 
 ### Patch Changes

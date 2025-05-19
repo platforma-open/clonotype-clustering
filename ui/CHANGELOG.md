@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.1.4
+
+### Patch Changes
+
+- 3e98e66: Fix exports
+
 ## 3.1.3
 
 ### Patch Changes
