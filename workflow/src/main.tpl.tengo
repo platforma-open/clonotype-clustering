@@ -14,10 +14,12 @@ prepareFastaSw := assets.importSoftware("@platforma-open/milaboratories.clonotyp
 processResultsSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:process-results")
 mmseqsSw := assets.importSoftware("@platforma-open/soedinglab.software-mmseqs2:mmseqs2")
 
-setVisibility := func(spec, visibility) {
+setTableProps := func(spec, label, visibility, orderPriority) {
 	return maps.deepMerge(spec, {
 		annotations: {
-			"pl7.app/table/visibility": visibility ? "default" : "optional"
+			"pl7.app/label": label,
+			"pl7.app/table/visibility": visibility ? "default" : "optional",
+			"pl7.app/table/orderPriority": orderPriority
 		}
 	})
 }
@@ -215,21 +217,16 @@ wf.body(func(args) {
 		}],
 		columns: [{
 			column: "abundance",
-			spec: maps.deepMerge(ac, {
-				annotations: {
-					"pl7.app/label": abundanceLabel + " in cluster"
-				}
-			})
+			spec: setTableProps(ac, abundanceLabel + " in cluster", false, undefined)
 		},
 		{
 			column: "abundance_normalized",
-			spec: maps.deepMerge(ac, {
+			spec: setTableProps(maps.deepMerge(ac, {
 				valueType: "Float",
 				annotations: {
-					"pl7.app/label": text.re_replace("Number", abundanceLabel, "Fraction") + " in cluster",
 					"pl7.app/abundance/normalized": "true"
 				}
-			})
+			}), text.re_replace("Number", abundanceLabel, "Fraction") + " in cluster", false, undefined)
 		}]
 	}, {splitDataAndSpec: true})
 
@@ -243,11 +240,7 @@ wf.body(func(args) {
 		}],
 		columns: [{
 			column: "abundance_per_cluster",
-			spec: maps.deepMerge(ac, {
-				annotations: {
-					"pl7.app/label": "Total " + abundanceLabel + " in cluster"
-				}
-			})
+			spec: setTableProps(ac, "Total " + abundanceLabel + " in cluster", false, undefined)
 		}]
 	}, {splitDataAndSpec: true})
 
@@ -258,13 +251,13 @@ wf.body(func(args) {
 			spec: datasetSpec.axesSpec[1]
 		}],
 		columns: [{
-			column: "clusterId",
-			spec: setVisibility({
+			column: "clusterLabel",
+			spec: setTableProps({
 				name: "pl7.app/vdj/clusterId",
 				valueType: "String",
 				domain: clusterIdAxisSpec.domain,
 				annotations: clusterIdAxisSpec.annotations
-			}, false)
+			}, "Cluster Id", false, undefined)
 		}]
 	}, {splitDataAndSpec: true})
 
@@ -278,31 +271,26 @@ wf.body(func(args) {
 		}],
 		columns: [{
 			column: "link",
-			spec: setVisibility({
+			spec: setTableProps({
 				name: "pl7.app/vdj/link",
 				valueType: "Int",
 				annotations: {
-					"pl7.app/label": "Clone to cluster link",
 					"pl7.app/isLinkerColumn": "true"
 				}
-			}, false)
+			}, "Clone to cluster link", false, undefined)
 		}]
 	}, {splitDataAndSpec: true})
 	
 	clusterToSeq := result.getFile("cluster-to-seq.tsv")
 
-	// Get a copy of the sequence column spec and update label
-	sequenceSpec := copy(sequencePrimary.spec)
-	sequenceSpec.annotations["pl7.app/label"] = "Centroid " + sequenceSpec.annotations["pl7.app/label"]
-	
 	seqColumns := [{
 		column: "sequence",
-		spec: setVisibility({
-			name: sequenceSpec.name,
-			valueType: sequenceSpec.valueType,
-			domain: sequenceSpec.domain,
-			annotations: sequenceSpec.annotations
-		}, true)
+		spec: setTableProps({
+			name: sequencePrimary.spec.name,
+			valueType: sequencePrimary.spec.valueType,
+			domain: sequencePrimary.spec.domain,
+			annotations: sequencePrimary.spec.annotations
+		}, sequencePrimary.spec.annotations["pl7.app/label"], true, "10")
 	},
 	{
 		column: "size",
@@ -314,7 +302,7 @@ wf.body(func(args) {
 			}
 		}
 	}, {
-		column: "clonotypeKeyLabel",
+		column: "clusterLabel",
 		spec: {
 			name: "pl7.app/label",
 			valueType: "String",
@@ -325,18 +313,14 @@ wf.body(func(args) {
 	}]
 
 	if isSingleCell && args.clusterBothChains {
-		// Get a copy of the sequence column spec and update label
-		sequenceSecondarySpec := copy(sequenceSecondary.spec)
-		sequenceSecondarySpec.annotations["pl7.app/label"] = "Centroid " + sequenceSecondarySpec.annotations["pl7.app/label"]
-
 		seqColumns = append(seqColumns, {
 			column: "sequence_second",
-			spec: setVisibility({
-				name: sequenceSecondarySpec.name,
-				valueType: sequenceSecondarySpec.valueType,
-				domain: sequenceSecondarySpec.domain,
-				annotations: sequenceSecondarySpec.annotations
-			}, true)
+			spec: setTableProps({
+				name: sequenceSecondary.spec.name,
+				valueType: sequenceSecondary.spec.valueType,
+				domain: sequenceSecondary.spec.domain,
+				annotations: sequenceSecondary.spec.annotations
+			}, sequenceSecondary.spec.annotations["pl7.app/label"], true, "20")
 		})
 	}
 	clusterToSeqPf := xsv.importFile(clusterToSeq, "tsv", {
@@ -357,7 +341,7 @@ wf.body(func(args) {
 
 	opf := pframes.pFrameBuilder()
 	for k, v in clusterToSeqPf {
-		if k == "clonotypeKeyLabel" {
+		if k == "clusterLabel" {
 			 // avoid putting label into the outputs as it will be already in exports; 
 			 // in future should be safe to add once PlAgDataTable bug is fixed
 			continue
@@ -367,11 +351,11 @@ wf.body(func(args) {
 	opf = opf.build()
 
 	epf := pframes.pFrameBuilder() 
+	i := 0
 	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf] {
-		i := 0
 		for k, v in pf {
 			epf.add(k + string(i), trace.inject(v.spec), v.data) // label, specs, data
-			i++
+			i = i + 1
 		}
 	}
 	epf = epf.build()
