@@ -65,6 +65,7 @@ const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
     <GraphMaker
       v-model="app.model.ui.graphStateBubble"
       chartType="bubble"
+      :data-state-key="app.model.args.datasetRef"
       :p-frame="app.model.outputs.clustersPf"
       :default-options="defaultOptions"
     />
