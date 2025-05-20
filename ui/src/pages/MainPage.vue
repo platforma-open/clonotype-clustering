@@ -14,7 +14,7 @@ import {
   PlDropdownRef,
   PlMaskIcon24,
   PlNumberField,
-  PlSlideModal
+  PlSlideModal,
 } from '@platforma-sdk/ui-vue';
 import { computed, ref } from 'vue';
 import { useApp } from '../app';
@@ -110,13 +110,6 @@ const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
           Select min identity of clonotypes in the cluster.
         </template>
       </PlNumberField>
-
-      <!-- <PlCheckbox
-        v-if="app.model.outputs.isSingleCell"
-        v-model="app.model.args.clusterBothChains"
-      >
-        Cluster both chains
-      </PlCheckbox> -->
     </PlSlideModal>
   </PlBlockPage>
 </template>
