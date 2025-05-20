@@ -24,7 +24,6 @@ export const model = BlockModel.create()
 
   .withArgs<BlockArgs>({
     identity: 0.8,
-    // clusterBothChains: true,
     sequenceType: 'aminoacid',
     sequencesRef: [],
   })
