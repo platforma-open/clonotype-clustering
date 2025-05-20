@@ -12,7 +12,6 @@ export type BlockArgs = {
   // Added sequenceType here for future use in algorithm selection in workflow
   sequenceType: 'aminoacid' | 'nucleotide';
   identity: number;
-  clusterBothChains: boolean;
 };
 
 export type UiState = {
@@ -25,7 +24,7 @@ export const model = BlockModel.create()
 
   .withArgs<BlockArgs>({
     identity: 0.8,
-    clusterBothChains: true,
+    // clusterBothChains: true,
     sequenceType: 'aminoacid',
     sequencesRef: [],
   })
@@ -85,7 +84,6 @@ export const model = BlockModel.create()
           name: 'pl7.app/vdj/sequence',
           domain: {
             'pl7.app/vdj/feature': feature,
-            'pl7.app/vdj/scClonotypeChain': 'A',
             'pl7.app/vdj/scClonotypeChain/index': 'primary',
             'pl7.app/alphabet': ctx.args.sequenceType,
           },

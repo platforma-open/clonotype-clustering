@@ -42,16 +42,9 @@ wf.prepare(func(args) {
 		},
 		"abundance")
 
-	for nr, ref in args.sequencesRef {
-		// pull sequences; for single cell data, we pull both chains
-		bundleBuilder.addMulti(ref, "sequences" + string(nr), {
-			overrides: {
-				domain: {
-					// to pull both "A" and "B" chains in single cell data; not used for bulk data
-					"pl7.app/vdj/scClonotypeChain": undefined
-				}
-			}
-		})
+	for ref in args.sequencesRef {
+		// pull sequences
+		bundleBuilder.addSingle(ref)
 	}
 	
 	// @TODO: Implement in the future
@@ -86,74 +79,17 @@ wf.prepare(func(args) {
 wf.body(func(args) {
 	blockId := wf.blockId().getDataAsJson()
 	
+	// sort to preserve order of sequences
+	sequencesRef := slices.quickSort(args.sequencesRef)
+	
 	columns := args.columns
 	datasetSpec := columns.getSpec(args.datasetRef)
 	abundanceSpec := columns.getSpec("abundance")
+	
 	// sType := args.sequenceType == "aminoacid" ? "aa" : "nt"
 
-	// check sequence columns
 	isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
-	for nr, ref in args.sequencesRef {
-		sequences := columns.getColumns("sequences" + string(nr))
-		if isSingleCell && len(sequences) < 2 {
-			ll.panic("expected at least two sequence columns for single cell data")
-		} else if isSingleCell == false && (len(sequences) == 0 || len(sequences) > 2) {
-			ll.panic("expected exactly one sequence column for bulk data, got ", sequences)
-		}
-	}
 
-	// Get sorted list of Pcolumn labels
-	sequencePrimaryLabels := []
-	allFeatures := []
-	sequenceSecondaryLabels := []
-	for nr, ref in args.sequencesRef {
-		sequences := columns.getColumns("sequences" + string(nr))
-		// In single cell we use main chain for ordering (A chain)
-		if isSingleCell {
-			if sequences[0].spec.domain["pl7.app/vdj/scClonotypeChain"] == "A" {
-				sequencePrimaryLabels = append(sequencePrimaryLabels, sequences[0].spec.annotations["pl7.app/label"])
-				allFeatures = append(allFeatures, sequences[0].spec.domain["pl7.app/vdj/feature"])
-			} else {
-				sequencePrimaryLabels = append(sequencePrimaryLabels, sequences[1].spec.annotations["pl7.app/label"])
-				allFeatures = append(allFeatures, sequences[1].spec.domain["pl7.app/vdj/feature"])
-			}
-		} else {
-			sequencePrimaryLabels = append(sequencePrimaryLabels, sequences[0].spec.annotations["pl7.app/label"])
-			allFeatures = append(allFeatures, sequences[0].spec.domain["pl7.app/vdj/feature"])
-		}
-		
-	}
-	sequencePrimaryLabels = slices.quickSort(sequencePrimaryLabels)
-	allFeatures = slices.quickSort(allFeatures)
-
-	// primary chain sequence column or just sequence column for bulk data
-	sequencePrimary := []
-	// secondary chain sequence column (for sc data)
-	sequenceSecondary := []
-	// Iterate over ordered sequence labels to include sequences always in same order
-	for slabel in sequencePrimaryLabels {
-		for nr, ref in args.sequencesRef {
-			sequences := columns.getColumns("sequences" + string(nr))
-			if isSingleCell {
-				// since we only stored A chain by looking for presence we also now the order
-				if sequences[0].spec.annotations["pl7.app/label"] == slabel &&
-					sequences[0].spec.domain["pl7.app/vdj/scClonotypeChain"] == "A" {
-						sequencePrimary = sequencePrimary + [sequences[0]]
-						sequenceSecondary = sequenceSecondary + [sequences[1]]
-						sequenceSecondaryLabels = append(sequenceSecondaryLabels, sequences[1].spec.annotations["pl7.app/label"])
-				} else if sequences[1].spec.annotations["pl7.app/label"] == slabel &&
-					sequences[1].spec.domain["pl7.app/vdj/scClonotypeChain"] == "A" {
-						sequencePrimary = sequencePrimary + [sequences[1]]
-						sequenceSecondary = sequenceSecondary + [sequences[0]]
-						sequenceSecondaryLabels = append(sequenceSecondaryLabels, sequences[0].spec.annotations["pl7.app/label"])
-				}
-			} else {
-				if sequences[0].spec.annotations["pl7.app/label"] == slabel {
-					sequencePrimary = sequencePrimary + [sequences[0]]
-				}
-			}	
-		}
-	}
 	
 	/***** Step 1: do clustering on the clonotype level *****/
 
@@ -161,11 +97,8 @@ wf.body(func(args) {
 	seqTable := columns.xsvTableBuilder()
 	seqTable.setAxisHeader(datasetSpec.axesSpec[1].name, "clonotypeKey")
 	
-	for nseq, seq in sequencePrimary {
-		seqTable.add(seq.key, {header: "sequence_" + string(nseq)})
-		if isSingleCell && args.clusterBothChains {
-			seqTable.add(sequenceSecondary[nseq].key, {header: "sequence_second_" + string(nseq)})
-		}
+	for nr, seq in sequencesRef {
+		seqTable.add(seq, {header: "sequence_" + string(nr)})
 	}
 	
 	seqTable = seqTable.build("tsv")
@@ -201,11 +134,8 @@ wf.body(func(args) {
 	cloneTable := columns.xsvTableBuilder()
 	cloneTable.add("abundance", {header: "abundance"})
 	
-	for nseq, seq in sequencePrimary {
-		cloneTable.add(seq.key, {header: "sequence_" + string(nseq)})
-		if isSingleCell && args.clusterBothChains {
-			cloneTable.add(sequenceSecondary[nseq].key, {header: "sequence_second_" + string(nseq)})
-		}
+	for nr, seq in sequencesRef {
+		cloneTable.add(seq, {header: "sequence_" + string(nr)})
 	}
 	
 	cloneTable.add("clonotypeKeyLabels", {header: "clonotypeKeyLabel"})
@@ -351,11 +281,11 @@ wf.body(func(args) {
 	}]
 
 	// Add sequence columns
-	for nseq, seq in sequencePrimary {
-		spec := copy(seq.spec)
+	for nr, seq in sequencesRef {
+		spec := maps.clone(columns.getSpec(seq))
 		spec.annotations["pl7.app/label"] = "Centroid " + spec.annotations["pl7.app/label"]
 		seqColumns = append(seqColumns, {
-			column: "sequence_" + string(nseq),
+			column: "sequence_" + string(nr),
 			spec: setTableProps({
 				name: spec.name,
 				valueType: spec.valueType,
@@ -365,22 +295,6 @@ wf.body(func(args) {
 		})
 	}
 	
-
-	if isSingleCell && args.clusterBothChains {
-		for nseq, seq in sequenceSecondary {
-			spec := copy(seq.spec)
-			spec.annotations["pl7.app/label"] = "Centroid " + spec.annotations["pl7.app/label"]
-			seqColumns = append(seqColumns, {
-				column: "sequence_second_" + string(nseq),
-				spec: setTableProps({
-					name: spec.name,
-					valueType: spec.valueType,
-					domain: spec.domain,
-					annotations: spec.annotations
-				}, spec.annotations["pl7.app/label"], true, "20")
-			})
-		}
-	}
 	clusterToSeqPf := xsv.importFile(clusterToSeq, "tsv", {
 		axes: [{
 			column: "clusterId",

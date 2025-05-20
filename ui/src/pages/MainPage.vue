@@ -10,7 +10,6 @@ import {
   PlBlockPage,
   PlBtnGhost,
   PlBtnGroup,
-  PlCheckbox,
   PlDropdownMulti,
   PlDropdownRef,
   PlMaskIcon24,
@@ -112,12 +111,12 @@ const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
         </template>
       </PlNumberField>
 
-      <PlCheckbox
+      <!-- <PlCheckbox
         v-if="app.model.outputs.isSingleCell"
         v-model="app.model.args.clusterBothChains"
       >
         Cluster both chains
-      </PlCheckbox>
+      </PlCheckbox> -->
     </PlSlideModal>
   </PlBlockPage>
 </template>
