@@ -8,7 +8,7 @@ import {
 
 export type BlockArgs = {
   datasetRef?: PlRef;
-  sequenceRef: SUniversalPColumnId[];
+  sequencesRef: SUniversalPColumnId[];
   // Added sequenceType here for future use in algorithm selection in workflow
   sequenceType: 'aminoacid' | 'nucleotide';
   identity: number;
@@ -27,7 +27,7 @@ export const model = BlockModel.create()
     identity: 0.8,
     clusterBothChains: true,
     sequenceType: 'aminoacid',
-    sequenceRef: [],
+    sequencesRef: [],
   })
 
   .withUiState<UiState>({
@@ -48,7 +48,7 @@ export const model = BlockModel.create()
   })
 
   .argsValid((ctx) => ctx.args.datasetRef !== undefined
-    && ctx.args.sequenceRef.length > 0)
+    && ctx.args.sequencesRef.length > 0)
 
   .output('datasetOptions', (ctx) =>
     ctx.resultPool.getOptions([{

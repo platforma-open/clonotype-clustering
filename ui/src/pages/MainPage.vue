@@ -22,7 +22,7 @@ import { useApp } from '../app';
 
 const app = useApp();
 
-const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequenceRef === undefined);
+const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequencesRef === undefined);
 
 function setInput(inputRef?: PlRef) {
   app.model.args.datasetRef = inputRef;
@@ -97,7 +97,7 @@ const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
         :compact="true"
       />
       <PlDropdownMulti
-        v-model="app.model.args.sequenceRef"
+        v-model="app.model.args.sequencesRef"
         :options="app.model.outputs.sequenceOptions"
         label="Select sequence column/s to cluster"
         required
