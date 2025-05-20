@@ -7,8 +7,17 @@ cloneToClusterTsv = "clone-to-cluster.tsv"
 abundancesTsv = "abundances.tsv"
 abundancesPerClusterTsv = "abundances-per-cluster.tsv"
 
-# sampleId, clonotypeKey, clonotypeKeyLabel,sequence, VGene, JGene
+# sampleId, clonotypeKey, clonotypeKeyLabel,sequence_..., 
+# sequence_second_...VGene, JGene
 cloneTable = pd.read_csv(cloneTableTsv, sep="\t")
+
+# Get all sequence columns if we have them
+sequence_cols = [col for col in cloneTable.columns 
+                 if col.startswith('sequence_')]
+
+# Get all second chain sequence columns if we have them
+sequence_second_cols = [col for col in cloneTable.columns 
+                if col.startswith('sequence_second_')]
 
 # Transform clonotypeKeyLabel from "C-XXXXXX" with "CL-XXXXXX"
 cloneTable['clusterLabel'] = cloneTable['clonotypeKeyLabel'] \
@@ -50,9 +59,9 @@ centroid_data = pd.merge(
     how='inner'
 )
 
-required_cols_cts = ['clusterId', 'clusterLabel', 'sequence', 'size']
-if 'sequence_second' in cloneTable.columns:
-    required_cols_cts.append('sequence_second')
+required_cols_cts = ['clusterId', 
+                     'clusterLabel', 
+                     'size'] + sequence_cols + sequence_second_cols
 
 # Select necessary columns and ensure uniqueness by clusterId
 cluster_to_seq = centroid_data[required_cols_cts].drop_duplicates(subset=[

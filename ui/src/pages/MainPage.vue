@@ -4,23 +4,25 @@ import type {
   PlAgDataTableSettings,
 } from '@platforma-sdk/ui-vue';
 import {
+  listToOptions,
   PlAgDataTableToolsPanel,
   PlAgDataTableV2,
   PlBlockPage,
   PlBtnGhost,
+  PlBtnGroup,
   PlCheckbox,
-  PlDropdown,
+  PlDropdownMulti,
   PlDropdownRef,
   PlMaskIcon24,
   PlNumberField,
-  PlSlideModal,
+  PlSlideModal
 } from '@platforma-sdk/ui-vue';
 import { computed, ref } from 'vue';
 import { useApp } from '../app';
 
 const app = useApp();
 
-const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequenceRef === undefined);
+const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequencesRef === undefined);
 
 function setInput(inputRef?: PlRef) {
   app.model.args.datasetRef = inputRef;
@@ -51,6 +53,8 @@ const tableLoadingText = computed(() => {
   }
   return 'Loading';
 });
+
+const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
 
 </script>
 
@@ -86,10 +90,16 @@ const tableLoadingText = computed(() => {
         required
         @update:model-value="setInput"
       />
-      <PlDropdown
-        v-model="app.model.args.sequenceRef"
+      <PlBtnGroup
+        v-model="app.model.args.sequenceType"
+        label="Sequence type"
+        :options="sequenceType"
+        :compact="true"
+      />
+      <PlDropdownMulti
+        v-model="app.model.args.sequencesRef"
         :options="app.model.outputs.sequenceOptions"
-        label="Select sequence column to cluster"
+        label="Select sequence column/s to cluster"
         required
       />
 
