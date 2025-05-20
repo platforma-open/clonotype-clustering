@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.3.0
+
+### Minor Changes
+
+- f7cf11a: Allow multiple region clustering
+
 ## 3.2.2
 
 ### Patch Changes

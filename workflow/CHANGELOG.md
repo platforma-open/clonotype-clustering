@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.5.0
+
+### Minor Changes
+
+- f7cf11a: Allow multiple region clustering
+
+### Patch Changes
+
+- Updated dependencies [f7cf11a]
+  - @platforma-open/milaboratories.clonotype-clustering.software@3.3.0
+
 ## 3.4.1
 
 ### Patch Changes
