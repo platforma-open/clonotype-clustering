@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.4.0
+
+### Minor Changes
+
+- 33ea3aa: Allow separate input for heavy and light
+
 ## 3.3.0
 
 ### Minor Changes

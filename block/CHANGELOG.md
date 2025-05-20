@@ -1,5 +1,18 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.1.0
+
+### Minor Changes
+
+- 33ea3aa: Allow separate input for heavy and light
+
+### Patch Changes
+
+- Updated dependencies [33ea3aa]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.6.0
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.4.0
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.3.0
+
 ## 2.0.9
 
 ### Patch Changes
