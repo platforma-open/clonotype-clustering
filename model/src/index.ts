@@ -12,6 +12,7 @@ export type BlockArgs = {
   // Added sequenceType here for future use in algorithm selection in workflow
   sequenceType: 'aminoacid' | 'nucleotide';
   identity: number;
+  similarityType: 'alignment-score' | 'sequence-identity';
 };
 
 export type UiState = {
@@ -26,6 +27,7 @@ export const model = BlockModel.create()
     identity: 0.8,
     sequenceType: 'aminoacid',
     sequencesRef: [],
+    similarityType: 'sequence-identity',
   })
 
   .withUiState<UiState>({

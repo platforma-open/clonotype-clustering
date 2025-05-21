@@ -5,11 +5,13 @@ import type {
 } from '@platforma-sdk/ui-vue';
 import {
   listToOptions,
+  PlAccordionSection,
   PlAgDataTableToolsPanel,
   PlAgDataTableV2,
   PlBlockPage,
   PlBtnGhost,
   PlBtnGroup,
+  PlDropdown,
   PlDropdownMulti,
   PlDropdownRef,
   PlMaskIcon24,
@@ -54,6 +56,16 @@ const tableLoadingText = computed(() => {
 });
 
 const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
+
+const similarityTypeOptions = [
+  { label: 'Alignment Score', value: 'alignment-score' },
+  { label: 'Sequence Identity', value: 'sequence-identity' },
+];
+
+// Initialize default values if not set
+if (!app.model.args.similarityType) {
+  app.model.args.similarityType = 'sequence-identity';
+}
 
 </script>
 
@@ -110,6 +122,18 @@ const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
           Select min identity of clonotypes in the cluster.
         </template>
       </PlNumberField>
+
+      <PlAccordionSection label="Advanced Settings">
+        <PlDropdown
+          v-model="app.model.args.similarityType"
+          :options="similarityTypeOptions"
+          label="Similarity Type"
+        >
+          <template #tooltip>
+            Choose how sequence similarity is calculated during clustering
+          </template>
+        </PlDropdown>
+      </PlAccordionSection>
     </PlSlideModal>
   </PlBlockPage>
 </template>

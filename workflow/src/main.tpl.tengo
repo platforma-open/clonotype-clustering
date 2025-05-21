@@ -123,6 +123,8 @@ wf.body(func(args) {
 		arg("--min-seq-id").arg(string(args.identity)).
 		arg("-c").arg(string(args.identity)).
 		arg("--cov-mode").arg("1").
+		//  --similarity-type INT            Type of score used for clustering. 1: alignment score 2: sequence identity [2]
+		arg("--similarity-type").arg(args.similarityType == "sequence-identity" ? "2" : "1").
 		addFile("input.fasta", fasta.getFile("output.fasta")).
 		saveFile("result_cluster.tsv").
 		run()
