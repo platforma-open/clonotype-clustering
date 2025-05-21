@@ -62,9 +62,22 @@ const similarityTypeOptions = [
   { label: 'Sequence Identity', value: 'sequence-identity' },
 ];
 
+const coverageModeOptions = [
+  { label: 'Coverage of query and target', value: 0 },
+  { label: 'Coverage of target', value: 1 },
+  { label: 'Coverage of query', value: 2 },
+  { label: 'Target length ≥ x% of query length', value: 3 },
+  { label: 'Query length ≥ x% of target length', value: 4 },
+  { label: 'Shorter sequence ≥ x% of longer', value: 5 },
+];
+
 // Initialize default values if not set
 if (!app.model.args.similarityType) {
   app.model.args.similarityType = 'sequence-identity';
+}
+
+if (app.model.args.coverageMode === undefined) {
+  app.model.args.coverageMode = 1;
 }
 
 </script>
@@ -143,6 +156,16 @@ if (!app.model.args.similarityType) {
         >
           <template #tooltip>
             Type of similarity score used for clustering.
+          </template>
+        </PlDropdown>
+
+        <PlDropdown
+          v-model="app.model.args.coverageMode"
+          :options="coverageModeOptions"
+          label="Coverage Mode"
+        >
+          <template #tooltip>
+            How to calculate the coverage between sequences for the coverage threshold.
           </template>
         </PlDropdown>
       </PlAccordionSection>
