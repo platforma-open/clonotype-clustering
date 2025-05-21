@@ -319,9 +319,6 @@ wf.body(func(args) {
 		axes: [{
 			column: "Member_ID",
 			spec: datasetSpec.axesSpec[1]
-		}, {
-			column: "Centroid_ID",
-			spec: clusterIdAxisSpec
 		}],
 		columns: [{
 			column: "Distance_to_Centroid",
