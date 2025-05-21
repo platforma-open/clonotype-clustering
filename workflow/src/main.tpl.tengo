@@ -15,7 +15,6 @@ json := import("json")
 prepareFastaSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:prepare-fasta")
 processResultsSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:process-results")
 mmseqsSw := assets.importSoftware("@platforma-open/soedinglab.software-mmseqs2:mmseqs2")
-distanceToCentroidSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:distance-to-centroid")
 
 setTableProps := func(spec, label, visibility, orderPriority) {
 	return maps.deepMerge(spec, {
@@ -130,16 +129,6 @@ wf.body(func(args) {
 
 	clusters := mmseqs.getFile("result_cluster.tsv")
 
-	distanceToCentroid := exec.builder().
-		software(distanceToCentroidSw).
-		addFile("input.fasta", fasta.getFile("output.fasta")).
-		addFile("result_cluster.tsv", mmseqs.getFile("result_cluster.tsv")).
-		arg("-f").arg("input.fasta").
-		arg("-c").arg("result_cluster.tsv").
-		arg("-o").arg("distance_to_centroid.tsv").
-		saveFile("distance_to_centroid.tsv").
-		run() 
-
 	/******* Step 2: aggregate all data and generate results *******/
 	cloneTable := columns.xsvTableBuilder()
 	cloneTable.add("abundance", {header: "abundance"})
@@ -164,6 +153,7 @@ wf.body(func(args) {
 		saveFile("cluster-to-seq.tsv").
 		saveFile("clone-to-cluster.tsv").
 		saveFile("abundances-per-cluster.tsv"). // cluster to summed abundances
+		saveFile("distance_to_centroid.tsv"). // normalized levenshtein distance to centroid
 		run()
 
 
@@ -314,14 +304,14 @@ wf.body(func(args) {
 	}, {splitDataAndSpec: true})
 		
 
-	distances := distanceToCentroid.getFile("distance_to_centroid.tsv")
+	distances := result.getFile("distance_to_centroid.tsv")
 	distancesPf := xsv.importFile(distances, "tsv", {
 		axes: [{
-			column: "Member_ID",
+			column: "clonotypeKey",
 			spec: datasetSpec.axesSpec[1]
 		}],
 		columns: [{
-			column: "Distance_to_Centroid",
+			column: "distanceToCentroid",
 			spec: setTableProps({
 				name: "pl7.app/vdj/distanceToCentroid",
 				valueType: "Float",
