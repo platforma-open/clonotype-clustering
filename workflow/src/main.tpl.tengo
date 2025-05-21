@@ -138,8 +138,7 @@ wf.body(func(args) {
 		arg("-c").arg("result_cluster.tsv").
 		arg("-o").arg("distance_to_centroid.tsv").
 		saveFile("distance_to_centroid.tsv").
-		run()
-
+		run() 
 
 	/******* Step 2: aggregate all data and generate results *******/
 	cloneTable := columns.xsvTableBuilder()
@@ -314,6 +313,25 @@ wf.body(func(args) {
 		columns: seqColumns
 	}, {splitDataAndSpec: true})
 		
+
+	distances := distanceToCentroid.getFile("distance_to_centroid.tsv")
+	distancesPf := xsv.importFile(distances, "tsv", {
+		axes: [{
+			column: "Member_ID",
+			spec: datasetSpec.axesSpec[1]
+		}, {
+			column: "Centroid_ID",
+			spec: clusterIdAxisSpec
+		}],
+		columns: [{
+			column: "Distance_to_Centroid",
+			spec: setTableProps({
+				name: "pl7.app/vdj/distanceToCentroid",
+				valueType: "Float"
+			}, "Distance to centroid", false, undefined)
+		}]
+	}, {splitDataAndSpec: true})
+
 	// building outputs & exports
 	trace := pSpec.makeTrace(abundanceSpec,
 		{
@@ -335,7 +353,7 @@ wf.body(func(args) {
 
 	epf := pframes.pFrameBuilder() 
 	i := 0
-	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf] {
+	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf, distancesPf] {
 		for k, v in pf {
 			epf.add(k + string(i), trace.inject(v.spec), v.data) // label, specs, data
 			i = i + 1
