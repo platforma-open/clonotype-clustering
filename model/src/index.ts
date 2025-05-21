@@ -13,6 +13,7 @@ export type BlockArgs = {
   sequenceType: 'aminoacid' | 'nucleotide';
   identity: number;
   similarityType: 'alignment-score' | 'sequence-identity';
+  coverageThreshold: number;  // fraction of aligned residues required
 };
 
 export type UiState = {
@@ -28,6 +29,7 @@ export const model = BlockModel.create()
     sequenceType: 'aminoacid',
     sequencesRef: [],
     similarityType: 'sequence-identity',
+    coverageThreshold: 0.8,  // default value matching MMseqs2 default
   })
 
   .withUiState<UiState>({

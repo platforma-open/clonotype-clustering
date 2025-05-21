@@ -123,6 +123,18 @@ if (!app.model.args.similarityType) {
         </template>
       </PlNumberField>
 
+      <PlNumberField
+        v-model="app.model.args.coverageThreshold"
+        label="Coverage Threshold"
+        :minValue="0.1"
+        :step="0.1"
+        :maxValue="1.0"
+      >
+        <template #tooltip>
+          Select min fraction of aligned (covered) residues of clonotypes in the cluster.
+        </template>
+      </PlNumberField>
+
       <PlAccordionSection label="Advanced Settings">
         <PlDropdown
           v-model="app.model.args.similarityType"
@@ -130,7 +142,7 @@ if (!app.model.args.similarityType) {
           label="Similarity Type"
         >
           <template #tooltip>
-            Choose how sequence similarity is calculated during clustering
+            Type of similarity score used for clustering.
           </template>
         </PlDropdown>
       </PlAccordionSection>
