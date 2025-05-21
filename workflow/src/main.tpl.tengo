@@ -327,7 +327,8 @@ wf.body(func(args) {
 			column: "Distance_to_Centroid",
 			spec: setTableProps({
 				name: "pl7.app/vdj/distanceToCentroid",
-				valueType: "Float"
+				valueType: "Float",
+				annotations: {}
 			}, "Distance to centroid", false, undefined)
 		}]
 	}, {splitDataAndSpec: true})
