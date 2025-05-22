@@ -23,13 +23,15 @@ const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
     },
     {
       inputName: 'valueSize',
-      // selectedSource: app.model.outputs.clusterAbundanceSpec, // @TODO: figure out why this is not working (Elena)
-      selectedSource: {
-        kind: 'PColumn',
-        name: app.model.outputs.clusterAbundanceSpec.name,
-        valueType: app.model.outputs.clusterAbundanceSpec.valueType,
-        axesSpec: [],
-      },
+      selectedSource: app.model.outputs.clusterAbundanceSpec, // @TODO: figure out why this is not working (Elena)
+      // If switch to search mode use more queries to get only "pl7.app/label": "Number of UMIs in cluster" and not
+      // "pl7.app/label": "Number of UMIs",
+      // selectedSource: {
+      //   kind: 'PColumn',
+      //   name: app.model.outputs.clusterAbundanceSpec.name,
+      //   valueType: app.model.outputs.clusterAbundanceSpec.valueType,
+      //   axesSpec: [],
+      // },
     },
     {
       inputName: 'y',
@@ -65,7 +67,7 @@ const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
     <GraphMaker
       v-model="app.model.ui.graphStateBubble"
       chartType="bubble"
-      :data-state-key="app.model.args.datasetRef"
+      :data-state-key="app.model.outputs.clustersPf"
       :p-frame="app.model.outputs.clustersPf"
       :default-options="defaultOptions"
     />
