@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.8.0
+
+### Minor Changes
+
+- 0e2c545: Added distance from each clonotype to cluster centroid
+
+### Patch Changes
+
+- Updated dependencies [0e2c545]
+  - @platforma-open/milaboratories.clonotype-clustering.software@3.5.0
+
 ## 3.7.0
 
 ### Minor Changes

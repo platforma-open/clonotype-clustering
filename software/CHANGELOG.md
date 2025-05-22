@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.5.0
+
+### Minor Changes
+
+- 0e2c545: Added distance from each clonotype to cluster centroid
+
 ## 3.4.0
 
 ### Minor Changes
