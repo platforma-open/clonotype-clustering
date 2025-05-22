@@ -12,6 +12,9 @@ export type BlockArgs = {
   // Added sequenceType here for future use in algorithm selection in workflow
   sequenceType: 'aminoacid' | 'nucleotide';
   identity: number;
+  similarityType: 'alignment-score' | 'sequence-identity';
+  coverageThreshold: number;  // fraction of aligned residues required
+  coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // MMseqs2 coverage modes
 };
 
 export type UiState = {
@@ -26,6 +29,9 @@ export const model = BlockModel.create()
     identity: 0.8,
     sequenceType: 'aminoacid',
     sequencesRef: [],
+    similarityType: 'sequence-identity',
+    coverageThreshold: 0.8, // default value matching MMseqs2 default
+    coverageMode: 1, // default to coverage of target
   })
 
   .withUiState<UiState>({
