@@ -315,7 +315,11 @@ wf.body(func(args) {
 			spec: setTableProps({
 				name: "pl7.app/vdj/distanceToCentroid",
 				valueType: "Float",
-				annotations: {}
+				annotations: {
+					"pl7.app/min": "0",
+					"pl7.app/max": "1",
+					"pl7.app/rankingOrder": "decreasing"
+				}
 			}, "Distance to centroid", false, undefined)
 		}]
 	}, {splitDataAndSpec: true})
