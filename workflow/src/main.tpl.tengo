@@ -131,7 +131,6 @@ wf.body(func(args) {
 
 	clusters := mmseqs.getFile("result_cluster.tsv")
 
-
 	/******* Step 2: aggregate all data and generate results *******/
 	cloneTable := columns.xsvTableBuilder()
 	cloneTable.add("abundance", {header: "abundance"})
@@ -156,6 +155,7 @@ wf.body(func(args) {
 		saveFile("cluster-to-seq.tsv").
 		saveFile("clone-to-cluster.tsv").
 		saveFile("abundances-per-cluster.tsv"). // cluster to summed abundances
+		saveFile("distance_to_centroid.tsv"). // normalized levenshtein distance to centroid
 		run()
 
 
@@ -305,6 +305,27 @@ wf.body(func(args) {
 		columns: seqColumns
 	}, {splitDataAndSpec: true})
 		
+
+	distances := result.getFile("distance_to_centroid.tsv")
+	distancesPf := xsv.importFile(distances, "tsv", {
+		axes: [{
+			column: "clonotypeKey",
+			spec: datasetSpec.axesSpec[1]
+		}],
+		columns: [{
+			column: "distanceToCentroid",
+			spec: setTableProps({
+				name: "pl7.app/vdj/distanceToCentroid",
+				valueType: "Float",
+				annotations: {
+					"pl7.app/min": "0",
+					"pl7.app/max": "1",
+					"pl7.app/rankingOrder": "decreasing"
+				}
+			}, "Distance to centroid", false, undefined)
+		}]
+	}, {splitDataAndSpec: true})
+
 	// building outputs & exports
 	trace := pSpec.makeTrace(abundanceSpec,
 		{
@@ -326,7 +347,7 @@ wf.body(func(args) {
 
 	epf := pframes.pFrameBuilder() 
 	i := 0
-	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf] {
+	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf, distancesPf] {
 		for k, v in pf {
 			epf.add(k + string(i), trace.inject(v.spec), v.data) // label, specs, data
 			i = i + 1
