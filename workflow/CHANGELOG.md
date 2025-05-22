@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.7.0
+
+### Minor Changes
+
+- d5a09ff: Expose clustering options
+
 ## 3.6.0
 
 ### Minor Changes

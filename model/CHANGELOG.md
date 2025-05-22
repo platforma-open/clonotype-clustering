@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.5.0
+
+### Minor Changes
+
+- d5a09ff: Expose clustering options
+
 ## 2.4.0
 
 ### Minor Changes

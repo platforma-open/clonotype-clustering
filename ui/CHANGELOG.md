@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.4.0
+
+### Minor Changes
+
+- d5a09ff: Expose clustering options
+
+### Patch Changes
+
+- Updated dependencies [d5a09ff]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.5.0
+
 ## 3.3.0
 
 ### Minor Changes
