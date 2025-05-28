@@ -94,14 +94,14 @@ wf.body(func(args) {
 	/***** Step 1: do clustering on the clonotype level *****/
 
 	// input table
-	seqTable := columns.xsvTableBuilder()
-	seqTable.setAxisHeader(datasetSpec.axesSpec[1].name, "clonotypeKey")
+	seqTableBuilder := pframes.tsvFileBuilder()
+	seqTableBuilder.setAxisHeader(datasetSpec.axesSpec[1].name, "clonotypeKey")
 
 	for nr, seq in sequencesRef {
-		seqTable.add(seq, {header: "sequence_" + string(nr)})
+		seqTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
 	}
 
-	seqTable = seqTable.build("tsv")
+	seqTable := seqTableBuilder.build()
 
 	// prepare fasta file
 	fasta := exec.builder().
@@ -132,19 +132,19 @@ wf.body(func(args) {
 	clusters := mmseqs.getFile("result_cluster.tsv")
 
 	/******* Step 2: aggregate all data and generate results *******/
-	cloneTable := columns.xsvTableBuilder()
-	cloneTable.add("abundance", {header: "abundance"})
+	cloneTableBuilder := pframes.tsvFileBuilder()
+	cloneTableBuilder.add(columns.getColumn("abundance"), {header: "abundance"})
 
 	for nr, seq in sequencesRef {
-		cloneTable.add(seq, {header: "sequence_" + string(nr)})
+		cloneTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
 	}
 
-	cloneTable.add("clonotypeKeyLabels", {header: "clonotypeKeyLabel"})
+	cloneTableBuilder.add(columns.getColumn("clonotypeKeyLabels"), {header: "clonotypeKeyLabel"})
 	// cloneTable.add("VGene", {header: "VGene"})
 	// cloneTable.add("JGene", {header: "JGene"})
-	cloneTable.setAxisHeader(abundanceSpec.axesSpec[0].name, "sampleId")
-	cloneTable.setAxisHeader(abundanceSpec.axesSpec[1].name, "clonotypeKey")
-	cloneTable = cloneTable.build("tsv")
+	cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[0].name, "sampleId")
+	cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[1].name, "clonotypeKey")
+	cloneTable := cloneTableBuilder.build()
 
 
 	result := exec.builder().
