@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AxisId, PlRef, PlSelectionModel, PTableKey } from '@platforma-sdk/model';
+import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey } from '@platforma-sdk/model';
 import { plRefsEqual } from '@platforma-sdk/model';
 import type {
   PlAgDataTableSettings,
@@ -22,11 +22,6 @@ import {
 } from '@platforma-sdk/ui-vue';
 import { computed, reactive, ref } from 'vue';
 import { useApp } from '../app';
-import {
-  isLabelColumnOption,
-  isLinkerColumn,
-  isSequenceColumn,
-} from '../util';
 
 const app = useApp();
 const multipleSequenceAlignmentOpen = ref(false);
@@ -98,14 +93,17 @@ const coverageModeOptions = [
   { label: 'Shorter sequence ≥ x% of longer', value: 5 },
 ];
 
-// Initialize default values if not set
-if (!app.model.args.similarityType) {
-  app.model.args.similarityType = 'sequence-identity';
-}
+const isSequenceColumn = (column: PColumnIdAndSpec) => {
+  return app.model.args.sequencesRef?.some((r) => r === column.columnId);
+};
 
-if (app.model.args.coverageMode === undefined) {
-  app.model.args.coverageMode = 1;
-}
+const isLinkerColumn = (column: PColumnIdAndSpec) => {
+  return column.columnId === app.model.outputs.linkerColumnId;
+};
+
+const isLabelColumnOption = (_column: PColumnIdAndSpec) => {
+  return true;
+};
 
 // Set instructions to track cluster axis
 const clusterAxis = computed<AxisId>(() => {
@@ -128,7 +126,6 @@ const clusterAxis = computed<AxisId>(() => {
 
 <template>
   <PlBlockPage>
-    {{ selection }}
     <template #title>
       {{ app.model.ui.title }}
     </template>

@@ -118,7 +118,11 @@ export const model = BlockModel.create()
     return ctx.resultPool.getCanonicalOptions(
       { main: ref },
       sequenceMatchers,
-      { ignoreMissingDomains: true });
+      { ignoreMissingDomains: true,
+        labelOps: {
+          includeNativeLabel: true,
+        },
+      });
   })
 
   .output('isSingleCell', (ctx) => {
@@ -144,8 +148,8 @@ export const model = BlockModel.create()
   })
 
   .output('msaPf', (ctx) => {
-    const pCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
-    if (!pCols) return undefined;
+    const msaCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
+    if (!msaCols) return undefined;
 
     const datasetRef = ctx.args.datasetRef;
     if (datasetRef === undefined)
@@ -162,31 +166,13 @@ export const model = BlockModel.create()
     if (seqCols === undefined)
       return undefined;
 
-    // sequencesRef
-    return createPFrameForGraphs(ctx, [...pCols, ...seqCols]);
+    return createPFrameForGraphs(ctx, [...msaCols, ...seqCols]);
   })
 
-  .output('test', (ctx) => {
+  .output('linkerColumnId', (ctx) => {
     const pCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
     if (!pCols) return undefined;
-
-    const datasetRef = ctx.args.datasetRef;
-    if (datasetRef === undefined)
-      return undefined;
-
-    const sequencesRef = ctx.args.sequencesRef;
-    if (sequencesRef.length === 0)
-      return undefined;
-
-    const seqCols = ctx.resultPool.getAnchoredPColumns(
-      { main: datasetRef },
-      sequencesRef.map((s) => JSON.parse(s) as never),
-    );
-    if (seqCols === undefined)
-      return undefined;
-
-    // sequencesRef
-    return [...pCols, ...seqCols];
+    return pCols.find((p) => p.spec.annotations?.['pl7.app/isLinkerColumn'] === 'true')?.id;
   })
 
   .output('clusterAbundanceSpec', (ctx) => {
