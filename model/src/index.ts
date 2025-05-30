@@ -12,7 +12,7 @@ import {
   createPFrameForGraphs,
   createPlDataTableV2,
 } from '@platforma-sdk/model';
-import { getColumns } from './util';
+import type { APColumnSelectorWithSplit } from '@platforma-sdk/model/dist/render/util/split_selectors';
 
 export type BlockArgs = {
   datasetRef?: PlRef;
@@ -89,7 +89,7 @@ export const model = BlockModel.create()
     if (ref === undefined) return undefined;
 
     const isSingleCell = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
-    const sequenceMatchers = [];
+    const sequenceMatchers: APColumnSelectorWithSplit[] = [];
     const allowedFeatures = ['CDR1', 'CDR2', 'CDR3', 'FR1', 'FR2',
       'FR3', 'FR4', 'VDJRegion'];
     for (const feature of allowedFeatures) {
@@ -143,24 +143,66 @@ export const model = BlockModel.create()
       ctx.uiState?.tableState);
   })
 
-  .output('propPf', (ctx) => {
-    const columns = getColumns(ctx);
-    if (!columns) return undefined;
+  .output('msaPf', (ctx) => {
+    const pCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
+    if (!pCols) return undefined;
 
-    return createPFrameForGraphs(ctx, columns.props.map((c) => c.column));
+    const datasetRef = ctx.args.datasetRef;
+    if (datasetRef === undefined)
+      return undefined;
+
+    const sequencesRef = ctx.args.sequencesRef;
+    if (sequencesRef.length === 0)
+      return undefined;
+
+    const seqCols = ctx.resultPool.getAnchoredPColumns(
+      { main: datasetRef },
+      sequencesRef.map((s) => JSON.parse(s) as never),
+    );
+    if (seqCols === undefined)
+      return undefined;
+
+    // sequencesRef
+    return createPFrameForGraphs(ctx, [...pCols, ...seqCols]);
   })
 
   .output('test', (ctx) => {
-    const columns = getColumns(ctx);
-    if (!columns) return undefined;
+    const pCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
+    if (!pCols) return undefined;
 
-    return columns.props;
+    const datasetRef = ctx.args.datasetRef;
+    if (datasetRef === undefined)
+      return undefined;
+
+    const sequencesRef = ctx.args.sequencesRef;
+    if (sequencesRef.length === 0)
+      return undefined;
+
+    const seqCols = ctx.resultPool.getAnchoredPColumns(
+      { main: datasetRef },
+      sequencesRef.map((s) => JSON.parse(s) as never),
+    );
+    if (seqCols === undefined)
+      return undefined;
+
+    // sequencesRef
+    return [...pCols, ...seqCols];
   })
 
   .output('clusterAbundanceSpec', (ctx) => {
     const spec = ctx.outputs?.resolve('clusterAbundanceSpec')?.getDataAsJson();
     if (spec === undefined) return undefined;
     return spec as PColumnSpec;
+  })
+
+  .output('inputSpec', (ctx) => {
+    const anchor = ctx.args.datasetRef;
+    if (anchor === undefined)
+      return undefined;
+    const anchorSpec = ctx.resultPool.getPColumnSpecByRef(anchor);
+    if (anchorSpec === undefined)
+      return undefined;
+    return anchorSpec;
   })
 
   .output('clustersPf', (ctx): PFrameHandle | undefined => {

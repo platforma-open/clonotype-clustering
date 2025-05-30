@@ -345,8 +345,20 @@ wf.body(func(args) {
 	}
 	opf = opf.build()
 
-	epf := pframes.pFrameBuilder() 
+	// Generate pFrames with sequences
+	msaPf := pframes.pFrameBuilder()
 	i := 0
+	for pf in [cloneToClusterLinkPf, distancesPf] {
+		for k, v in pf {
+			msaPf.add(k + string(i), trace.inject(v.spec), v.data) // label, specs, data
+			i = i + 1
+		}
+	}
+	msaPf = msaPf.build()
+
+
+	epf := pframes.pFrameBuilder() 
+	i = 0
 	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf, distancesPf] {
 		for k, v in pf {
 			epf.add(k + string(i), trace.inject(v.spec), v.data) // label, specs, data
@@ -361,6 +373,8 @@ wf.body(func(args) {
 		outputs: {
 			// for table
 			clustersPf: pframes.exportFrame(opf),
+			// for MSA
+			msaPf: pframes.exportFrame(msaPf),
 			// pf for plots
 			pf: pframes.exportFrame(epf),
 			// specs to outputs for visualization purposes

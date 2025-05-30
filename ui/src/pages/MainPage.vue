@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { AxisId, PlRef, PlSelectionModel } from '@platforma-sdk/model';
+import type { AxisId, PlRef, PlSelectionModel, PTableKey } from '@platforma-sdk/model';
 import { plRefsEqual } from '@platforma-sdk/model';
 import type {
   PlAgDataTableSettings,
@@ -32,8 +32,23 @@ const app = useApp();
 const multipleSequenceAlignmentOpen = ref(false);
 
 const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequencesRef === undefined);
+// With selection we will get the axis of cluster id
+const selection = ref<PlSelectionModel>({
+  axesSpec: [],
+  selectedKeys: [],
+});
+
 // Open MSA when we click in a row
-const onRowDoubleClicked = reactive(() => {
+const onRowDoubleClicked = reactive((key?: PTableKey) => {
+  // Using keys (that will contain cluster ID) we get included clonotypes
+  if (key) {
+    const clusterSpecs = app.model.outputs.clusterAbundanceSpec;
+    if (clusterSpecs === undefined) return;
+    selection.value = {
+      axesSpec: [clusterSpecs.axesSpec[1]],
+      selectedKeys: [key],
+    };
+  }
   multipleSequenceAlignmentOpen.value = true;
 });
 
@@ -92,12 +107,6 @@ if (app.model.args.coverageMode === undefined) {
   app.model.args.coverageMode = 1;
 }
 
-// With selection we will get the axis of cluster id
-const selection = ref<PlSelectionModel>({
-  axesSpec: [],
-  selectedKeys: [],
-});
-
 // Set instructions to track cluster axis
 const clusterAxis = computed<AxisId>(() => {
   if (app.model.outputs.clusterAbundanceSpec?.axesSpec[1] === undefined) {
@@ -119,6 +128,7 @@ const clusterAxis = computed<AxisId>(() => {
 
 <template>
   <PlBlockPage>
+    {{ selection }}
     <template #title>
       {{ app.model.ui.title }}
     </template>
@@ -216,7 +226,7 @@ const clusterAxis = computed<AxisId>(() => {
       :label-column-option-predicate="isLabelColumnOption"
       :sequence-column-predicate="isSequenceColumn"
       :linker-column-predicate="isLinkerColumn"
-      :p-frame="app.model.outputs.propPf"
+      :p-frame="app.model.outputs.msaPf"
       :selection="selection"
     />
   </PlSlideModal>
