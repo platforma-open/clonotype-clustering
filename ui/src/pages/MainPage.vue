@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { plRefsEqual, type PlRef } from '@platforma-sdk/model';
+import type { AxisId, PlRef, PlSelectionModel } from '@platforma-sdk/model';
+import { plRefsEqual } from '@platforma-sdk/model';
 import type {
-  PlAgDataTableSettings,
+  PlAgDataTableSettings
 } from '@platforma-sdk/ui-vue';
 import {
   listToOptions,
@@ -15,15 +16,28 @@ import {
   PlDropdownMulti,
   PlDropdownRef,
   PlMaskIcon24,
+  PlMultiSequenceAlignment,
   PlNumberField,
   PlSlideModal,
 } from '@platforma-sdk/ui-vue';
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useApp } from '../app';
+import {
+  isLabelColumnOption,
+  isLinkerColumn,
+  isSequenceColumn,
+} from '../util';
 
 const app = useApp();
 
 const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequencesRef === undefined);
+const selectedCluster = reactive<{
+  MSAOpen: boolean;
+  sample: string | undefined;
+}>({
+  MSAOpen: false,
+  sample: undefined,
+});
 
 function setInput(inputRef?: PlRef) {
   app.model.args.datasetRef = inputRef;
@@ -80,6 +94,59 @@ if (app.model.args.coverageMode === undefined) {
   app.model.args.coverageMode = 1;
 }
 
+// const onRowDoubleClicked = (e) => {
+//   console.dir(keys);
+//   if (!keys || !noNaOrNULL(keys)) return;
+//   if (!isPValue(keys[1], 'Long')) throw new Error(`Unexpected key type ${typeof keys[1]}`);
+//   const donorId = keys[0];
+//   const treeId = Number(keys[1]);
+//   const subtreeId = keys.length > 2 ? String(keys[2]) : undefined;
+//   addDendrogram('Tree / ' + String(keys[0]) + ' / ' + treeId, donorId, treeId, subtreeId, 'X', 'Y');
+// };
+const multipleSequenceAlignmentOpen = ref(false);
+// With selection we will get the axis of cluster id
+const selection = ref<PlSelectionModel>({
+  axesSpec: [],
+  selectedKeys: [],
+});
+
+const onRowDoubleClicked = reactive(() => {
+  // console.dir(keys);
+  // if (!keys) return;
+  multipleSequenceAlignmentOpen.value = true;
+
+  // selectedCluster.sample = keys.data?.sampleId;
+  // selectedCluster.MSAOpen = selectedCluster.sample !== undefined;
+});
+
+// const gridOptions: GridOptions = {
+//   getRowId: (row) => row.data.sampleId,
+//   onRowDoubleClicked: (e) => {
+//     data.selectedSample = e.data?.sampleId;
+//     data.fastqcReportOpen = data.selectedSample !== undefined;
+//   },
+//   components: {
+//     PlAgTextAndButtonCell,
+//   },
+// };
+
+// Set instructions to track cluster axis
+const clusterAxis = computed<AxisId>(() => {
+  if (app.model.outputs.clusterAbundanceSpec?.axesSpec[1] === undefined) {
+    return {
+      type: 'String',
+      name: 'pl7.app/vdj/clusterId',
+      domain: {},
+    };
+  } else {
+    return {
+      type: 'String',
+      name: 'pl7.app/vdj/clusterId',
+      domain: app.model.outputs.clusterAbundanceSpec?.axesSpec[1].domain,
+    };
+  }
+});
+
 </script>
 
 <template>
@@ -103,6 +170,8 @@ if (app.model.args.coverageMode === undefined) {
       not-ready-text="Block is not started"
       show-columns-panel
       show-export-button
+      :show-cell-button-for-axis-id="clusterAxis"
+      @cell-button-clicked="onRowDoubleClicked"
     />
     <PlSlideModal v-model="settingsOpen" :close-on-outside-click="true">
       <template #title>Settings</template>
@@ -171,4 +240,16 @@ if (app.model.args.coverageMode === undefined) {
       </PlAccordionSection>
     </PlSlideModal>
   </PlBlockPage>
+  <!-- Slide window with results -->
+  <PlSlideModal v-model="multipleSequenceAlignmentOpen" width="100%">
+    <template #title>Multiple Sequence Alignment</template>
+    <PlMultiSequenceAlignment
+      v-model="app.model.ui.alignmentModel"
+      :label-column-option-predicate="isLabelColumnOption"
+      :sequence-column-predicate="isSequenceColumn"
+      :linker-column-predicate="isLinkerColumn"
+      :p-frame="app.model.outputs.propPf"
+      :selection="selection"
+    />
+  </PlSlideModal>
 </template>

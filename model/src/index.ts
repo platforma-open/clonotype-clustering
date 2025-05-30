@@ -1,10 +1,18 @@
 import type { GraphMakerState } from '@milaboratories/graph-maker';
-import type { InferOutputsType, PColumnSpec, PFrameHandle, PlDataTableState, PlRef, SUniversalPColumnId } from '@platforma-sdk/model';
+import type {
+  InferOutputsType,
+  PColumnSpec,
+  PFrameHandle,
+  PlDataTableState,
+  PlMultiSequenceAlignmentModel,
+  PlRef, SUniversalPColumnId,
+} from '@platforma-sdk/model';
 import {
   BlockModel,
   createPFrameForGraphs,
   createPlDataTableV2,
 } from '@platforma-sdk/model';
+import { getColumns } from './util';
 
 export type BlockArgs = {
   datasetRef?: PlRef;
@@ -13,7 +21,7 @@ export type BlockArgs = {
   sequenceType: 'aminoacid' | 'nucleotide';
   identity: number;
   similarityType: 'alignment-score' | 'sequence-identity';
-  coverageThreshold: number;  // fraction of aligned residues required
+  coverageThreshold: number; // fraction of aligned residues required
   coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // MMseqs2 coverage modes
 };
 
@@ -21,6 +29,7 @@ export type UiState = {
   title?: string;
   tableState: PlDataTableState;
   graphStateBubble: GraphMakerState;
+  alignmentModel: PlMultiSequenceAlignmentModel;
 };
 
 export const model = BlockModel.create()
@@ -49,6 +58,7 @@ export const model = BlockModel.create()
         },
       },
     },
+    alignmentModel: {},
   })
 
   .argsValid((ctx) => ctx.args.datasetRef !== undefined
@@ -131,6 +141,13 @@ export const model = BlockModel.create()
     return createPlDataTableV2(ctx, pCols,
       (_) => true,
       ctx.uiState?.tableState);
+  })
+
+  .output('propPf', (ctx) => {
+    const columns = getColumns(ctx);
+    if (!columns) return undefined;
+
+    return createPFrameForGraphs(ctx, columns.props.map((c) => c.column));
   })
 
   .output('clusterAbundanceSpec', (ctx) => {
