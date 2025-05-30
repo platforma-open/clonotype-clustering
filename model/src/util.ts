@@ -49,7 +49,7 @@ export type Columns = {
 };
 
 export function getColumns(ctx: RenderCtx<BlockArgs, UiState>): Columns | undefined {
-  const anchor = ctx.args.inputAnchor;
+  const anchor = ctx.args.datasetRef;
   if (anchor === undefined)
     return undefined;
 

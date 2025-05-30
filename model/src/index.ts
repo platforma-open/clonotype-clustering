@@ -150,6 +150,13 @@ export const model = BlockModel.create()
     return createPFrameForGraphs(ctx, columns.props.map((c) => c.column));
   })
 
+  .output('test', (ctx) => {
+    const columns = getColumns(ctx);
+    if (!columns) return undefined;
+
+    return columns.props;
+  })
+
   .output('clusterAbundanceSpec', (ctx) => {
     const spec = ctx.outputs?.resolve('clusterAbundanceSpec')?.getDataAsJson();
     if (spec === undefined) return undefined;

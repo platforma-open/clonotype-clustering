@@ -2,7 +2,7 @@
 import type { AxisId, PlRef, PlSelectionModel } from '@platforma-sdk/model';
 import { plRefsEqual } from '@platforma-sdk/model';
 import type {
-  PlAgDataTableSettings
+  PlAgDataTableSettings,
 } from '@platforma-sdk/ui-vue';
 import {
   listToOptions,
@@ -29,14 +29,12 @@ import {
 } from '../util';
 
 const app = useApp();
+const multipleSequenceAlignmentOpen = ref(false);
 
 const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequencesRef === undefined);
-const selectedCluster = reactive<{
-  MSAOpen: boolean;
-  sample: string | undefined;
-}>({
-  MSAOpen: false,
-  sample: undefined,
+// Open MSA when we click in a row
+const onRowDoubleClicked = reactive(() => {
+  multipleSequenceAlignmentOpen.value = true;
 });
 
 function setInput(inputRef?: PlRef) {
@@ -94,41 +92,11 @@ if (app.model.args.coverageMode === undefined) {
   app.model.args.coverageMode = 1;
 }
 
-// const onRowDoubleClicked = (e) => {
-//   console.dir(keys);
-//   if (!keys || !noNaOrNULL(keys)) return;
-//   if (!isPValue(keys[1], 'Long')) throw new Error(`Unexpected key type ${typeof keys[1]}`);
-//   const donorId = keys[0];
-//   const treeId = Number(keys[1]);
-//   const subtreeId = keys.length > 2 ? String(keys[2]) : undefined;
-//   addDendrogram('Tree / ' + String(keys[0]) + ' / ' + treeId, donorId, treeId, subtreeId, 'X', 'Y');
-// };
-const multipleSequenceAlignmentOpen = ref(false);
 // With selection we will get the axis of cluster id
 const selection = ref<PlSelectionModel>({
   axesSpec: [],
   selectedKeys: [],
 });
-
-const onRowDoubleClicked = reactive(() => {
-  // console.dir(keys);
-  // if (!keys) return;
-  multipleSequenceAlignmentOpen.value = true;
-
-  // selectedCluster.sample = keys.data?.sampleId;
-  // selectedCluster.MSAOpen = selectedCluster.sample !== undefined;
-});
-
-// const gridOptions: GridOptions = {
-//   getRowId: (row) => row.data.sampleId,
-//   onRowDoubleClicked: (e) => {
-//     data.selectedSample = e.data?.sampleId;
-//     data.fastqcReportOpen = data.selectedSample !== undefined;
-//   },
-//   components: {
-//     PlAgTextAndButtonCell,
-//   },
-// };
 
 // Set instructions to track cluster axis
 const clusterAxis = computed<AxisId>(() => {
