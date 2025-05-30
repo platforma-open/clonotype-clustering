@@ -1,10 +1,18 @@
 import type { GraphMakerState } from '@milaboratories/graph-maker';
-import type { InferOutputsType, PColumnSpec, PFrameHandle, PlDataTableState, PlRef, SUniversalPColumnId } from '@platforma-sdk/model';
+import type {
+  InferOutputsType,
+  PColumnSpec,
+  PFrameHandle,
+  PlDataTableState,
+  PlMultiSequenceAlignmentModel,
+  PlRef, SUniversalPColumnId,
+} from '@platforma-sdk/model';
 import {
   BlockModel,
   createPFrameForGraphs,
   createPlDataTableV2,
 } from '@platforma-sdk/model';
+import type { APColumnSelectorWithSplit } from '@platforma-sdk/model/dist/render/util/split_selectors';
 
 export type BlockArgs = {
   datasetRef?: PlRef;
@@ -13,7 +21,7 @@ export type BlockArgs = {
   sequenceType: 'aminoacid' | 'nucleotide';
   identity: number;
   similarityType: 'alignment-score' | 'sequence-identity';
-  coverageThreshold: number;  // fraction of aligned residues required
+  coverageThreshold: number; // fraction of aligned residues required
   coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // MMseqs2 coverage modes
 };
 
@@ -21,6 +29,7 @@ export type UiState = {
   title?: string;
   tableState: PlDataTableState;
   graphStateBubble: GraphMakerState;
+  alignmentModel: PlMultiSequenceAlignmentModel;
 };
 
 export const model = BlockModel.create()
@@ -49,6 +58,7 @@ export const model = BlockModel.create()
         },
       },
     },
+    alignmentModel: {},
   })
 
   .argsValid((ctx) => ctx.args.datasetRef !== undefined
@@ -79,7 +89,7 @@ export const model = BlockModel.create()
     if (ref === undefined) return undefined;
 
     const isSingleCell = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
-    const sequenceMatchers = [];
+    const sequenceMatchers: APColumnSelectorWithSplit[] = [];
     const allowedFeatures = ['CDR1', 'CDR2', 'CDR3', 'FR1', 'FR2',
       'FR3', 'FR4', 'VDJRegion'];
     for (const feature of allowedFeatures) {
@@ -108,7 +118,11 @@ export const model = BlockModel.create()
     return ctx.resultPool.getCanonicalOptions(
       { main: ref },
       sequenceMatchers,
-      { ignoreMissingDomains: true });
+      { ignoreMissingDomains: true,
+        labelOps: {
+          includeNativeLabel: true,
+        },
+      });
   })
 
   .output('isSingleCell', (ctx) => {
@@ -133,10 +147,48 @@ export const model = BlockModel.create()
       ctx.uiState?.tableState);
   })
 
+  .output('msaPf', (ctx) => {
+    const msaCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
+    if (!msaCols) return undefined;
+
+    const datasetRef = ctx.args.datasetRef;
+    if (datasetRef === undefined)
+      return undefined;
+
+    const sequencesRef = ctx.args.sequencesRef;
+    if (sequencesRef.length === 0)
+      return undefined;
+
+    const seqCols = ctx.resultPool.getAnchoredPColumns(
+      { main: datasetRef },
+      sequencesRef.map((s) => JSON.parse(s) as never),
+    );
+    if (seqCols === undefined)
+      return undefined;
+
+    return createPFrameForGraphs(ctx, [...msaCols, ...seqCols]);
+  })
+
+  .output('linkerColumnId', (ctx) => {
+    const pCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
+    if (!pCols) return undefined;
+    return pCols.find((p) => p.spec.annotations?.['pl7.app/isLinkerColumn'] === 'true')?.id;
+  })
+
   .output('clusterAbundanceSpec', (ctx) => {
     const spec = ctx.outputs?.resolve('clusterAbundanceSpec')?.getDataAsJson();
     if (spec === undefined) return undefined;
     return spec as PColumnSpec;
+  })
+
+  .output('inputSpec', (ctx) => {
+    const anchor = ctx.args.datasetRef;
+    if (anchor === undefined)
+      return undefined;
+    const anchorSpec = ctx.resultPool.getPColumnSpecByRef(anchor);
+    if (anchorSpec === undefined)
+      return undefined;
+    return anchorSpec;
   })
 
   .output('clustersPf', (ctx): PFrameHandle | undefined => {
