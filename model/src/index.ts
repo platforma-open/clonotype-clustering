@@ -29,6 +29,7 @@ export type UiState = {
   tableState: PlDataTableState;
   graphStateBubble: GraphMakerState;
   alignmentModel: PlMultiSequenceAlignmentModel;
+  graphStateHistogram: GraphMakerState;
 };
 
 export const model = BlockModel.create()
@@ -58,6 +59,21 @@ export const model = BlockModel.create()
       },
     },
     alignmentModel: {},
+    graphStateHistogram: {
+      title: 'Histogram',
+      template: 'bins',
+      currentTab: null,
+      layersSettings: {
+        bins: { fillColor: '#99e099' },
+      },
+      axesSettings: {
+        axisY: {
+          axisLabelsAngle: 90,
+          scale: 'log',
+        },
+        other: { binsCount: 30 },
+      },
+    },
   })
 
   .argsValid((ctx) => ctx.args.datasetRef !== undefined
@@ -205,6 +221,7 @@ export const model = BlockModel.create()
   .sections((_ctx) => [
     { type: 'link', href: '/', label: 'Main' },
     { type: 'link', href: '/bubble', label: 'Clusters Plot' },
+    { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
   ])
 
   .done();
