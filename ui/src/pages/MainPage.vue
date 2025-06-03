@@ -215,7 +215,7 @@ const clusterAxis = computed<AxisId>(() => {
       </PlAccordionSection>
     </PlSlideModal>
   </PlBlockPage>
-  <!-- Slide window with results -->
+  <!-- Slide window with MSA -->
   <PlSlideModal v-model="multipleSequenceAlignmentOpen" width="100%">
     <template #title>Multiple Sequence Alignment</template>
     <PlMultiSequenceAlignment
