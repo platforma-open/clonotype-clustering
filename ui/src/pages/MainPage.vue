@@ -6,7 +6,6 @@ import type {
 } from '@platforma-sdk/ui-vue';
 import {
   listToOptions,
-  PlAccordionSection,
   PlAgDataTableToolsPanel,
   PlAgDataTableV2,
   PlBlockPage,
@@ -81,8 +80,8 @@ const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
 
 // Map user-facing similarity type to mmseqs2 similarity type
 const similarityTypeOptions = [
-  { label: 'BLOSUM', value: 'alignment-score' },
   { label: 'Exact Match', value: 'sequence-identity' },
+  { label: 'BLOSUM', value: 'alignment-score' },
 ];
 
 // No longer available to user
