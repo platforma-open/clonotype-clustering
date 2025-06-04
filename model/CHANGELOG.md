@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.7.0
+
+### Minor Changes
+
+- e4317b5: Add cluster size histogram, remove advanced settings panel and fix plot defaults picking up data from previous block if there is another clonotype-clustering block.
+
 ## 2.6.1
 
 ### Patch Changes
