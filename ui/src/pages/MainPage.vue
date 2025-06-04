@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { plRefsEqual, type PlRef } from '@platforma-sdk/model';
+import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey } from '@platforma-sdk/model';
+import { plRefsEqual } from '@platforma-sdk/model';
 import type {
   PlAgDataTableSettings,
 } from '@platforma-sdk/ui-vue';
@@ -15,15 +16,36 @@ import {
   PlDropdownMulti,
   PlDropdownRef,
   PlMaskIcon24,
+  PlMultiSequenceAlignment,
   PlNumberField,
   PlSlideModal,
 } from '@platforma-sdk/ui-vue';
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { useApp } from '../app';
 
 const app = useApp();
+const multipleSequenceAlignmentOpen = ref(false);
 
 const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequencesRef === undefined);
+// With selection we will get the axis of cluster id
+const selection = ref<PlSelectionModel>({
+  axesSpec: [],
+  selectedKeys: [],
+});
+
+// Open MSA when we click in a row
+const onRowDoubleClicked = reactive((key?: PTableKey) => {
+  // Using keys (that will contain cluster ID) we get included clonotypes
+  if (key) {
+    const clusterSpecs = app.model.outputs.clusterAbundanceSpec;
+    if (clusterSpecs === undefined) return;
+    selection.value = {
+      axesSpec: [clusterSpecs.axesSpec[1]],
+      selectedKeys: [key],
+    };
+  }
+  multipleSequenceAlignmentOpen.value = true;
+});
 
 function setInput(inputRef?: PlRef) {
   app.model.args.datasetRef = inputRef;
@@ -71,14 +93,34 @@ const coverageModeOptions = [
   { label: 'Shorter sequence ≥ x% of longer', value: 5 },
 ];
 
-// Initialize default values if not set
-if (!app.model.args.similarityType) {
-  app.model.args.similarityType = 'sequence-identity';
-}
+const isSequenceColumn = (column: PColumnIdAndSpec) => {
+  return app.model.args.sequencesRef?.some((r) => r === column.columnId);
+};
 
-if (app.model.args.coverageMode === undefined) {
-  app.model.args.coverageMode = 1;
-}
+const isLinkerColumn = (column: PColumnIdAndSpec) => {
+  return column.columnId === app.model.outputs.linkerColumnId;
+};
+
+const isLabelColumnOption = (_column: PColumnIdAndSpec) => {
+  return true;
+};
+
+// Set instructions to track cluster axis
+const clusterAxis = computed<AxisId>(() => {
+  if (app.model.outputs.clusterAbundanceSpec?.axesSpec[1] === undefined) {
+    return {
+      type: 'String',
+      name: 'pl7.app/vdj/clusterId',
+      domain: {},
+    };
+  } else {
+    return {
+      type: 'String',
+      name: 'pl7.app/vdj/clusterId',
+      domain: app.model.outputs.clusterAbundanceSpec?.axesSpec[1].domain,
+    };
+  }
+});
 
 </script>
 
@@ -103,6 +145,8 @@ if (app.model.args.coverageMode === undefined) {
       not-ready-text="Block is not started"
       show-columns-panel
       show-export-button
+      :show-cell-button-for-axis-id="clusterAxis"
+      @cell-button-clicked="onRowDoubleClicked"
     />
     <PlSlideModal v-model="settingsOpen" :close-on-outside-click="true">
       <template #title>Settings</template>
@@ -171,4 +215,16 @@ if (app.model.args.coverageMode === undefined) {
       </PlAccordionSection>
     </PlSlideModal>
   </PlBlockPage>
+  <!-- Slide window with MSA -->
+  <PlSlideModal v-model="multipleSequenceAlignmentOpen" width="100%">
+    <template #title>Multiple Sequence Alignment</template>
+    <PlMultiSequenceAlignment
+      v-model="app.model.ui.alignmentModel"
+      :label-column-option-predicate="isLabelColumnOption"
+      :sequence-column-predicate="isSequenceColumn"
+      :linker-column-predicate="isLinkerColumn"
+      :p-frame="app.model.outputs.msaPf"
+      :selection="selection"
+    />
+  </PlSlideModal>
 </template>
