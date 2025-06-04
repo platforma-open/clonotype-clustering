@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.5.0
+
+### Minor Changes
+
+- d536272: MSA for clusters
+
+### Patch Changes
+
+- Updated dependencies [d536272]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.6.0
+
 ## 3.4.1
 
 ### Patch Changes

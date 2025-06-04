@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.6.0
+
+### Minor Changes
+
+- d536272: MSA for clusters
+
 ## 2.5.1
 
 ### Patch Changes

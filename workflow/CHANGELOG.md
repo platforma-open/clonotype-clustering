@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.9.0
+
+### Minor Changes
+
+- d536272: MSA for clusters
+
 ## 3.8.1
 
 ### Patch Changes
