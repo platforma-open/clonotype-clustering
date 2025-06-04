@@ -21,7 +21,7 @@ export type BlockArgs = {
   identity: number;
   similarityType: 'alignment-score' | 'sequence-identity';
   coverageThreshold: number; // fraction of aligned residues required
-  coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // MMseqs2 coverage modes
+  coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
 };
 
 export type UiState = {
@@ -40,7 +40,7 @@ export const model = BlockModel.create()
     sequencesRef: [],
     similarityType: 'sequence-identity',
     coverageThreshold: 0.8, // default value matching MMseqs2 default
-    coverageMode: 1, // default to coverage of target
+    coverageMode: 0, // default to coverage of query and target
   })
 
   .withUiState<UiState>({
