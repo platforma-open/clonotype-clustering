@@ -179,7 +179,7 @@ const clusterAxis = computed<AxisId>(() => {
         label="Alignment Score"
       >
         <template #tooltip>
-          Type of alignment score used as threshold for clustering. BLOSUM accounts for amino acid similarity while Exact Match does not.
+          Select the similarity metric used for clustering thresholds. BLOSUM considers biochemical similarity while Exact Match counts only identical residues.
         </template>
       </PlDropdown>
 
@@ -188,7 +188,7 @@ const clusterAxis = computed<AxisId>(() => {
         label="Minimal identity" :minValue="0.1" :step="0.1" :maxValue="1.0"
       >
         <template #tooltip>
-          Select min identity of clonotypes in the clusters.
+          Sets the lowest percentage of identical residues required for clonotypes to be considered for the same cluster.
         </template>
       </PlNumberField>
 
@@ -200,7 +200,7 @@ const clusterAxis = computed<AxisId>(() => {
         :maxValue="1.0"
       >
         <template #tooltip>
-          Select min fraction of aligned (covered) residues of clonotypes in the clusters.
+          Sets the lowest percentage of sequence length that must be covered for clonotypes to be considered for the same cluster.
         </template>
       </PlNumberField>
 
