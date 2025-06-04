@@ -1,5 +1,15 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.1.6
+
+### Patch Changes
+
+- 15ffee5: SDK Upgrade, excessive CPU usage fix
+- Updated dependencies [15ffee5]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.6.1
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.5.1
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.9.2
+
 ## 2.1.5
 
 ### Patch Changes

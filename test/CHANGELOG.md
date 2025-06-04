@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.test
 
+## 1.1.2
+
+### Patch Changes
+
+- 15ffee5: SDK Upgrade, excessive CPU usage fix
+
 ## 1.1.1
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.6.1
+
+### Patch Changes
+
+- 15ffee5: SDK Upgrade, excessive CPU usage fix
+
 ## 3.6.0
 
 ### Minor Changes
