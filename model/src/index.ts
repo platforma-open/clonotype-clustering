@@ -1,6 +1,7 @@
 import type { GraphMakerState } from '@milaboratories/graph-maker';
 import type {
   InferOutputsType,
+  PColumnIdAndSpec,
   PColumnSpec,
   PFrameHandle,
   PlDataTableState,
@@ -212,6 +213,22 @@ export const model = BlockModel.create()
     }
 
     return createPFrameForGraphs(ctx, pCols);
+  })
+
+  // Returns a list of Pcols for plot defaults
+  .output('clustersPfPcols', (ctx) => {
+    const pCols = ctx.outputs?.resolve('pf')?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return pCols.map(
+      (c) =>
+        ({
+          columnId: c.id,
+          spec: c.spec,
+        } satisfies PColumnIdAndSpec),
+    );
   })
 
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
