@@ -12,7 +12,6 @@ import {
   createPFrameForGraphs,
   createPlDataTableV2,
 } from '@platforma-sdk/model';
-import type { APColumnSelectorWithSplit } from '@platforma-sdk/model/dist/render/util/split_selectors';
 
 export type BlockArgs = {
   datasetRef?: PlRef;
@@ -89,30 +88,29 @@ export const model = BlockModel.create()
     if (ref === undefined) return undefined;
 
     const isSingleCell = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
-    const sequenceMatchers: APColumnSelectorWithSplit[] = [];
-    const allowedFeatures = ['CDR1', 'CDR2', 'CDR3', 'FR1', 'FR2',
-      'FR3', 'FR4', 'VDJRegion'];
-    for (const feature of allowedFeatures) {
-      if (isSingleCell) {
-        sequenceMatchers.push({
-          axes: [{ anchor: 'main', idx: 1 }],
-          name: 'pl7.app/vdj/sequence',
-          domain: {
-            'pl7.app/vdj/feature': feature,
-            'pl7.app/vdj/scClonotypeChain/index': 'primary',
-            'pl7.app/alphabet': ctx.args.sequenceType,
-          },
-        });
-      } else {
-        sequenceMatchers.push({
-          axes: [{ anchor: 'main', idx: 1 }],
-          name: 'pl7.app/vdj/sequence',
-          domain: {
-            'pl7.app/vdj/feature': feature,
-            'pl7.app/alphabet': ctx.args.sequenceType,
-          },
-        });
-      }
+    const sequenceMatchers = [];
+    // const allowedFeatures = ['CDR1', 'CDR2', 'CDR3', 'FR1', 'FR2',
+    //   'FR3', 'FR4', 'FR4InFrame', 'VDJRegion', 'VDJRegionInFrame'];
+    // for (const feature of allowedFeatures) {
+    if (isSingleCell) {
+      sequenceMatchers.push({
+        axes: [{ anchor: 'main', idx: 1 }],
+        name: 'pl7.app/vdj/sequence',
+        domain: {
+          // 'pl7.app/vdj/feature': feature,
+          'pl7.app/vdj/scClonotypeChain/index': 'primary',
+          'pl7.app/alphabet': ctx.args.sequenceType,
+        },
+      });
+    } else {
+      sequenceMatchers.push({
+        axes: [{ anchor: 'main', idx: 1 }],
+        name: 'pl7.app/vdj/sequence',
+        domain: {
+          // 'pl7.app/vdj/feature': feature,
+          'pl7.app/alphabet': ctx.args.sequenceType,
+        },
+      });
     }
 
     return ctx.resultPool.getCanonicalOptions(

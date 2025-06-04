@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.5.1
+
+### Patch Changes
+
+- d3cd2c1: SDK and Python Env Upgade
+
 ## 2.5.0
 
 ### Minor Changes

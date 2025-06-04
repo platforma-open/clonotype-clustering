@@ -6,7 +6,7 @@ assets:= import("@platforma-sdk/workflow-tengo:assets")
 xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
 pframes := import("@platforma-sdk/workflow-tengo:pframes")
 maps := import("@platforma-sdk/workflow-tengo:maps")
-pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec") 
+pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 text := import("text")
 slices := import("@platforma-sdk/workflow-tengo:slices")
 json := import("json")
@@ -14,7 +14,7 @@ json := import("json")
 
 prepareFastaSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:prepare-fasta")
 processResultsSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:process-results")
-mmseqsSw := assets.importSoftware("@platforma-open/soedinglab.software-mmseqs2:mmseqs2")
+mmseqsSw := assets.importSoftware("@platforma-open/soedinglab.software-mmseqs2:main")
 
 setTableProps := func(spec, label, visibility, orderPriority) {
 	return maps.deepMerge(spec, {
@@ -29,8 +29,8 @@ setTableProps := func(spec, label, visibility, orderPriority) {
 wf.prepare(func(args) {
 	bundleBuilder := wf.createPBundleBuilder()
 	bundleBuilder.ignoreMissingDomains() // to make query work for both bulk and single cell data
-	bundleBuilder.addAnchor("main", args.datasetRef) 
-	
+	bundleBuilder.addAnchor("main", args.datasetRef)
+
 	// abundance
 	bundleBuilder.addSingle({
 		axes: [ { anchor: "main", idx: 0 }, { anchor: "main", idx: 1 }],
@@ -46,7 +46,7 @@ wf.prepare(func(args) {
 		// pull sequences
 		bundleBuilder.addSingle(ref)
 	}
-	
+
 	// @TODO: Implement in the future
 	// // pull genes
 	// for gene in ["V", "J"] {
@@ -69,39 +69,39 @@ wf.prepare(func(args) {
 		{
 			axes: [{ anchor: "main", idx: 1 }],
 			name: "pl7.app/label"
-		}, "clonotypeKeyLabels") 
-	
+		}, "clonotypeKeyLabels")
+
 	return {
-		columns: bundleBuilder.build()	
+		columns: bundleBuilder.build()
 		}
 })
 
 wf.body(func(args) {
 	blockId := wf.blockId().getDataAsJson()
-	
+
 	// sort to preserve order of sequences
 	sequencesRef := slices.quickSort(args.sequencesRef)
-	
+
 	columns := args.columns
 	datasetSpec := columns.getSpec(args.datasetRef)
 	abundanceSpec := columns.getSpec("abundance")
-	
+
 	// sType := args.sequenceType == "aminoacid" ? "aa" : "nt"
 
 	isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
 
-	
+
 	/***** Step 1: do clustering on the clonotype level *****/
 
 	// input table
-	seqTable := pframes.tsvFileBuilder()
-	seqTable.setAxisHeader(datasetSpec.axesSpec[1].name, "clonotypeKey")
-	
+	seqTableBuilder := pframes.tsvFileBuilder()
+	seqTableBuilder.setAxisHeader(datasetSpec.axesSpec[1].name, "clonotypeKey")
+
 	for nr, seq in sequencesRef {
-		seqTable.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
+		seqTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
 	}
-	
-	seqTable = seqTable.build()
+
+	seqTable := seqTableBuilder.build()
 
 	// prepare fasta file
 	fasta := exec.builder().
@@ -132,19 +132,19 @@ wf.body(func(args) {
 	clusters := mmseqs.getFile("result_cluster.tsv")
 
 	/******* Step 2: aggregate all data and generate results *******/
-	cloneTable := pframes.tsvFileBuilder()
-	cloneTable.add(columns.getColumn("abundance"), {header: "abundance"})
-	
+	cloneTableBuilder := pframes.tsvFileBuilder()
+	cloneTableBuilder.add(columns.getColumn("abundance"), {header: "abundance"})
+
 	for nr, seq in sequencesRef {
-		cloneTable.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
+		cloneTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
 	}
-	
-	cloneTable.add(columns.getColumn("clonotypeKeyLabels"), {header: "clonotypeKeyLabel"})
+
+	cloneTableBuilder.add(columns.getColumn("clonotypeKeyLabels"), {header: "clonotypeKeyLabel"})
 	// cloneTable.add("VGene", {header: "VGene"})
 	// cloneTable.add("JGene", {header: "JGene"})
-	cloneTable.setAxisHeader(abundanceSpec.axesSpec[0].name, "sampleId")
-	cloneTable.setAxisHeader(abundanceSpec.axesSpec[1].name, "clonotypeKey")
-	cloneTable = cloneTable.build()
+	cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[0].name, "sampleId")
+	cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[1].name, "clonotypeKey")
+	cloneTable := cloneTableBuilder.build()
 
 
 	result := exec.builder().
@@ -163,7 +163,7 @@ wf.body(func(args) {
 	clusterIdAxisSpec := {
 		name: "pl7.app/vdj/clusterId",
 		type: "String",
-		domain: maps.deepMerge(datasetSpec.axesSpec[1].domain, 
+		domain: maps.deepMerge(datasetSpec.axesSpec[1].domain,
 		{
 			"pl7.app/vdj/clustering/algorithm": "mmseqs2",
 			"pl7.app/vdj/clustering/blockId": blockId
@@ -258,7 +258,7 @@ wf.body(func(args) {
 			}, "Clone to cluster link", false, undefined)
 		}]
 	}, {splitDataAndSpec: true})
-	
+
 	clusterToSeq := result.getFile("cluster-to-seq.tsv")
 
 	seqColumns := [
@@ -296,7 +296,7 @@ wf.body(func(args) {
 			}, spec.annotations["pl7.app/label"], true, "10")
 		})
 	}
-	
+
 	clusterToSeqPf := xsv.importFile(clusterToSeq, "tsv", {
 		axes: [{
 			column: "clusterId",
@@ -304,7 +304,7 @@ wf.body(func(args) {
 		}],
 		columns: seqColumns
 	}, {splitDataAndSpec: true})
-		
+
 
 	distances := result.getFile("distance_to_centroid.tsv")
 	distancesPf := xsv.importFile(distances, "tsv", {
@@ -337,7 +337,7 @@ wf.body(func(args) {
 	opf := pframes.pFrameBuilder()
 	for k, v in clusterToSeqPf {
 		if k == "clusterLabel" {
-			 // avoid putting label into the outputs as it will be already in exports; 
+			 // avoid putting label into the outputs as it will be already in exports;
 			 // in future should be safe to add once PlAgDataTable bug is fixed
 			continue
 		}
@@ -379,7 +379,7 @@ wf.body(func(args) {
 			pf: pframes.exportFrame(epf),
 			// specs to outputs for visualization purposes
 			clusterAbundanceSpec: clusterAbundanceSpec,
-			
+
 			// save mmseqs2 result in the output to enable deduplication of mmseqs2 run
 			// NOTE: mmseqs2 produces different results for same input (different line order)
 			mmseqs: clusters

@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.4.1
+
+### Patch Changes
+
+- d3cd2c1: SDK and Python Env Upgade
+- Updated dependencies [d3cd2c1]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.5.1
+
 ## 3.4.0
 
 ### Minor Changes
