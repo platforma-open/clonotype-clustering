@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.6.0
+
+### Minor Changes
+
+- 10de058: Updated distance to centroid calculation to account for multiple region sequences
+
 ## 3.5.1
 
 ### Patch Changes
