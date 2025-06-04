@@ -1,6 +1,7 @@
 import type { GraphMakerState } from '@milaboratories/graph-maker';
 import type {
   InferOutputsType,
+  PColumnIdAndSpec,
   PColumnSpec,
   PFrameHandle,
   PlDataTableState,
@@ -21,7 +22,7 @@ export type BlockArgs = {
   identity: number;
   similarityType: 'alignment-score' | 'sequence-identity';
   coverageThreshold: number; // fraction of aligned residues required
-  coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // MMseqs2 coverage modes
+  coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
 };
 
 export type UiState = {
@@ -29,6 +30,7 @@ export type UiState = {
   tableState: PlDataTableState;
   graphStateBubble: GraphMakerState;
   alignmentModel: PlMultiSequenceAlignmentModel;
+  graphStateHistogram: GraphMakerState;
 };
 
 export const model = BlockModel.create()
@@ -39,7 +41,7 @@ export const model = BlockModel.create()
     sequencesRef: [],
     similarityType: 'sequence-identity',
     coverageThreshold: 0.8, // default value matching MMseqs2 default
-    coverageMode: 1, // default to coverage of target
+    coverageMode: 0, // default to coverage of query and target
   })
 
   .withUiState<UiState>({
@@ -58,6 +60,21 @@ export const model = BlockModel.create()
       },
     },
     alignmentModel: {},
+    graphStateHistogram: {
+      title: 'Histogram',
+      template: 'bins',
+      currentTab: null,
+      layersSettings: {
+        bins: { fillColor: '#99e099' },
+      },
+      axesSettings: {
+        axisY: {
+          axisLabelsAngle: 90,
+          scale: 'log',
+        },
+        other: { binsCount: 30 },
+      },
+    },
   })
 
   .argsValid((ctx) => ctx.args.datasetRef !== undefined
@@ -198,6 +215,22 @@ export const model = BlockModel.create()
     return createPFrameForGraphs(ctx, pCols);
   })
 
+  // Returns a list of Pcols for plot defaults
+  .output('clustersPfPcols', (ctx) => {
+    const pCols = ctx.outputs?.resolve('pf')?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return pCols.map(
+      (c) =>
+        ({
+          columnId: c.id,
+          spec: c.spec,
+        } satisfies PColumnIdAndSpec),
+    );
+  })
+
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 
   .title((ctx) => ctx.uiState?.title ?? 'Clonotype Clustering')
@@ -205,6 +238,7 @@ export const model = BlockModel.create()
   .sections((_ctx) => [
     { type: 'link', href: '/', label: 'Main' },
     { type: 'link', href: '/bubble', label: 'Clusters Plot' },
+    { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
   ])
 
   .done();

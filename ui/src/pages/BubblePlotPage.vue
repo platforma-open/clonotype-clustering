@@ -3,61 +3,52 @@ import '@milaboratories/graph-maker/styles';
 import { PlBlockPage } from '@platforma-sdk/ui-vue';
 import { useApp } from '../app';
 
-import type { GraphMakerProps } from '@milaboratories/graph-maker';
+import type { GraphMakerProps, PredefinedGraphOption } from '@milaboratories/graph-maker';
 import { GraphMaker } from '@milaboratories/graph-maker';
 import { computed } from 'vue';
+import type { PColumnIdAndSpec } from '@platforma-sdk/model';
 
 const app = useApp();
 
+// if there is no output or abundance spec, return undefined
 const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
-  if (app.model.outputs.clusterAbundanceSpec === undefined) return undefined;
-  return [
+  if (!app.model.outputs.clustersPfPcols || !app.model.outputs.clusterAbundanceSpec)
+    return undefined;
+
+  const bubblePcols = app.model.outputs.clustersPfPcols;
+  function getIndex(name: string, pcols: PColumnIdAndSpec[]): number {
+    return pcols.findIndex((p) => (p.spec.name === name
+    ));
+  }
+  const defaults: PredefinedGraphOption<'bubble'>[] = [
     {
-      inputName: 'valueColor',
-      selectedSource: {
-        kind: 'PColumn',
-        name: 'pl7.app/vdj/clustering/clusterSize',
-        valueType: 'Int',
-        axesSpec: [],
-      },
-    },
-    {
-      inputName: 'valueSize',
-      selectedSource: app.model.outputs.clusterAbundanceSpec, // @TODO: figure out why this is not working (Elena)
-      // If switch to search mode use more queries to get only "pl7.app/label": "Number of UMIs in cluster" and not
-      // "pl7.app/label": "Number of UMIs",
-      // selectedSource: {
-      //   kind: 'PColumn',
-      //   name: app.model.outputs.clusterAbundanceSpec.name,
-      //   valueType: app.model.outputs.clusterAbundanceSpec.valueType,
-      //   axesSpec: [],
-      // },
+      inputName: 'x',
+      selectedSource: bubblePcols[getIndex(app.model.outputs.clusterAbundanceSpec.name,
+        bubblePcols)].spec.axesSpec[1],
     },
     {
       inputName: 'y',
-      selectedSource: {
-        name: 'pl7.app/sampleId',
-        type: 'String',
-      },
+      selectedSource: bubblePcols[getIndex(app.model.outputs.clusterAbundanceSpec.name,
+        bubblePcols)].spec.axesSpec[0],
     },
     {
-      inputName: 'x',
-      selectedSource: {
-        name: 'pl7.app/vdj/clusterId',
-        type: 'String',
-      },
+      inputName: 'valueColor',
+      selectedSource: bubblePcols[getIndex('pl7.app/vdj/clustering/clusterSize',
+        bubblePcols)].spec,
+    },
+    {
+      inputName: 'valueSize',
+      selectedSource: bubblePcols[getIndex(app.model.outputs.clusterAbundanceSpec.name,
+        bubblePcols)].spec,
     },
     {
       inputName: 'filters',
-      selectedSource: {
-        kind: 'PColumn',
-        name: 'pl7.app/vdj/clustering/clusterSize',
-        valueType: 'Int',
-        axesSpec: [],
-      },
+      selectedSource: bubblePcols[getIndex('pl7.app/vdj/clustering/clusterSize',
+        bubblePcols)].spec,
       selectedFilterRange: { min: 3 },
     },
   ];
+  return defaults;
 });
 
 </script>

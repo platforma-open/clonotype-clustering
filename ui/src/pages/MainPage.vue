@@ -6,7 +6,6 @@ import type {
 } from '@platforma-sdk/ui-vue';
 import {
   listToOptions,
-  PlAccordionSection,
   PlAgDataTableToolsPanel,
   PlAgDataTableV2,
   PlBlockPage,
@@ -79,19 +78,21 @@ const tableLoadingText = computed(() => {
 
 const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
 
+// Map user-facing similarity type to mmseqs2 similarity type
 const similarityTypeOptions = [
-  { label: 'Alignment Score', value: 'alignment-score' },
-  { label: 'Sequence Identity', value: 'sequence-identity' },
+  { label: 'Exact Match', value: 'sequence-identity' },
+  { label: 'BLOSUM', value: 'alignment-score' },
 ];
 
-const coverageModeOptions = [
+// No longer available to user
+/* const coverageModeOptions = [
   { label: 'Coverage of query and target', value: 0 },
   { label: 'Coverage of target', value: 1 },
   { label: 'Coverage of query', value: 2 },
   { label: 'Target length ≥ x% of query length', value: 3 },
   { label: 'Query length ≥ x% of target length', value: 4 },
   { label: 'Shorter sequence ≥ x% of longer', value: 5 },
-];
+]; */
 
 const isSequenceColumn = (column: PColumnIdAndSpec) => {
   return app.model.args.sequencesRef?.some((r) => r === column.columnId);
@@ -171,12 +172,22 @@ const clusterAxis = computed<AxisId>(() => {
         required
       />
 
+      <PlDropdown
+        v-model="app.model.args.similarityType"
+        :options="similarityTypeOptions"
+        label="Alignment Score"
+      >
+        <template #tooltip>
+          Select the similarity metric used for clustering thresholds. BLOSUM considers biochemical similarity while Exact Match counts only identical residues.
+        </template>
+      </PlDropdown>
+
       <PlNumberField
         v-model="app.model.args.identity"
         label="Minimal identity" :minValue="0.1" :step="0.1" :maxValue="1.0"
       >
         <template #tooltip>
-          Select min identity of clonotypes in the cluster.
+          Sets the lowest percentage of identical residues required for clonotypes to be considered for the same cluster.
         </template>
       </PlNumberField>
 
@@ -188,21 +199,12 @@ const clusterAxis = computed<AxisId>(() => {
         :maxValue="1.0"
       >
         <template #tooltip>
-          Select min fraction of aligned (covered) residues of clonotypes in the cluster.
+          Sets the lowest percentage of sequence length that must be covered for clonotypes to be considered for the same cluster.
         </template>
       </PlNumberField>
 
-      <PlAccordionSection label="Advanced Settings">
-        <PlDropdown
-          v-model="app.model.args.similarityType"
-          :options="similarityTypeOptions"
-          label="Similarity Type"
-        >
-          <template #tooltip>
-            Type of similarity score used for clustering.
-          </template>
-        </PlDropdown>
-
+      <!-- Removed Advanced Settings -->
+<!--       <PlAccordionSection label="Advanced Settings">
         <PlDropdown
           v-model="app.model.args.coverageMode"
           :options="coverageModeOptions"
@@ -212,7 +214,7 @@ const clusterAxis = computed<AxisId>(() => {
             How to calculate the coverage between sequences for the coverage threshold.
           </template>
         </PlDropdown>
-      </PlAccordionSection>
+      </PlAccordionSection> -->
     </PlSlideModal>
   </PlBlockPage>
   <!-- Slide window with MSA -->
