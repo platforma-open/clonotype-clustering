@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.6.2
+
+### Patch Changes
+
+- 060366d: Bug fix in mmseqs2 processing
+
 ## 3.6.1
 
 ### Patch Changes
