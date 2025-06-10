@@ -16,8 +16,8 @@ sequence_cols = [col for col in df.columns
                  if col.startswith('sequence_')]
 df['sequence'] = df[sequence_cols].agg("====".join, axis=1)
 
-# Reformat and store table in fasta format
-df['clonotypeKey'] = '>' + df['clonotypeKey'].astype(str)
+# Reformat and store table in fasta format, adding a fixed "s-" prefix.
+df['clonotypeKey'] = '>s-' + df['clonotypeKey'].astype(str)
 df[['clonotypeKey', 'sequence']].to_csv(output_file, 
                                         sep='\n', 
                                         index=False, 
