@@ -42,6 +42,14 @@ cloneTable = cloneTable.with_columns(
 clusters = pl.read_csv(clustersTsv, separator="\t", has_header=False,
                        new_columns=["clusterId", "clonotypeKey"])
 
+# Remove the "s-" prefix from clusterId and clonotypeKey. This prefix is added
+# during FASTA preparation for mmseqs and needs to be removed to match keys
+# in other tables like cloneTable.
+clusters = clusters.with_columns(
+    pl.col("clusterId").str.strip_prefix("s-"),
+    pl.col("clonotypeKey").str.strip_prefix("s-")
+)
+
 # --- Calculate cluster sizes directly in the clusters dataframe ---
 clusters = clusters.with_columns(
     pl.col('clonotypeKey').count().over('clusterId').alias('size')
