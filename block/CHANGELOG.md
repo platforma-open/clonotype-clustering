@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.2.1
+
+### Patch Changes
+
+- 259125b: chore: fix version
+
 ## 2.2.0
 
 ### Minor Changes
