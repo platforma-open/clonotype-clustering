@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.10.0
+
+### Minor Changes
+
+- 5ed8b53: chore: update deps
+
 ## 3.9.3
 
 ### Patch Changes
