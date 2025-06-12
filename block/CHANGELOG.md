@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.2.0
+
+### Minor Changes
+
+- 9de5d19: chore: revert for MSA
+
 ## 2.1.9
 
 ### Patch Changes
