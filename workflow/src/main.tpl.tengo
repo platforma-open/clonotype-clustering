@@ -356,18 +356,16 @@ wf.body(func(args) {
 		 	label: "Clonotype clusters"
 		})
 
+	// Build output pFrame for block table
 	opf := pframes.pFrameBuilder()
-	for k, v in clusterToSeqPf {
-		if k == "clusterLabel" {
-			 // avoid putting label into the outputs as it will be already in exports;
-			 // in future should be safe to add once PlAgDataTable bug is fixed
-			continue
+	for pf in [clusterToSeqPf, clusterRadiusPf] {
+		for k, v in pf {
+			if k == "clusterLabel" {
+				continue  // avoid putting label into the outputs as it will be already in exports
+						  // in future should be safe to add once PlAgDataTable bug is fixed
+			}
+			opf.add(k, trace.inject(v.spec), v.data)
 		}
-		opf.add(k, trace.inject(v.spec), v.data)
-	}
-	// Add cluster radius to the opf used for table
-	for k, v in clusterRadiusPf {
-		opf.add(k, trace.inject(v.spec), v.data)
 	}
 	opf = opf.build()
 
