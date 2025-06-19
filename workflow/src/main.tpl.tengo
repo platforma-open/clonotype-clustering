@@ -107,6 +107,8 @@ wf.body(func(args) {
 	// prepare fasta file
 	fasta := exec.builder().
 		software(prepareFastaSw).
+		mem("16GiB").
+		cpu(1).
 		addFile("input.tsv", seqTable).
 		saveFile("output.fasta").
 		run()
