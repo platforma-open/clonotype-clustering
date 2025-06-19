@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.11.0
+
+### Minor Changes
+
+- 1bcfe85: Add annotations for number formatting for distance to centroid
+
 ## 3.10.0
 
 ### Minor Changes

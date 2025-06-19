@@ -1,5 +1,18 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.3.0
+
+### Minor Changes
+
+- bbf758f: Update workflow-tengo
+
+## 2.2.2
+
+### Patch Changes
+
+- Updated dependencies [1bcfe85]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.11.0
+
 ## 2.2.1
 
 ### Patch Changes
