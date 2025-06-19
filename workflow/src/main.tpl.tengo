@@ -68,7 +68,10 @@ wf.prepare(func(args) {
 	bundleBuilder.addSingle(
 		{
 			axes: [{ anchor: "main", idx: 1 }],
-			name: "pl7.app/label"
+			name: "pl7.app/label",
+			annotations: {
+				"pl7.app/label": "Clone label"
+			}
 		}, "clonotypeKeyLabels")
 
 	return {
