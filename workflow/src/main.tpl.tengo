@@ -65,7 +65,7 @@ wf.prepare(func(args) {
 	// mmseqs2 uses same sequence for centroids, so we use same clonotypeKey as a clusterId
 	// and we need to pull corresponding labels from the result pool
 	// @TODO: remove this part when this labels are generated in bulk MiXCR workflow
-	bundleBuilder.addSingle(
+	bundleBuilder.addMulti(
 		{
 			axes: [{ anchor: "main", idx: 1 }],
 			name: "pl7.app/label"
@@ -139,9 +139,17 @@ wf.body(func(args) {
 		cloneTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
 	}
 
-	cloneTableBuilder.add(columns.getColumn("clonotypeKeyLabels"), {header: "clonotypeKeyLabel"})
-	// cloneTable.add("VGene", {header: "VGene"})
-	// cloneTable.add("JGene", {header: "JGene"})
+	// Get the array of label columns using the correct method
+	clonotypeKeyLabelsArray := columns.getColumns("clonotypeKeyLabels")
+
+	// Check if we have any label columns and use the first one
+	if len(clonotypeKeyLabelsArray) > 0 {
+		cloneTableBuilder.add(clonotypeKeyLabelsArray[0], {header: "clonotypeKeyLabel"})
+	} else {
+		// Handle case where no label columns found
+		ll.panic("No clonotype key label columns found")
+	}
+
 	cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[0].name, "sampleId")
 	cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[1].name, "clonotypeKey")
 	cloneTable := cloneTableBuilder.build()
