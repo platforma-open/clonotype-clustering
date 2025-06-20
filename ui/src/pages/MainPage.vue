@@ -8,6 +8,7 @@ import {
   listToOptions,
   PlAgDataTableToolsPanel,
   PlAgDataTableV2,
+  PlAlert,
   PlBlockPage,
   PlBtnGhost,
   PlBtnGroup,
@@ -140,6 +141,7 @@ const clusterAxis = computed<AxisId>(() => {
       </PlBtnGhost>
     </template>
     <PlAgDataTableV2
+      v-if="app.model.outputs.inputState === false"
       v-model="app.model.ui.tableState"
       :settings="tableSettings"
       :loading-text="tableLoadingText"
@@ -204,7 +206,7 @@ const clusterAxis = computed<AxisId>(() => {
       </PlNumberField>
 
       <!-- Removed Advanced Settings -->
-<!--       <PlAccordionSection label="Advanced Settings">
+      <!--       <PlAccordionSection label="Advanced Settings">
         <PlDropdown
           v-model="app.model.args.coverageMode"
           :options="coverageModeOptions"
@@ -221,6 +223,7 @@ const clusterAxis = computed<AxisId>(() => {
   <PlSlideModal v-model="multipleSequenceAlignmentOpen" width="100%">
     <template #title>Multiple Sequence Alignment</template>
     <PlMultiSequenceAlignment
+      v-if="app.model.outputs.inputState === false"
       v-model="app.model.ui.alignmentModel"
       :label-column-option-predicate="isLabelColumnOption"
       :sequence-column-predicate="isSequenceColumn"
@@ -229,4 +232,8 @@ const clusterAxis = computed<AxisId>(() => {
       :selection="selection"
     />
   </PlSlideModal>
+  <PlAlert v-if="app.model.outputs.inputState" type="error" style="margin-top: 1rem;">
+    {{ "Error: The input dataset you have selected is empty. \
+    Please choose a different dataset." }}
+  </PlAlert>
 </template>
