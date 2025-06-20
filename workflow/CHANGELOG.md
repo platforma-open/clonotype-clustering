@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.13.0
+
+### Minor Changes
+
+- 7ebded3: Add 80% memory limit to mmseq
+
 ## 3.12.0
 
 ### Minor Changes
