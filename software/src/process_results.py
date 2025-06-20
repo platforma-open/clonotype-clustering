@@ -7,6 +7,7 @@ clusterToSeqTsv = "cluster-to-seq.tsv"
 cloneToClusterTsv = "clone-to-cluster.tsv"
 abundancesTsv = "abundances.tsv"
 abundancesPerClusterTsv = "abundances-per-cluster.tsv"
+clusterRadiusTsv = "cluster-radius.tsv"
 
 # sampleId, clonotypeKey, clonotypeKeyLabel,sequence_..., 
 # ...VGene, JGene
@@ -303,3 +304,13 @@ if distance_df_to_write.height == distance_df_to_write.select(pl.col("clonotypeK
     print(f"Verified: All clonotypeKey values in the written {output_distance_tsv} are unique.")
 else:
     print(f"WARNING: clonotypeKey values in the written {output_distance_tsv} are still not unique. This is unexpected after dropping duplicates.")
+
+# --- Generate cluster-radius.tsv ---
+# Calculate max distance per cluster
+cluster_radius_df = distance_df_to_write.group_by("clusterId").agg(
+    pl.max("distanceToCentroid").alias("clusterRadius")
+)
+
+# Write to TSV
+cluster_radius_df.write_csv(clusterRadiusTsv, separator="\t")
+print(f"Generated {clusterRadiusTsv}")
