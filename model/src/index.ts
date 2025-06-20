@@ -151,6 +151,19 @@ export const model = BlockModel.create()
     return spec.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
   })
 
+  .output('inputState', (ctx) => {
+    const inputState = ctx.outputs?.resolve('inputState')?.getDataAsJson() as object;
+    if (inputState === undefined) {
+      return undefined;
+    }
+
+    if ('isEmpty' in inputState) {
+      return inputState.isEmpty;
+    } else {
+      return undefined;
+    }
+  })
+
   .output('clustersTable', (ctx) => {
     const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
     if (pCols === undefined) {
@@ -218,7 +231,7 @@ export const model = BlockModel.create()
   // Returns a list of Pcols for plot defaults
   .output('clustersPfPcols', (ctx) => {
     const pCols = ctx.outputs?.resolve('pf')?.getPColumns();
-    if (pCols === undefined) {
+    if (pCols === undefined || pCols.length === 0) {
       return undefined;
     }
 
