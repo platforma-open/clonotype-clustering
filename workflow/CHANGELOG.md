@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.12.0
+
+### Minor Changes
+
+- 08fa82f: Fix query for single cell clonotype labels
+
 ## 3.11.0
 
 ### Minor Changes
