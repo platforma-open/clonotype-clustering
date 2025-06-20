@@ -112,7 +112,7 @@ wf.body(func(args) {
 	// run mmseqs2
 	// NOTE: mmseqs2 produces different results for same input (different line order),
 	// so we save the result in the output to prevent CID conflict by deduplication
-	memoryParam := "{int(ceil(system.ram.gigabytes * 0.8))}" + "G"
+	memoryParam := "{int(ceil(system.ram.gb * 0.8))}" + "G"
 	mmseqs := exec.builder().
 		software(mmseqsSw).
 		dontSaveStdoutOrStderr(). // important to avoid CID conflict problems coming from different stdout output on same datasets
