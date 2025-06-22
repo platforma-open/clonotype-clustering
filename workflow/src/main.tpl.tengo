@@ -217,7 +217,7 @@ wf.body(func(args) {
 				}
 			}), text.re_replace("Number", abundanceLabel, "Fraction") + " in cluster", false, undefined)
 		}]
-	}, {splitDataAndSpec: true})
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
 
 
 	abundancesPerCluster := result.getFile("abundances-per-cluster.tsv")
@@ -231,7 +231,7 @@ wf.body(func(args) {
 			column: "abundance_per_cluster",
 			spec: setTableProps(ac, "Total " + abundanceLabel + " in cluster", false, undefined)
 		}]
-	}, {splitDataAndSpec: true})
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
 
 	cloneToCluster := result.getFile("clone-to-cluster.tsv")
 	cloneToClusterPf := xsv.importFile(cloneToCluster, "tsv", {
@@ -248,7 +248,7 @@ wf.body(func(args) {
 				annotations: clusterIdAxisSpec.annotations
 			}, "Cluster Id", false, undefined)
 		}]
-	}, {splitDataAndSpec: true})
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
 
 	cloneToClusterLinkPf := xsv.importFile(cloneToCluster, "tsv", {
 		axes: [{
@@ -268,7 +268,7 @@ wf.body(func(args) {
 				}
 			}, "Clone to cluster link", false, undefined)
 		}]
-	}, {splitDataAndSpec: true})
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
 
 	clusterToSeq := result.getFile("cluster-to-seq.tsv")
 
@@ -314,7 +314,7 @@ wf.body(func(args) {
 			spec: clusterIdAxisSpec
 		}],
 		columns: seqColumns
-	}, {splitDataAndSpec: true})
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
 
 
 	distances := result.getFile("distance_to_centroid.tsv")
@@ -336,7 +336,7 @@ wf.body(func(args) {
 				}
 			}, "Distance to centroid", false, undefined)
 		}]
-	}, {splitDataAndSpec: true})
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
 
 	// building outputs & exports
 	trace := pSpec.makeTrace(abundanceSpec,
