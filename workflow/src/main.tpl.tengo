@@ -51,7 +51,7 @@ doQuery := func(wf, args) {
 	// mmseqs2 uses same sequence for centroids, so we use same clonotypeKey as a clusterId
 	// and we need to pull corresponding labels from the result pool
 	// @TODO: remove this part when this labels are generated in bulk MiXCR workflow
-	bundleBuilder.addSingle(
+	bundleBuilder.addMulti(
 		{
 			axes: [{ anchor: "main", idx: 1 }],
 			name: "pl7.app/label"
@@ -85,11 +85,15 @@ wf.body(func(args) {
 	for nr, seq in sequencesRef {
 		seqTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
 	}
+	seqTableBuilder.mem("32GiB")
+	seqTableBuilder.cpu(1)
 	seqTable := seqTableBuilder.build()
 
 	// Run script to check if input table is emptyAdd commentMore actions
 	emptyCheck := exec.builder().
 			software(emptyCheckSw).
+			mem("16GiB").
+			cpu(1).
 			addFile("sequences.tsv", seqTable).
 			arg("--output").arg(".").
 			arg("--input").arg("sequences.tsv").

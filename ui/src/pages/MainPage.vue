@@ -204,6 +204,10 @@ const clusterAxis = computed<AxisId>(() => {
           Sets the lowest percentage of sequence length that must be covered for clonotypes to be considered for the same cluster.
         </template>
       </PlNumberField>
+      <PlAlert v-if="app.model.outputs.inputState" type="warn" style="margin-top: 1rem;">
+        {{ "Error: The input dataset you have selected is empty. \
+        Please choose a different dataset." }}
+      </PlAlert>
 
       <!-- Removed Advanced Settings -->
       <!--       <PlAccordionSection label="Advanced Settings">
@@ -232,8 +236,4 @@ const clusterAxis = computed<AxisId>(() => {
       :selection="selection"
     />
   </PlSlideModal>
-  <PlAlert v-if="app.model.outputs.inputState" type="error" style="margin-top: 1rem;">
-    {{ "Error: The input dataset you have selected is empty. \
-    Please choose a different dataset." }}
-  </PlAlert>
 </template>
