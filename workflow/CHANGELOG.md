@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.14.0
+
+### Minor Changes
+
+- 565a46a: Support batch system
+
 ## 3.13.0
 
 ### Minor Changes
