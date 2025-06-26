@@ -355,10 +355,9 @@ wf.body(func(args) {
 			column: "clusterRadius",
 			spec: setTableProps({
 				name: "pl7.app/vdj/clustering/clusterRadius",
-				valueType: "Float",
+				valueType: "Int",
 				annotations: {
-					"pl7.app/rankingOrder": "decreasing",
-					"pl7.app/format": ".2f"
+					"pl7.app/rankingOrder": "decreasing"
 				}
 			}, "Cluster radius", true, undefined)
 		}]
