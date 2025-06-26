@@ -339,8 +339,6 @@ wf.body(func(args) {
 				name: "pl7.app/vdj/clustering/clusterRadius",
 				valueType: "Float",
 				annotations: {
-					"pl7.app/min": "0",
-					"pl7.app/max": "1",
 					"pl7.app/rankingOrder": "decreasing",
 					"pl7.app/format": ".2f"
 				}
