@@ -191,7 +191,10 @@ distance_df = distance_df_base.join(
 
 if not sequence_cols:
     print("No sequence columns found. Setting distanceToCentroid to 0.0 for all entries.")
-    distance_df = distance_df.with_columns(pl.lit(0.0, dtype=pl.Float64).alias("distanceToCentroid"))
+    distance_df = distance_df.with_columns(
+        pl.lit(0.0, dtype=pl.Float64).alias("distanceToCentroid"),
+        pl.lit(0, dtype=pl.Int64).alias("total_raw_distance")  # Add this for cluster radius calculation
+    )
 else:
     # Prepare member's sequence data for join
     member_seq_select_expr = [pl.col("clonotypeKey").alias("member_join_key_seq")] + \
