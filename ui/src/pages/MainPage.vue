@@ -90,10 +90,6 @@ const isLinkerColumn = (column: PColumnIdAndSpec) => {
   return column.columnId === app.model.outputs.linkerColumnId;
 };
 
-const isLabelColumnOption = (_column: PColumnIdAndSpec) => {
-  return true;
-};
-
 // Set instructions to track cluster axis
 const clusterAxis = computed<AxisId>(() => {
   if (app.model.outputs.clusterAbundanceSpec?.axesSpec[1] === undefined) {
@@ -210,7 +206,6 @@ const clusterAxis = computed<AxisId>(() => {
     <template #title>Multiple Sequence Alignment</template>
     <PlMultiSequenceAlignment
       v-model="app.model.ui.alignmentModel"
-      :label-column-option-predicate="isLabelColumnOption"
       :sequence-column-predicate="isSequenceColumn"
       :linker-column-predicate="isLinkerColumn"
       :p-frame="app.model.outputs.msaPf"
