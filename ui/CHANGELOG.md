@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.6.1
+
+### Patch Changes
+
+- 091bc1c: Migrate to use new PlAgDataTableV2
+- Updated dependencies [091bc1c]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.7.1
+
 ## 3.6.0
 
 ### Minor Changes
