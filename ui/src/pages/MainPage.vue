@@ -1,9 +1,6 @@
 <script setup lang="ts">
 import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey } from '@platforma-sdk/model';
 import { plRefsEqual } from '@platforma-sdk/model';
-import type {
-  PlAgDataTableSettings,
-} from '@platforma-sdk/ui-vue';
 import {
   listToOptions,
   PlAgDataTableToolsPanel,
@@ -18,6 +15,7 @@ import {
   PlMultiSequenceAlignment,
   PlNumberField,
   PlSlideModal,
+  usePlDataTableSettingsV2,
 } from '@platforma-sdk/ui-vue';
 import { computed, reactive, ref } from 'vue';
 import { useApp } from '../app';
@@ -55,18 +53,8 @@ function setInput(inputRef?: PlRef) {
   }
 }
 
-const tableSettings = computed<PlAgDataTableSettings>(() => {
-  const pTable = app.model.outputs.clustersTable;
-
-  if (pTable === undefined && !app.model.outputs.isRunning) {
-    // special case: when block is not yet started at all (no table calculated)
-    return undefined;
-  }
-
-  return {
-    sourceType: 'ptable',
-    model: pTable,
-  };
+const tableSettings = usePlDataTableSettingsV2({
+  model: () => app.model.outputs.clustersTable,
 });
 
 const tableLoadingText = computed(() => {
@@ -100,10 +88,6 @@ const isSequenceColumn = (column: PColumnIdAndSpec) => {
 
 const isLinkerColumn = (column: PColumnIdAndSpec) => {
   return column.columnId === app.model.outputs.linkerColumnId;
-};
-
-const isLabelColumnOption = (_column: PColumnIdAndSpec) => {
-  return true;
 };
 
 // Set instructions to track cluster axis
@@ -143,7 +127,7 @@ const clusterAxis = computed<AxisId>(() => {
       v-model="app.model.ui.tableState"
       :settings="tableSettings"
       :loading-text="tableLoadingText"
-      not-ready-text="Block is not started"
+      not-ready-text="Data is not computed"
       show-columns-panel
       show-export-button
       :show-cell-button-for-axis-id="clusterAxis"
@@ -204,7 +188,7 @@ const clusterAxis = computed<AxisId>(() => {
       </PlNumberField>
 
       <!-- Removed Advanced Settings -->
-<!--       <PlAccordionSection label="Advanced Settings">
+      <!--       <PlAccordionSection label="Advanced Settings">
         <PlDropdown
           v-model="app.model.args.coverageMode"
           :options="coverageModeOptions"
@@ -222,7 +206,6 @@ const clusterAxis = computed<AxisId>(() => {
     <template #title>Multiple Sequence Alignment</template>
     <PlMultiSequenceAlignment
       v-model="app.model.ui.alignmentModel"
-      :label-column-option-predicate="isLabelColumnOption"
       :sequence-column-predicate="isSequenceColumn"
       :linker-column-predicate="isLinkerColumn"
       :p-frame="app.model.outputs.msaPf"
