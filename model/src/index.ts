@@ -4,13 +4,14 @@ import type {
   PColumnIdAndSpec,
   PColumnSpec,
   PFrameHandle,
-  PlDataTableState,
+  PlDataTableStateV2,
   PlMultiSequenceAlignmentModel,
   PlRef, SUniversalPColumnId,
 } from '@platforma-sdk/model';
 import {
   BlockModel,
   createPFrameForGraphs,
+  createPlDataTableStateV2,
   createPlDataTableV2,
 } from '@platforma-sdk/model';
 
@@ -27,7 +28,7 @@ export type BlockArgs = {
 
 export type UiState = {
   title?: string;
-  tableState: PlDataTableState;
+  tableState: PlDataTableStateV2;
   graphStateBubble: GraphMakerState;
   alignmentModel: PlMultiSequenceAlignmentModel;
   graphStateHistogram: GraphMakerState;
@@ -46,9 +47,7 @@ export const model = BlockModel.create()
 
   .withUiState<UiState>({
     title: 'Clonotype Clustering',
-    tableState: {
-      gridState: {},
-    },
+    tableState: createPlDataTableStateV2(),
     graphStateBubble: {
       title: 'Clusters Plot',
       template: 'bubble',
@@ -153,13 +152,8 @@ export const model = BlockModel.create()
 
   .output('clustersTable', (ctx) => {
     const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
-    if (pCols === undefined) {
-      return undefined;
-    }
-
-    return createPlDataTableV2(ctx, pCols,
-      (_) => true,
-      ctx.uiState?.tableState);
+    if (pCols === undefined) return undefined;
+    return createPlDataTableV2(ctx, pCols, ctx.uiState.tableState);
   })
 
   .output('msaPf', (ctx) => {
