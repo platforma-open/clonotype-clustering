@@ -361,7 +361,7 @@ wf.body(func(args) {
 				}
 			}, "Cluster radius", true, undefined)
 		}]
-	}, {splitDataAndSpec: true})
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
 
 	// building outputs & exports
 	trace := pSpec.makeTrace(abundanceSpec,
