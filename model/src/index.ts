@@ -50,7 +50,7 @@ export const model = BlockModel.create()
       gridState: {},
     },
     graphStateBubble: {
-      title: 'Clusters Plot',
+      title: 'Top Clusters Plot',
       template: 'bubble',
       currentTab: null,
       layersSettings: {
@@ -246,7 +246,7 @@ export const model = BlockModel.create()
 
   .sections((_ctx) => [
     { type: 'link', href: '/', label: 'Main' },
-    { type: 'link', href: '/bubble', label: 'Clusters Plot' },
+    { type: 'link', href: '/bubble', label: 'Top Clusters Plot' },
     { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
   ])
 

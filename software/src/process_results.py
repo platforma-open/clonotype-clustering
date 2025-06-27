@@ -162,7 +162,7 @@ abundances_per_cluster.write_csv(abundancesPerClusterTsv, separator="\t")
 # --- Get top clusters for bubble plot ---
 top_cluster_ids_df = abundances_per_cluster.sort(
     'abundance_per_cluster', descending=True
-).head(900_000).select('clusterId')
+).head(100).select('clusterId')
 
 # --- Generate distance_to_centroid.tsv (New Segmented Approach) ---
 
