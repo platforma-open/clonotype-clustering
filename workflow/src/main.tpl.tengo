@@ -305,6 +305,11 @@ wf.body(func(args) {
 	for nr, seq in sequencesRef {
 		spec := maps.clone(columns.getSpec(seq))
 		spec.annotations["pl7.app/label"] = "Centroid " + spec.annotations["pl7.app/label"]
+
+		delete(spec.annotations, "pl7.app/vdj/imputed")
+		delete(spec.annotations, "pl7.app/vdj/isAssemblingFeature")
+		delete(spec.annotations, "pl7.app/vdj/isMainSequence")
+
 		seqColumns = append(seqColumns, {
 			column: "sequence_" + string(nr),
 			spec: setTableProps({
