@@ -309,9 +309,9 @@ else:
     print(f"WARNING: clonotypeKey values in the written {output_distance_tsv} are still not unique. This is unexpected after dropping duplicates.")
 
 # --- Generate cluster-radius.tsv ---
-# Calculate max raw distance per cluster
+# Calculate max normalized distance per cluster
 cluster_radius_df = distance_df.group_by("clusterId").agg(
-    pl.max("total_raw_distance").alias("clusterRadius")
+    pl.max("distanceToCentroid").alias("clusterRadius")
 )
 
 # Write to TSV
