@@ -310,7 +310,7 @@ else:
 
 # --- Generate cluster-radius.tsv ---
 # Calculate max normalized distance per cluster
-cluster_radius_df = distance_df.group_by("clusterId").agg(
+cluster_radius_df = distance_df_to_write.group_by("clusterId").agg(
     pl.max("distanceToCentroid").alias("clusterRadius")
 )
 
