@@ -12,10 +12,10 @@ const app = useApp();
 
 // if there is no output or abundance spec, return undefined
 const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
-  if (!app.model.outputs.clustersPfPcols || !app.model.outputs.clusterAbundanceSpec)
+  if (!app.model.outputs.bubblePlotPfPcols || !app.model.outputs.clusterAbundanceSpec)
     return undefined;
 
-  const bubblePcols = app.model.outputs.clustersPfPcols;
+  const bubblePcols = app.model.outputs.bubblePlotPfPcols;
   function getIndex(name: string, pcols: PColumnIdAndSpec[]): number {
     return pcols.findIndex((p) => (p.spec.name === name
     ));
