@@ -7,6 +7,7 @@ clusterToSeqTsv = "cluster-to-seq.tsv"
 cloneToClusterTsv = "clone-to-cluster.tsv"
 abundancesTsv = "abundances.tsv"
 abundancesPerClusterTsv = "abundances-per-cluster.tsv"
+clusterRadiusTsv = "cluster-radius.tsv"
 
 # sampleId, clonotypeKey, clonotypeKeyLabel,sequence_..., 
 # ...VGene, JGene
@@ -158,6 +159,11 @@ abundances_per_cluster = cluster_abundances.group_by(
 
 abundances_per_cluster.write_csv(abundancesPerClusterTsv, separator="\t")
 
+# --- Get top clusters for bubble plot ---
+top_cluster_ids_df = abundances_per_cluster.sort(
+    'abundance_per_cluster', descending=True
+).head(100).select('clusterId')
+
 # --- Generate distance_to_centroid.tsv (New Segmented Approach) ---
 
 # Base DataFrame: member's key and original label
@@ -190,7 +196,10 @@ distance_df = distance_df_base.join(
 
 if not sequence_cols:
     print("No sequence columns found. Setting distanceToCentroid to 0.0 for all entries.")
-    distance_df = distance_df.with_columns(pl.lit(0.0, dtype=pl.Float64).alias("distanceToCentroid"))
+    distance_df = distance_df.with_columns(
+        pl.lit(0.0, dtype=pl.Float64).alias("distanceToCentroid"),
+        pl.lit(0, dtype=pl.Int64).alias("total_raw_distance")  # Add this for cluster radius calculation
+    )
 else:
     # Prepare member's sequence data for join
     member_seq_select_expr = [pl.col("clonotypeKey").alias("member_join_key_seq")] + \
@@ -303,3 +312,23 @@ if distance_df_to_write.height == distance_df_to_write.select(pl.col("clonotypeK
     print(f"Verified: All clonotypeKey values in the written {output_distance_tsv} are unique.")
 else:
     print(f"WARNING: clonotypeKey values in the written {output_distance_tsv} are still not unique. This is unexpected after dropping duplicates.")
+
+# --- Generate cluster-radius.tsv ---
+# Calculate max normalized distance per cluster
+cluster_radius_df = distance_df_to_write.group_by("clusterId").agg(
+    pl.max("distanceToCentroid").alias("clusterRadius")
+)
+
+# Write to TSV
+cluster_radius_df.write_csv(clusterRadiusTsv, separator="\t")
+print(f"Generated {clusterRadiusTsv}")
+
+# --- Generate files for top clusters for bubble plotting ---
+cluster_abundances_top_df = cluster_abundances.join(top_cluster_ids_df, on="clusterId", how="inner")
+cluster_abundances_top_df.write_csv("abundances-top.tsv", separator="\t")
+
+cluster_to_seq_top_df = cluster_to_seq.join(top_cluster_ids_df, on="clusterId", how="inner")
+cluster_to_seq_top_df.write_csv("cluster-to-seq-top.tsv", separator="\t")
+
+cluster_radius_top_df = cluster_radius_df.join(top_cluster_ids_df, on="clusterId", how="inner")
+cluster_radius_top_df.write_csv("cluster-radius-top.tsv", separator="\t")

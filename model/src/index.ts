@@ -49,7 +49,7 @@ export const model = BlockModel.create()
     title: 'Clonotype Clustering',
     tableState: createPlDataTableStateV2(),
     graphStateBubble: {
-      title: 'Clusters Plot',
+      title: 'Top Clusters Plot',
       template: 'bubble',
       currentTab: null,
       layersSettings: {
@@ -209,6 +209,30 @@ export const model = BlockModel.create()
     return createPFrameForGraphs(ctx, pCols);
   })
 
+  .output('bubblePlotPf', (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.outputs?.resolve('bubblePlotPf')?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return createPFrameForGraphs(ctx, pCols);
+  })
+
+  .output('bubblePlotPfPcols', (ctx) => {
+    const pCols = ctx.outputs?.resolve('bubblePlotPf')?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return pCols.map(
+      (c) =>
+        ({
+          columnId: c.id,
+          spec: c.spec,
+        } satisfies PColumnIdAndSpec),
+    );
+  })
+
   // Returns a list of Pcols for plot defaults
   .output('clustersPfPcols', (ctx) => {
     const pCols = ctx.outputs?.resolve('pf')?.getPColumns();
@@ -231,7 +255,7 @@ export const model = BlockModel.create()
 
   .sections((_ctx) => [
     { type: 'link', href: '/', label: 'Main' },
-    { type: 'link', href: '/bubble', label: 'Clusters Plot' },
+    { type: 'link', href: '/bubble', label: 'Top Clusters Plot' },
     { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
   ])
 
