@@ -129,7 +129,7 @@ wf.body(func(args) {
 	pf := clusteringAnalysis.output("pf", 24 * 60 * 60 * 1000)
 	clusterAbundanceSpec := clusteringAnalysis.output("clusterAbundanceSpec", 24 * 60 * 60 * 1000)
 	mmseqs := clusteringAnalysis.output("mmseqs", 24 * 60 * 60 * 1000)
-	inputState := clusteringAnalysis.output("inputState", 24 * 60 * 60 * 1000)
+	isEmpty := clusteringAnalysis.output("isEmpty", 24 * 60 * 60 * 1000)
 
 	return {
 		outputs: {
@@ -145,7 +145,7 @@ wf.body(func(args) {
 			// save mmseqs2 result in the output to enable deduplication of mmseqs2 run
 			// NOTE: mmseqs2 produces different results for same input (different line order)
 			mmseqs: mmseqs,
-			inputState: inputState
+			isEmpty: isEmpty
 		},
 		exports: {
 			pf: pf

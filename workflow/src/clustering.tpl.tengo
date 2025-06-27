@@ -38,7 +38,7 @@ self.validateInputs({
     blockId: "string"
 })
 
-self.defineOutputs("clustersPf", "msaPf", "pf", "clusterAbundanceSpec", "mmseqs", "inputState")
+self.defineOutputs("clustersPf", "msaPf", "pf", "clusterAbundanceSpec", "mmseqs", "isEmpty")
 
 self.body(func(inputs) {
     clustersPf := {}
@@ -46,7 +46,7 @@ self.body(func(inputs) {
     pf := {}
     clusterAbundanceSpec := {}
     mmseqs := {}
-	inputState := {}
+	isEmpty := false
 
     seqTable := inputs.seqTable
     columns := inputs.columns
@@ -67,7 +67,7 @@ self.body(func(inputs) {
             pf: pf,
             clusterAbundanceSpec: clusterAbundanceSpec,
             mmseqs: mmseqs,
-			inputState: {isEmpty: true}
+			isEmpty: true
 		}
 
 	} else {
@@ -370,7 +370,7 @@ self.body(func(inputs) {
 			// save mmseqs2 result in the output to enable deduplication of mmseqs2 run
 			// NOTE: mmseqs2 produces different results for same input (different line order)
 			mmseqs: clusters,
-			inputState: {isEmpty: false}
+			isEmpty: false
 		}
 	} 
 })

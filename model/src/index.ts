@@ -151,17 +151,12 @@ export const model = BlockModel.create()
     return spec.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
   })
 
-  .output('inputState', (ctx) => {
-    const inputState = ctx.outputs?.resolve('inputState')?.getDataAsJson() as object;
-    if (inputState === undefined) {
-      return undefined;
+  .output('inputState', (ctx): boolean | undefined => {
+    const inputState = ctx.outputs?.resolve('isEmpty')?.getDataAsJson() as object;
+    if (typeof inputState === 'boolean') {
+      return inputState;
     }
-
-    if ('isEmpty' in inputState) {
-      return inputState.isEmpty;
-    } else {
-      return undefined;
-    }
+    return undefined;
   })
 
   .output('clustersTable', (ctx) => {
