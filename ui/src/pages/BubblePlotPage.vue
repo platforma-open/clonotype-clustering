@@ -58,8 +58,8 @@ const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
     <GraphMaker
       v-model="app.model.ui.graphStateBubble"
       chartType="bubble"
-      :data-state-key="app.model.outputs.clustersPf"
-      :p-frame="app.model.outputs.clustersPf"
+      :data-state-key="app.model.outputs.bubblePlotPf"
+      :p-frame="app.model.outputs.bubblePlotPf"
       :default-options="defaultOptions"
     />
   </PlBlockPage>

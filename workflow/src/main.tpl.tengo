@@ -175,6 +175,9 @@ wf.body(func(args) {
 		saveFile("abundances-per-cluster.tsv"). // cluster to summed abundances
 		saveFile("distance_to_centroid.tsv"). // normalized levenshtein distance to centroid
 		saveFile("cluster-radius.tsv"). // max distance to centroid per cluster
+		saveFile("cluster-to-seq-top.tsv"). // top clusters for bubble plot
+		saveFile("cluster-radius-top.tsv"). // top clusters for bubble plot
+		saveFile("abundances-top.tsv"). // top clusters for bubble plot
 		run()
 
 
@@ -389,6 +392,66 @@ wf.body(func(args) {
 	}
 	opf = opf.build()
 
+	// Generate pFrames for bubble plot with top clusters
+	abundancesTopPf := xsv.importFile(result.getFile("abundances-top.tsv"), "tsv", {
+			axes: [{
+				column: "sampleId",
+				spec: abundanceSpec.axesSpec[0]
+			}, {
+				column: "clusterId",
+				spec: clusterIdAxisSpec
+			}],
+			columns: [{
+				column: "abundance",
+				spec: setTableProps(ac, abundanceLabel + " in cluster", false, undefined)
+			},
+			{
+				column: "abundance_normalized",
+				spec: setTableProps(maps.deepMerge(ac, {
+					valueType: "Float",
+					annotations: {
+						"pl7.app/abundance/normalized": "true"
+					}
+				}), text.re_replace("Number", abundanceLabel, "Fraction") + " in cluster", false, undefined)
+			}]
+		}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+
+	clusterToSeqTopPf := xsv.importFile(result.getFile("cluster-to-seq-top.tsv"), "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: seqColumns
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+
+	clusterRadiusTopPf := xsv.importFile(result.getFile("cluster-radius-top.tsv"), "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: [{
+			column: "clusterRadius",
+			spec: setTableProps({
+				name: "pl7.app/vdj/clustering/clusterRadius",
+				valueType: "Float",
+				annotations: {
+					"pl7.app/rankingOrder": "decreasing",
+					"pl7.app/min": "0",
+					"pl7.app/max": "1",
+					"pl7.app/format": ".2f"
+				}
+			}, "Cluster radius", true, undefined)
+		}]
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+
+	bubblePlotPfBuilder := pframes.pFrameBuilder()
+	for pf in [abundancesTopPf, clusterToSeqTopPf, clusterRadiusTopPf] {
+		for k, v in pf {
+			bubblePlotPfBuilder.add(k, trace.inject(v.spec), v.data)
+		}
+	}
+	bubblePlotPf := bubblePlotPfBuilder.build()
+
 	// Generate pFrames with sequences
 	msaPf := pframes.pFrameBuilder()
 	i := 0
@@ -417,6 +480,8 @@ wf.body(func(args) {
 		outputs: {
 			// for table
 			clustersPf: pframes.exportFrame(opf),
+			// for bubble plot
+			bubblePlotPf: pframes.exportFrame(bubblePlotPf),
 			// for MSA
 			msaPf: pframes.exportFrame(msaPf),
 			// pf for plots

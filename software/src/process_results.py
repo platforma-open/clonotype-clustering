@@ -159,6 +159,11 @@ abundances_per_cluster = cluster_abundances.group_by(
 
 abundances_per_cluster.write_csv(abundancesPerClusterTsv, separator="\t")
 
+# --- Get top clusters for bubble plot ---
+top_cluster_ids_df = abundances_per_cluster.sort(
+    'abundance_per_cluster', descending=True
+).head(900_000).select('clusterId')
+
 # --- Generate distance_to_centroid.tsv (New Segmented Approach) ---
 
 # Base DataFrame: member's key and original label
@@ -317,3 +322,13 @@ cluster_radius_df = distance_df_to_write.group_by("clusterId").agg(
 # Write to TSV
 cluster_radius_df.write_csv(clusterRadiusTsv, separator="\t")
 print(f"Generated {clusterRadiusTsv}")
+
+# --- Generate files for top clusters for bubble plotting ---
+cluster_abundances_top_df = cluster_abundances.join(top_cluster_ids_df, on="clusterId", how="inner")
+cluster_abundances_top_df.write_csv("abundances-top.tsv", separator="\t")
+
+cluster_to_seq_top_df = cluster_to_seq.join(top_cluster_ids_df, on="clusterId", how="inner")
+cluster_to_seq_top_df.write_csv("cluster-to-seq-top.tsv", separator="\t")
+
+cluster_radius_top_df = cluster_radius_df.join(top_cluster_ids_df, on="clusterId", how="inner")
+cluster_radius_top_df.write_csv("cluster-radius-top.tsv", separator="\t")

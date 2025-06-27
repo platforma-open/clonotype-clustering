@@ -215,6 +215,15 @@ export const model = BlockModel.create()
     return createPFrameForGraphs(ctx, pCols);
   })
 
+  .output('bubblePlotPf', (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.outputs?.resolve('bubblePlotPf')?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return createPFrameForGraphs(ctx, pCols);
+  })
+
   // Returns a list of Pcols for plot defaults
   .output('clustersPfPcols', (ctx) => {
     const pCols = ctx.outputs?.resolve('pf')?.getPColumns();
