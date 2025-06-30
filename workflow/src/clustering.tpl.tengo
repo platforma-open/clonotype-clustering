@@ -182,7 +182,7 @@ self.body(func(inputs) {
             }],
             columns: [{
                 column: "abundance",
-                spec: setTableProps(ac, abundanceLabel + " in cluster", false, undefined)
+                spec: setTableProps(ac, abundanceLabel + " in Cluster", false, undefined)
             },
             {
                 column: "abundance_normalized",
@@ -191,7 +191,7 @@ self.body(func(inputs) {
                     annotations: {
                         "pl7.app/abundance/normalized": "true"
                     }
-                }), text.re_replace("Number", abundanceLabel, "Fraction") + " in cluster", false, undefined)
+                }), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
             }]
         }, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
 
@@ -205,7 +205,7 @@ self.body(func(inputs) {
             }],
             columns: [{
                 column: "abundance_per_cluster",
-                spec: setTableProps(ac, "Total " + abundanceLabel + " in cluster", false, undefined)
+                spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", false, undefined)
             }]
         }, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
 
