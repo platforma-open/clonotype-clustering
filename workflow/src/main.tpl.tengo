@@ -95,7 +95,7 @@ wf.body(func(args) {
 			mem("16GiB").
 			cpu(1).
 			addFile("sequences.tsv", seqTable).
-			arg("--output").arg(".").
+			arg("--output-dir").arg(".").
 			arg("--input").arg("sequences.tsv").
 			arg("--input-separator").arg("\t").
 			saveFileContent("isFileEmpty.txt").
