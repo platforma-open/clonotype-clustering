@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.4.0
+
+### Minor Changes
+
+- ab7d0d5: allow prepare venv on Windows
+
 ## 2.3.4
 
 ### Patch Changes
