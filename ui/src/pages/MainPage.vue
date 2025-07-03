@@ -5,6 +5,7 @@ import {
   listToOptions,
   PlAgDataTableToolsPanel,
   PlAgDataTableV2,
+  PlAlert,
   PlBlockPage,
   PlBtnGhost,
   PlBtnGroup,
@@ -124,6 +125,7 @@ const clusterAxis = computed<AxisId>(() => {
       </PlBtnGhost>
     </template>
     <PlAgDataTableV2
+      v-if="app.model.outputs.inputState === false"
       v-model="app.model.ui.tableState"
       :settings="tableSettings"
       :loading-text="tableLoadingText"
@@ -186,6 +188,10 @@ const clusterAxis = computed<AxisId>(() => {
           Sets the lowest percentage of sequence length that must be covered for clonotypes to be considered for the same cluster.
         </template>
       </PlNumberField>
+      <PlAlert v-if="app.model.outputs.inputState" type="warn" style="margin-top: 1rem;">
+        {{ "Error: The input dataset you have selected is empty. \
+        Please choose a different dataset." }}
+      </PlAlert>
 
       <!-- Removed Advanced Settings -->
       <!--       <PlAccordionSection label="Advanced Settings">
@@ -205,6 +211,7 @@ const clusterAxis = computed<AxisId>(() => {
   <PlSlideModal v-model="multipleSequenceAlignmentOpen" width="100%">
     <template #title>Multiple Sequence Alignment</template>
     <PlMultiSequenceAlignment
+      v-if="app.model.outputs.inputState === false"
       v-model="app.model.ui.alignmentModel"
       :sequence-column-predicate="isSequenceColumn"
       :linker-column-predicate="isLinkerColumn"
