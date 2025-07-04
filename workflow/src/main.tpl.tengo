@@ -362,11 +362,20 @@ wf.body(func(args) {
 	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
 	// building outputs & exports
+
+	// Create informative label with relevant clustering parameters
+	// @TODO: Maybe add feature but will be ridicolously long if many features are used
+	identityStr := string(args.identity)
+	coverageStr := string(args.coverageThreshold)
+	similarityTypeStr := args.similarityType == "sequence-identity" ? "Exact Match" : "BLOSUM"
+	
+	traceLabel := "Clustering (sim:" + similarityTypeStr + ", ident:" + identityStr + ", cov:" + coverageStr + ")"
+	
 	trace := pSpec.makeTrace(abundanceSpec,
 		{
 			type: "milaboratories.clonotype-clustering",
-		 	importance: 30,
-		 	label: "Clonotype clusters"
+		 	importance: 70,
+		 	label: traceLabel
 		})
 
 	opf := pframes.pFrameBuilder()
