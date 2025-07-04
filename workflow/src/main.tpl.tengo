@@ -369,7 +369,7 @@ wf.body(func(args) {
 	coverageStr := string(args.coverageThreshold)
 	similarityTypeStr := args.similarityType == "sequence-identity" ? "Exact Match" : "BLOSUM"
 	
-	traceLabel := "Clustering (ident:" + identityStr + ", cov:" + coverageStr + ", sim:" + similarityTypeStr + ")"
+	traceLabel := "Clustering (sim:" + similarityTypeStr + ", ident:" + identityStr + ", cov:" + coverageStr + ")"
 	
 	trace := pSpec.makeTrace(abundanceSpec,
 		{
