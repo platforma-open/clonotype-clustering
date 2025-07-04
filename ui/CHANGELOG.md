@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.7.0
+
+### Minor Changes
+
+- ed6141c: Update SDK & custom mem & cpu limits
+
+### Patch Changes
+
+- Updated dependencies [ed6141c]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.8.0
+
 ## 3.6.1
 
 ### Patch Changes

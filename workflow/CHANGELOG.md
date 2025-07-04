@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.15.0
+
+### Minor Changes
+
+- ed6141c: Update SDK & custom mem & cpu limits
+
 ## 3.14.0
 
 ### Minor Changes
