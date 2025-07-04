@@ -187,6 +187,10 @@ wf.body(func(args) {
 		saveFile("clone-to-cluster.tsv").
 		saveFile("abundances-per-cluster.tsv"). // cluster to summed abundances
 		saveFile("distance_to_centroid.tsv"). // normalized levenshtein distance to centroid
+		saveFile("cluster-radius.tsv"). // max distance to centroid per cluster
+		saveFile("cluster-to-seq-top.tsv"). // top clusters for bubble plot
+		saveFile("cluster-radius-top.tsv"). // top clusters for bubble plot
+		saveFile("abundances-top.tsv"). // top clusters for bubble plot
 		run()
 
 
@@ -320,6 +324,11 @@ wf.body(func(args) {
 	for nr, seq in sequencesRef {
 		spec := maps.clone(columns.getSpec(seq))
 		spec.annotations["pl7.app/label"] = "Centroid " + spec.annotations["pl7.app/label"]
+
+		delete(spec.annotations, "pl7.app/vdj/imputed")
+		delete(spec.annotations, "pl7.app/vdj/isAssemblingFeature")
+		delete(spec.annotations, "pl7.app/vdj/isMainSequence")
+
 		seqColumns = append(seqColumns, {
 			column: "sequence_" + string(nr),
 			spec: setTableProps({
@@ -361,6 +370,23 @@ wf.body(func(args) {
 		}]
 	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
+	clusterRadiusPf := xsv.importFile(result.getFile("cluster-radius.tsv"), "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: [{
+			column: "clusterRadius",
+			spec: setTableProps({
+				name: "pl7.app/vdj/clustering/clusterRadius",
+				valueType: "Float",
+				annotations: {
+					"pl7.app/rankingOrder": "decreasing"
+				}
+			}, "Cluster radius", true, undefined)
+		}]
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+
 	// building outputs & exports
 
 	// Create informative label with relevant clustering parameters
@@ -378,16 +404,78 @@ wf.body(func(args) {
 		 	label: traceLabel
 		})
 
+	// Build output pFrame for block table
 	opf := pframes.pFrameBuilder()
-	for k, v in clusterToSeqPf {
-		if k == "clusterLabel" {
-			 // avoid putting label into the outputs as it will be already in exports;
-			 // in future should be safe to add once PlAgDataTable bug is fixed
-			continue
+	for pf in [clusterToSeqPf, clusterRadiusPf] {
+		for k, v in pf {
+			if k == "clusterLabel" {
+				continue  // avoid putting label into the outputs as it will be already in exports
+						  // in future should be safe to add once PlAgDataTable bug is fixed
+			}
+			opf.add(k, trace.inject(v.spec), v.data)
 		}
-		opf.add(k, trace.inject(v.spec), v.data)
 	}
 	opf = opf.build()
+
+	// Generate pFrames for bubble plot with top clusters
+	abundancesTopPf := xsv.importFile(result.getFile("abundances-top.tsv"), "tsv", {
+			axes: [{
+				column: "sampleId",
+				spec: abundanceSpec.axesSpec[0]
+			}, {
+				column: "clusterId",
+				spec: clusterIdAxisSpec
+			}],
+			columns: [{
+				column: "abundance",
+				spec: setTableProps(ac, abundanceLabel + " in cluster", false, undefined)
+			},
+			{
+				column: "abundance_normalized",
+				spec: setTableProps(maps.deepMerge(ac, {
+					valueType: "Float",
+					annotations: {
+						"pl7.app/abundance/normalized": "true"
+					}
+				}), text.re_replace("Number", abundanceLabel, "Fraction") + " in cluster", false, undefined)
+			}]
+		}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+
+	clusterToSeqTopPf := xsv.importFile(result.getFile("cluster-to-seq-top.tsv"), "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: seqColumns
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+
+	clusterRadiusTopPf := xsv.importFile(result.getFile("cluster-radius-top.tsv"), "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: [{
+			column: "clusterRadius",
+			spec: setTableProps({
+				name: "pl7.app/vdj/clustering/clusterRadius",
+				valueType: "Float",
+				annotations: {
+					"pl7.app/rankingOrder": "decreasing",
+					"pl7.app/min": "0",
+					"pl7.app/max": "1",
+					"pl7.app/format": ".2f"
+				}
+			}, "Cluster radius", true, undefined)
+		}]
+	}, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+
+	bubblePlotPfBuilder := pframes.pFrameBuilder()
+	for pf in [abundancesTopPf, clusterToSeqTopPf, clusterRadiusTopPf] {
+		for k, v in pf {
+			bubblePlotPfBuilder.add(k, trace.inject(v.spec), v.data)
+		}
+	}
+	bubblePlotPf := bubblePlotPfBuilder.build()
 
 	// Generate pFrames with sequences
 	msaPf := pframes.pFrameBuilder()
@@ -403,7 +491,7 @@ wf.body(func(args) {
 
 	epf := pframes.pFrameBuilder() 
 	i = 0
-	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf, distancesPf] {
+	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf, distancesPf, clusterRadiusPf] {
 		for k, v in pf {
 			epf.add(k + string(i), trace.inject(v.spec), v.data) // label, specs, data
 			i = i + 1
@@ -417,6 +505,8 @@ wf.body(func(args) {
 		outputs: {
 			// for table
 			clustersPf: pframes.exportFrame(opf),
+			// for bubble plot
+			bubblePlotPf: pframes.exportFrame(bubblePlotPf),
 			// for MSA
 			msaPf: pframes.exportFrame(msaPf),
 			// pf for plots
