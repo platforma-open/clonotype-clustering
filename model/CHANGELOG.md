@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.9.0
+
+### Minor Changes
+
+- 469d0b6: Limited bubble plot to top 100 clusters. Fixed centroid export annotations.
+
 ## 2.8.0
 
 ### Minor Changes

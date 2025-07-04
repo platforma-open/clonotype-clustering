@@ -1,5 +1,18 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.17.0
+
+### Minor Changes
+
+- ac0d0e0: Add cluster radius metric and export
+- 469d0b6: Limited bubble plot to top 100 clusters. Fixed centroid export annotations.
+
+### Patch Changes
+
+- Updated dependencies [ac0d0e0]
+- Updated dependencies [469d0b6]
+  - @platforma-open/milaboratories.clonotype-clustering.software@3.7.0
+
 ## 3.16.0
 
 ### Minor Changes
