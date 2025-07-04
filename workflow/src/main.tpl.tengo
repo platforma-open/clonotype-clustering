@@ -115,7 +115,7 @@ wf.body(func(args) {
 	// get split memory limit based on real system ram
 	memLimit := "{int(ceil(system.ram.gb * 0.8))}" + "G"
 
-	mem := "32Gib" // @TODO: set based on the size of the input
+	mem := "32GiB" // @TODO: set based on the size of the input
 	cpu := 16
 
 	if !is_undefined(args.mem) {
