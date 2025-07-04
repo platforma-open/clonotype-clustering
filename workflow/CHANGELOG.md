@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.16.0
+
+### Minor Changes
+
+- 8bfffe9: Update trace, modify importance
+
 ## 3.15.0
 
 ### Minor Changes
