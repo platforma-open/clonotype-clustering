@@ -3,7 +3,7 @@ import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey } fro
 import { plRefsEqual } from '@platforma-sdk/model';
 import {
   listToOptions,
-  PlAgDataTableToolsPanel,
+  PlAccordionSection,
   PlAgDataTableV2,
   PlBlockPage,
   PlBtnGhost,
@@ -115,7 +115,6 @@ const clusterAxis = computed<AxisId>(() => {
       {{ app.model.ui.title }}
     </template>
     <template #append>
-      <PlAgDataTableToolsPanel/>
       <PlBtnGhost @click.stop="() => (settingsOpen = true)">
         Settings
         <template #append>
@@ -128,8 +127,6 @@ const clusterAxis = computed<AxisId>(() => {
       :settings="tableSettings"
       :loading-text="tableLoadingText"
       not-ready-text="Data is not computed"
-      show-columns-panel
-      show-export-button
       :show-cell-button-for-axis-id="clusterAxis"
       @cell-button-clicked="onRowDoubleClicked"
     />
@@ -187,18 +184,31 @@ const clusterAxis = computed<AxisId>(() => {
         </template>
       </PlNumberField>
 
-      <!-- Removed Advanced Settings -->
-      <!--       <PlAccordionSection label="Advanced Settings">
-        <PlDropdown
-          v-model="app.model.args.coverageMode"
-          :options="coverageModeOptions"
-          label="Coverage Mode"
+      <PlAccordionSection label="Advanced Settings">
+        <PlNumberField
+          v-model="app.model.args.mem"
+          label="Memory (GiB)"
+          :minValue="1"
+          :step="1"
+          :maxValue="1012"
         >
           <template #tooltip>
-            How to calculate the coverage between sequences for the coverage threshold.
+            Sets the amount of memory to use for the clustering.
           </template>
-        </PlDropdown>
-      </PlAccordionSection> -->
+        </PlNumberField>
+
+        <PlNumberField
+          v-model="app.model.args.cpu"
+          label="CPU (cores)"
+          :minValue="1"
+          :step="1"
+          :maxValue="128"
+        >
+          <template #tooltip>
+            Sets the number of CPU cores to use for the clustering.
+          </template>
+        </PlNumberField>
+      </PlAccordionSection>
     </PlSlideModal>
   </PlBlockPage>
   <!-- Slide window with MSA -->

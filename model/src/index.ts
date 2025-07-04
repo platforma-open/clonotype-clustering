@@ -24,6 +24,8 @@ export type BlockArgs = {
   similarityType: 'alignment-score' | 'sequence-identity';
   coverageThreshold: number; // fraction of aligned residues required
   coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
+  mem?: number;
+  cpu?: number;
 };
 
 export type UiState = {
