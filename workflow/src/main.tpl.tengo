@@ -363,14 +363,13 @@ wf.body(func(args) {
 
 	// building outputs & exports
 
-	// Create informative label with clustering parameters
+	// Create informative label with relevant clustering parameters
 	// @TODO: Maybe add feature but will be ridicolously long if many features are used
 	identityStr := string(args.identity)
 	coverageStr := string(args.coverageThreshold)
-	coverageModeStr := string(args.coverageMode)
 	similarityTypeStr := args.similarityType == "sequence-identity" ? "Exact Match" : "BLOSUM"
 	
-	traceLabel := "Clonotype clusters (id:" + identityStr + ", cov:" + coverageStr + ", mode:" + coverageModeStr + ", sim:" + similarityTypeStr + ")"
+	traceLabel := "Clonotype clusters (id:" + identityStr + ", cov:" + coverageStr + ", sim:" + similarityTypeStr + ")"
 	
 	trace := pSpec.makeTrace(abundanceSpec,
 		{
