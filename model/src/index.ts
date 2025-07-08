@@ -4,13 +4,14 @@ import type {
   PColumnIdAndSpec,
   PColumnSpec,
   PFrameHandle,
-  PlDataTableState,
+  PlDataTableStateV2,
   PlMultiSequenceAlignmentModel,
   PlRef, SUniversalPColumnId,
 } from '@platforma-sdk/model';
 import {
   BlockModel,
   createPFrameForGraphs,
+  createPlDataTableStateV2,
   createPlDataTableV2,
 } from '@platforma-sdk/model';
 
@@ -23,11 +24,13 @@ export type BlockArgs = {
   similarityType: 'alignment-score' | 'sequence-identity';
   coverageThreshold: number; // fraction of aligned residues required
   coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
+  mem?: number;
+  cpu?: number;
 };
 
 export type UiState = {
   title?: string;
-  tableState: PlDataTableState;
+  tableState: PlDataTableStateV2;
   graphStateBubble: GraphMakerState;
   alignmentModel: PlMultiSequenceAlignmentModel;
   graphStateHistogram: GraphMakerState;
@@ -46,11 +49,9 @@ export const model = BlockModel.create()
 
   .withUiState<UiState>({
     title: 'Clonotype Clustering',
-    tableState: {
-      gridState: {},
-    },
+    tableState: createPlDataTableStateV2(),
     graphStateBubble: {
-      title: 'Clusters Plot',
+      title: 'Top Clusters Plot',
       template: 'bubble',
       currentTab: null,
       layersSettings: {
@@ -161,13 +162,8 @@ export const model = BlockModel.create()
 
   .output('clustersTable', (ctx) => {
     const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
-    if (pCols === undefined) {
-      return undefined;
-    }
-
-    return createPlDataTableV2(ctx, pCols,
-      (_) => true,
-      ctx.uiState?.tableState);
+    if (pCols === undefined) return undefined;
+    return createPlDataTableV2(ctx, pCols, ctx.uiState.tableState);
   })
 
   .output('msaPf', (ctx) => {
@@ -223,6 +219,30 @@ export const model = BlockModel.create()
     return createPFrameForGraphs(ctx, pCols);
   })
 
+  .output('bubblePlotPf', (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.outputs?.resolve('bubblePlotPf')?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return createPFrameForGraphs(ctx, pCols);
+  })
+
+  .output('bubblePlotPfPcols', (ctx) => {
+    const pCols = ctx.outputs?.resolve('bubblePlotPf')?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return pCols.map(
+      (c) =>
+        ({
+          columnId: c.id,
+          spec: c.spec,
+        } satisfies PColumnIdAndSpec),
+    );
+  })
+
   // Returns a list of Pcols for plot defaults
   .output('clustersPfPcols', (ctx) => {
     const pCols = ctx.outputs?.resolve('pf')?.getPColumns();
@@ -245,7 +265,7 @@ export const model = BlockModel.create()
 
   .sections((_ctx) => [
     { type: 'link', href: '/', label: 'Main' },
-    { type: 'link', href: '/bubble', label: 'Clusters Plot' },
+    { type: 'link', href: '/bubble', label: 'Top Clusters Plot' },
     { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
   ])
 

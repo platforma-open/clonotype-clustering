@@ -1,5 +1,35 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.8.0
+
+### Minor Changes
+
+- 469d0b6: Limited bubble plot to top 100 clusters. Fixed centroid export annotations.
+
+### Patch Changes
+
+- Updated dependencies [469d0b6]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.9.0
+
+## 3.7.0
+
+### Minor Changes
+
+- ed6141c: Update SDK & custom mem & cpu limits
+
+### Patch Changes
+
+- Updated dependencies [ed6141c]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.8.0
+
+## 3.6.1
+
+### Patch Changes
+
+- 091bc1c: Migrate to use new PlAgDataTableV2
+- Updated dependencies [091bc1c]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.7.1
+
 ## 3.6.0
 
 ### Minor Changes

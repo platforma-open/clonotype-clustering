@@ -81,12 +81,13 @@ wf.body(func(args) {
 
 	// input table
 	seqTableBuilder := pframes.tsvFileBuilder()
+	seqTableBuilder.mem("32GiB") // @TODO: set based on the size of the input
+	seqTableBuilder.cpu(4) // @TODO: set based on the size of the input
+	
 	seqTableBuilder.setAxisHeader(datasetSpec.axesSpec[1].name, "clonotypeKey")
 	for nr, seq in sequencesRef {
 		seqTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
 	}
-	seqTableBuilder.mem("32GiB")
-	seqTableBuilder.cpu(1)
 	seqTable := seqTableBuilder.build()
 
 	// Run script to check if input table is emptyAdd commentMore actions
@@ -120,11 +121,14 @@ wf.body(func(args) {
 		coverageThreshold: args.coverageThreshold,
 		coverageMode: args.coverageMode,
 		sequencesRef: sequencesRef,
-		blockId: blockId
+		blockId: blockId,
+		mem: args.mem,
+		cpu: args.cpu
 	})
 
 	// Gather results from clusteringAnalysis template
 	clustersPf := clusteringAnalysis.output("clustersPf", 24 * 60 * 60 * 1000)
+	bubblePlotPf := clusteringAnalysis.output("bubblePlotPf", 24 * 60 * 60 * 1000)
 	msaPf := clusteringAnalysis.output("msaPf", 24 * 60 * 60 * 1000)
 	pf := clusteringAnalysis.output("pf", 24 * 60 * 60 * 1000)
 	clusterAbundanceSpec := clusteringAnalysis.output("clusterAbundanceSpec", 24 * 60 * 60 * 1000)
@@ -135,6 +139,8 @@ wf.body(func(args) {
 		outputs: {
 			// for table
 			clustersPf: pframes.exportFrame(clustersPf),
+			// for bubble plot
+			bubblePlotPf: pframes.exportFrame(bubblePlotPf),
 			// for MSA
 			msaPf: pframes.exportFrame(msaPf),
 			// pf for plots

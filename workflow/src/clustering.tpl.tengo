@@ -38,10 +38,11 @@ self.validateInputs({
     blockId: "string"
 })
 
-self.defineOutputs("clustersPf", "msaPf", "pf", "clusterAbundanceSpec", "mmseqs", "isEmpty")
+self.defineOutputs("clustersPf", "bubblePlotPf", "msaPf", "pf", "clusterAbundanceSpec", "mmseqs", "isEmpty")
 
 self.body(func(inputs) {
     clustersPf := {}
+    bubblePlotPf := {}
     msaPf := {}
     pf := {}
     clusterAbundanceSpec := {}
@@ -63,6 +64,7 @@ self.body(func(inputs) {
 		// If matrix is not full rank return empty objects
 		return {
 			clustersPf: clustersPf,
+            bubblePlotPf: bubblePlotPf,
             msaPf: msaPf,
             pf: pf,
             clusterAbundanceSpec: clusterAbundanceSpec,
@@ -81,20 +83,34 @@ self.body(func(inputs) {
             saveFile("output.fasta").
             run()
 
+        // get split memory limit based on real system ram
+	    memLimit := "{int(ceil(system.ram.gb * 0.8))}" + "G"
+
+        mem := "32GiB" // @TODO: set based on the size of the input
+	    cpu := 16
+
+        if !is_undefined(inputs.mem) {
+            mem = string(inputs.mem) + "GiB"
+            memLimit = string(int(inputs.mem * 0.8)) + "G"
+        }
+        if !is_undefined(inputs.cpu) {
+            cpu = inputs.cpu
+        }
+
         // run mmseqs2
         // NOTE: mmseqs2 produces different results for same input (different line order),
         // so we save the result in the output to prevent CID conflict by deduplication
-        memoryParam := "{int(ceil(system.ram.gb * 0.8))}" + "G"
         mmseqs := exec.builder().
             software(mmseqsSw).
-            mem("32GiB").
-		    cpu(1).
+            mem(mem).
+		    cpu(cpu).
             dontSaveStdoutOrStderr(). // important to avoid CID conflict problems coming from different stdout output on same datasets
             arg("easy-cluster").
             arg("input.fasta").
             arg("result").
             arg("tmp").
-            arg("--split-memory-limit").argWithVar(memoryParam).
+            arg("--split-memory-limit").argWithVar(memLimit).
+            arg("--threads").argWithVar("{system.cpu}").
             arg("--min-seq-id").arg(string(identity)).
             arg("-c").arg(string(coverageThreshold)).
             arg("--cov-mode").arg(string(coverageMode)).
@@ -116,6 +132,7 @@ self.body(func(inputs) {
 
         // Get the array of label columns using the correct method
 	    clonotypeKeyLabelsArray := columns.getColumns("clonotypeKeyLabels")
+
         // Check if we have any label columns and use the first one
         if len(clonotypeKeyLabelsArray) > 0 {
             cloneTableBuilder.add(clonotypeKeyLabelsArray[0], {header: "clonotypeKeyLabel"})
@@ -127,15 +144,15 @@ self.body(func(inputs) {
         // cloneTable.add("JGene", {header: "JGene"})
         cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[0].name, "sampleId")
         cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[1].name, "clonotypeKey")
-        cloneTableBuilder.mem("32GiB")
-	    cloneTableBuilder.cpu(1)
+        cloneTableBuilder.mem("32GiB") // @TODO: set based on the size of the input
+	    cloneTableBuilder.cpu(4) // @TODO: set based on the size of the input
         cloneTable := cloneTableBuilder.build()
 
 
         result := exec.builder().
             software(processResultsSw).
-            mem("32GiB").
-		    cpu(1).
+            mem("32GiB"). // @TODO: set based on the size of the input
+            cpu(8). // @TODO: set based on the size of the input
             addFile("clusters.tsv", clusters).
             addFile("cloneTable.tsv", cloneTable).
             saveFile("abundances.tsv").
@@ -143,6 +160,10 @@ self.body(func(inputs) {
             saveFile("clone-to-cluster.tsv").
             saveFile("abundances-per-cluster.tsv"). // cluster to summed abundances
             saveFile("distance_to_centroid.tsv"). // normalized levenshtein distance to centroid
+            saveFile("cluster-radius.tsv"). // max distance to centroid per cluster
+            saveFile("cluster-to-seq-top.tsv"). // top clusters for bubble plot
+            saveFile("cluster-radius-top.tsv"). // top clusters for bubble plot
+            saveFile("abundances-top.tsv"). // top clusters for bubble plot
             run()
 
 
@@ -172,6 +193,9 @@ self.body(func(inputs) {
 
         abundanceLabel := abundanceSpec.annotations["pl7.app/label"]
 
+        defaultConvMem := "16GiB" // @TODO: set based on the size of the input§
+        defaultConvCpu := 1 // @TODO: set based on the size of the input
+
         abundancesPf := xsv.importFile(abundances, "tsv", {
             axes: [{
                 column: "sampleId",
@@ -193,7 +217,7 @@ self.body(func(inputs) {
                     }
                 }), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
             }]
-        }, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+        }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
 
         abundancesPerCluster := result.getFile("abundances-per-cluster.tsv")
@@ -207,7 +231,7 @@ self.body(func(inputs) {
                 column: "abundance_per_cluster",
                 spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", false, undefined)
             }]
-        }, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+        }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         cloneToCluster := result.getFile("clone-to-cluster.tsv")
         cloneToClusterPf := xsv.importFile(cloneToCluster, "tsv", {
@@ -224,7 +248,7 @@ self.body(func(inputs) {
                     annotations: clusterIdAxisSpec.annotations
                 }, "Cluster Id", false, undefined)
             }]
-        }, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+        }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         cloneToClusterLinkPf := xsv.importFile(cloneToCluster, "tsv", {
             axes: [{
@@ -273,6 +297,11 @@ self.body(func(inputs) {
         for nr, seq in sequencesRef {
             spec := maps.clone(columns.getSpec(seq))
             spec.annotations["pl7.app/label"] = "Centroid " + spec.annotations["pl7.app/label"]
+
+            delete(spec.annotations, "pl7.app/vdj/imputed")
+            delete(spec.annotations, "pl7.app/vdj/isAssemblingFeature")
+            delete(spec.annotations, "pl7.app/vdj/isMainSequence")
+
             seqColumns = append(seqColumns, {
                 column: "sequence_" + string(nr),
                 spec: setTableProps({
@@ -290,7 +319,7 @@ self.body(func(inputs) {
                 spec: clusterIdAxisSpec
             }],
             columns: seqColumns
-        }, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+        }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
 
         distances := result.getFile("distance_to_centroid.tsv")
@@ -312,26 +341,114 @@ self.body(func(inputs) {
                     }
                 }, "Distance to centroid", false, undefined)
             }]
-        }, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+        }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+        clusterRadiusPf := xsv.importFile(result.getFile("cluster-radius.tsv"), "tsv", {
+            axes: [{
+                column: "clusterId",
+                spec: clusterIdAxisSpec
+            }],
+            columns: [{
+                column: "clusterRadius",
+                spec: setTableProps({
+                    name: "pl7.app/vdj/clustering/clusterRadius",
+                    valueType: "Float",
+                    annotations: {
+                        "pl7.app/rankingOrder": "decreasing"
+                    }
+                }, "Cluster radius", true, undefined)
+            }]
+        }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         // building outputs & exports
+
+        // Create informative label with relevant clustering parameters
+        // @TODO: Maybe add feature but will be ridicolously long if many features are used
+        identityStr := string(identity)
+        coverageStr := string(coverageThreshold)
+        similarityTypeStr := similarityType == "sequence-identity" ? "Exact Match" : "BLOSUM"
+        
+        traceLabel := "Clustering (sim:" + similarityTypeStr + ", ident:" + identityStr + ", cov:" + coverageStr + ")"
+        
         trace := pSpec.makeTrace(abundanceSpec,
             {
                 type: "milaboratories.clonotype-clustering",
-                importance: 30,
-                label: "Clonotype clusters"
+                importance: 70,
+                label: traceLabel
             })
 
+        // Build output pFrame for block table
         opf := pframes.pFrameBuilder()
-        for k, v in clusterToSeqPf {
-            if k == "clusterLabel" {
-                // avoid putting label into the outputs as it will be already in exports;
-                // in future should be safe to add once PlAgDataTable bug is fixed
-                continue
+        for pf in [clusterToSeqPf, clusterRadiusPf] {
+            for k, v in pf {
+                if k == "clusterLabel" {
+                    continue  // avoid putting label into the outputs as it will be already in exports
+                            // in future should be safe to add once PlAgDataTable bug is fixed
+                }
+                opf.add(k, trace.inject(v.spec), v.data)
             }
-            opf.add(k, trace.inject(v.spec), v.data)
         }
         opf = opf.build()
+
+        // Generate pFrames for bubble plot with top clusters
+        abundancesTopPf := xsv.importFile(result.getFile("abundances-top.tsv"), "tsv", {
+                axes: [{
+                    column: "sampleId",
+                    spec: abundanceSpec.axesSpec[0]
+                }, {
+                    column: "clusterId",
+                    spec: clusterIdAxisSpec
+                }],
+                columns: [{
+                    column: "abundance",
+                    spec: setTableProps(ac, abundanceLabel + " in Cluster", false, undefined)
+                },
+                {
+                    column: "abundance_normalized",
+                    spec: setTableProps(maps.deepMerge(ac, {
+                        valueType: "Float",
+                        annotations: {
+                            "pl7.app/abundance/normalized": "true"
+                        }
+                    }), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
+                }]
+            }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+        clusterToSeqTopPf := xsv.importFile(result.getFile("cluster-to-seq-top.tsv"), "tsv", {
+            axes: [{
+                column: "clusterId",
+                spec: clusterIdAxisSpec
+            }],
+            columns: seqColumns
+        }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+        clusterRadiusTopPf := xsv.importFile(result.getFile("cluster-radius-top.tsv"), "tsv", {
+            axes: [{
+                column: "clusterId",
+                spec: clusterIdAxisSpec
+            }],
+            columns: [{
+                column: "clusterRadius",
+                spec: setTableProps({
+                    name: "pl7.app/vdj/clustering/clusterRadius",
+                    valueType: "Float",
+                    annotations: {
+                        "pl7.app/rankingOrder": "decreasing",
+                        "pl7.app/min": "0",
+                        "pl7.app/max": "1",
+                        "pl7.app/format": ".2f"
+                    }
+                }, "Cluster radius", true, undefined)
+            }]
+        }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+        bubblePlotPfBuilder := pframes.pFrameBuilder()
+        for pf in [abundancesTopPf, clusterToSeqTopPf, clusterRadiusTopPf] {
+            for k, v in pf {
+                bubblePlotPfBuilder.add(k, trace.inject(v.spec), v.data)
+            }
+        }
+        bubblePlotPf := bubblePlotPfBuilder.build()
 
         // Generate pFrames with sequences
         msaPf := pframes.pFrameBuilder()
@@ -347,7 +464,7 @@ self.body(func(inputs) {
 
         epf := pframes.pFrameBuilder() 
         i = 0
-        for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf, distancesPf] {
+        for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf, distancesPf, clusterRadiusPf] {
             for k, v in pf {
                 epf.add(k + string(i), trace.inject(v.spec), v.data) // label, specs, data
                 i = i + 1
@@ -360,6 +477,8 @@ self.body(func(inputs) {
 		return {
 			// for table
 			clustersPf: opf,
+            // for bubble plot
+			bubblePlotPf: bubblePlotPf,
 			// for MSA
 			msaPf: msaPf,
 			// pf for plots

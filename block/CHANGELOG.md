@@ -1,5 +1,45 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.4.3
+
+### Patch Changes
+
+- Updated dependencies [ac0d0e0]
+- Updated dependencies [469d0b6]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.17.0
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.9.0
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.8.0
+
+## 2.4.2
+
+### Patch Changes
+
+- Updated dependencies [8bfffe9]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.16.0
+
+## 2.4.1
+
+### Patch Changes
+
+- Updated dependencies [ed6141c]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.15.0
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.8.0
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.7.0
+
+## 2.4.0
+
+### Minor Changes
+
+- ab7d0d5: allow prepare venv on Windows
+
+## 2.3.4
+
+### Patch Changes
+
+- Updated dependencies [091bc1c]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.7.1
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.6.1
+
 ## 2.3.3
 
 ### Patch Changes

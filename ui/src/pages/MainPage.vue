@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey } from '@platforma-sdk/model';
 import { plRefsEqual } from '@platforma-sdk/model';
-import type {
-  PlAgDataTableSettings,
-} from '@platforma-sdk/ui-vue';
 import {
   listToOptions,
-  PlAgDataTableToolsPanel,
+  PlAccordionSection,
   PlAgDataTableV2,
   PlAlert,
   PlBlockPage,
@@ -19,6 +16,7 @@ import {
   PlMultiSequenceAlignment,
   PlNumberField,
   PlSlideModal,
+  usePlDataTableSettingsV2,
 } from '@platforma-sdk/ui-vue';
 import { computed, reactive, ref } from 'vue';
 import { useApp } from '../app';
@@ -56,18 +54,8 @@ function setInput(inputRef?: PlRef) {
   }
 }
 
-const tableSettings = computed<PlAgDataTableSettings>(() => {
-  const pTable = app.model.outputs.clustersTable;
-
-  if (pTable === undefined && !app.model.outputs.isRunning) {
-    // special case: when block is not yet started at all (no table calculated)
-    return undefined;
-  }
-
-  return {
-    sourceType: 'ptable',
-    model: pTable,
-  };
+const tableSettings = usePlDataTableSettingsV2({
+  model: () => app.model.outputs.clustersTable,
 });
 
 const tableLoadingText = computed(() => {
@@ -103,10 +91,6 @@ const isLinkerColumn = (column: PColumnIdAndSpec) => {
   return column.columnId === app.model.outputs.linkerColumnId;
 };
 
-const isLabelColumnOption = (_column: PColumnIdAndSpec) => {
-  return true;
-};
-
 // Set instructions to track cluster axis
 const clusterAxis = computed<AxisId>(() => {
   if (app.model.outputs.clusterAbundanceSpec?.axesSpec[1] === undefined) {
@@ -132,7 +116,6 @@ const clusterAxis = computed<AxisId>(() => {
       {{ app.model.ui.title }}
     </template>
     <template #append>
-      <PlAgDataTableToolsPanel/>
       <PlBtnGhost @click.stop="() => (settingsOpen = true)">
         Settings
         <template #append>
@@ -145,9 +128,7 @@ const clusterAxis = computed<AxisId>(() => {
       v-model="app.model.ui.tableState"
       :settings="tableSettings"
       :loading-text="tableLoadingText"
-      not-ready-text="Block is not started"
-      show-columns-panel
-      show-export-button
+      not-ready-text="Data is not computed"
       :show-cell-button-for-axis-id="clusterAxis"
       @cell-button-clicked="onRowDoubleClicked"
     />
@@ -209,18 +190,31 @@ const clusterAxis = computed<AxisId>(() => {
         Please choose a different dataset." }}
       </PlAlert>
 
-      <!-- Removed Advanced Settings -->
-      <!--       <PlAccordionSection label="Advanced Settings">
-        <PlDropdown
-          v-model="app.model.args.coverageMode"
-          :options="coverageModeOptions"
-          label="Coverage Mode"
+      <PlAccordionSection label="Advanced Settings">
+        <PlNumberField
+          v-model="app.model.args.mem"
+          label="Memory (GiB)"
+          :minValue="1"
+          :step="1"
+          :maxValue="1012"
         >
           <template #tooltip>
-            How to calculate the coverage between sequences for the coverage threshold.
+            Sets the amount of memory to use for the clustering.
           </template>
-        </PlDropdown>
-      </PlAccordionSection> -->
+        </PlNumberField>
+
+        <PlNumberField
+          v-model="app.model.args.cpu"
+          label="CPU (cores)"
+          :minValue="1"
+          :step="1"
+          :maxValue="128"
+        >
+          <template #tooltip>
+            Sets the number of CPU cores to use for the clustering.
+          </template>
+        </PlNumberField>
+      </PlAccordionSection>
     </PlSlideModal>
   </PlBlockPage>
   <!-- Slide window with MSA -->
@@ -229,7 +223,6 @@ const clusterAxis = computed<AxisId>(() => {
     <PlMultiSequenceAlignment
       v-if="app.model.outputs.inputState === false"
       v-model="app.model.ui.alignmentModel"
-      :label-column-option-predicate="isLabelColumnOption"
       :sequence-column-predicate="isSequenceColumn"
       :linker-column-predicate="isLinkerColumn"
       :p-frame="app.model.outputs.msaPf"

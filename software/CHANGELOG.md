@@ -1,5 +1,12 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.7.0
+
+### Minor Changes
+
+- ac0d0e0: Add cluster radius metric and export
+- 469d0b6: Limited bubble plot to top 100 clusters. Fixed centroid export annotations.
+
 ## 3.6.2
 
 ### Patch Changes
