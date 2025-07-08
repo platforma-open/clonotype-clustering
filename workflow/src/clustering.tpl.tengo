@@ -36,8 +36,8 @@ self.validateInputs({
     coverageMode: "number",
     sequencesRef: "any",
     blockId: "string",
-    mem: "number",
-    cpu: "number"
+    "mem,?": "number",
+    "cpu,?": "number"
 })
 
 self.defineOutputs("clustersPf", "bubblePlotPf", "msaPf", "pf", "clusterAbundanceSpec", "mmseqs", "isEmpty")
@@ -93,7 +93,6 @@ self.body(func(inputs) {
 
         if !is_undefined(inputs.mem) {
             mem = string(inputs.mem) + "GiB"
-            memLimit = string(int(inputs.mem * 0.8)) + "G"
         }
         if !is_undefined(inputs.cpu) {
             cpu = inputs.cpu
