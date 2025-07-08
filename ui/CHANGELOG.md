@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.9.0
+
+### Minor Changes
+
+- cc86997: Deal with empty inputs
+
+### Patch Changes
+
+- Updated dependencies [cc86997]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.10.0
+
 ## 3.8.0
 
 ### Minor Changes

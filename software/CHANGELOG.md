@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.8.0
+
+### Minor Changes
+
+- cc86997: Deal with empty inputs
+
 ## 3.7.0
 
 ### Minor Changes

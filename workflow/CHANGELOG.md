@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.18.0
+
+### Minor Changes
+
+- cc86997: Deal with empty inputs
+
+### Patch Changes
+
+- Updated dependencies [cc86997]
+  - @platforma-open/milaboratories.clonotype-clustering.software@3.8.0
+
 ## 3.17.0
 
 ### Minor Changes
