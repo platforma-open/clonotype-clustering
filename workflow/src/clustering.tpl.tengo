@@ -35,7 +35,9 @@ self.validateInputs({
     coverageThreshold: "number",
     coverageMode: "number",
     sequencesRef: "any",
-    blockId: "string"
+    blockId: "string",
+    mem: "number",
+    cpu: "number"
 })
 
 self.defineOutputs("clustersPf", "bubblePlotPf", "msaPf", "pf", "clusterAbundanceSpec", "mmseqs", "isEmpty")
