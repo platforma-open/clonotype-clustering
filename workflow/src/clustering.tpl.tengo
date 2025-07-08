@@ -270,7 +270,7 @@ self.body(func(inputs) {
                     }
                 }, "Clone to cluster link", false, undefined)
             }]
-        }, {splitDataAndSpec: true, cpu: 1, mem: "16GiB"})
+        }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         clusterToSeq := result.getFile("cluster-to-seq.tsv")
 
