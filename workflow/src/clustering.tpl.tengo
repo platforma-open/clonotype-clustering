@@ -40,7 +40,7 @@ self.validateInputs({
     "cpu,?": "number"
 })
 
-self.defineOutputs("clustersPf", "bubblePlotPf", "msaPf", "pf", "clusterAbundanceSpec", "mmseqs", "isEmpty")
+self.defineOutputs("clustersPf", "bubblePlotPf", "msaPf", "pf", "clusterAbundanceSpec", "mmseqs", "mmseqsOutput", "isEmpty")
 
 self.body(func(inputs) {
     clustersPf := {}
@@ -49,6 +49,7 @@ self.body(func(inputs) {
     pf := {}
     clusterAbundanceSpec := {}
     mmseqs := {}
+    mmseqsOutput := {}
 	isEmpty := false
 
     seqTable := inputs.seqTable
@@ -71,6 +72,7 @@ self.body(func(inputs) {
             pf: pf,
             clusterAbundanceSpec: clusterAbundanceSpec,
             mmseqs: mmseqs,
+            mmseqsOutput: mmseqsOutput,
 			isEmpty: true
 		}
 
@@ -105,7 +107,6 @@ self.body(func(inputs) {
             software(mmseqsSw).
             mem(mem).
 		    cpu(cpu).
-            dontSaveStdoutOrStderr(). // important to avoid CID conflict problems coming from different stdout output on same datasets
             arg("easy-cluster").
             arg("input.fasta").
             arg("result").
@@ -119,9 +120,11 @@ self.body(func(inputs) {
             arg("--similarity-type").arg(similarityType == "sequence-identity" ? "2" : "1").
             addFile("input.fasta", fasta.getFile("output.fasta")).
             saveFile("result_cluster.tsv").
+            saveStdoutContent().
             run()
 
         clusters := mmseqs.getFile("result_cluster.tsv")
+        mmseqsOutput := mmseqs.getStdoutStream()
 
         /******* Step 2: aggregate all data and generate results *******/
         cloneTableBuilder := pframes.tsvFileBuilder()
@@ -493,6 +496,7 @@ self.body(func(inputs) {
 			// save mmseqs2 result in the output to enable deduplication of mmseqs2 run
 			// NOTE: mmseqs2 produces different results for same input (different line order)
 			mmseqs: clusters,
+			mmseqsOutput: mmseqsOutput,
 			isEmpty: false
 		}
 	} 

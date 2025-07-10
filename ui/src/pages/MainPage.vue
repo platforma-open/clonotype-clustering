@@ -12,6 +12,7 @@ import {
   PlDropdown,
   PlDropdownMulti,
   PlDropdownRef,
+  PlLogView,
   PlMaskIcon24,
   PlMultiSequenceAlignment,
   PlNumberField,
@@ -23,7 +24,7 @@ import { useApp } from '../app';
 
 const app = useApp();
 const multipleSequenceAlignmentOpen = ref(false);
-
+const mmseqsLogOpen = ref(false);
 const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequencesRef === undefined);
 // With selection we will get the axis of cluster id
 const selection = ref<PlSelectionModel>({
@@ -116,6 +117,12 @@ const clusterAxis = computed<AxisId>(() => {
       {{ app.model.ui.title }}
     </template>
     <template #append>
+      <PlBtnGhost @click.stop="() => (mmseqsLogOpen = true)">
+        MMseqs2 Log
+        <template #append>
+          <PlMaskIcon24 name="progress" />
+        </template>
+      </PlBtnGhost>
       <PlBtnGhost @click.stop="() => (settingsOpen = true)">
         Settings
         <template #append>
@@ -228,5 +235,10 @@ const clusterAxis = computed<AxisId>(() => {
       :p-frame="app.model.outputs.msaPf"
       :selection="selection"
     />
+  </PlSlideModal>
+  <!-- Slide window with MMseqs2 log -->
+  <PlSlideModal v-model="mmseqsLogOpen" width="80%">
+    <template #title>MMseqs2 Log</template>
+    <PlLogView :log-handle="app.model.outputs.mmseqsOutput"/>
   </PlSlideModal>
 </template>
