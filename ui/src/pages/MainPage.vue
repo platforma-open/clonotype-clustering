@@ -19,13 +19,20 @@ import {
   PlSlideModal,
   usePlDataTableSettingsV2,
 } from '@platforma-sdk/ui-vue';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useApp } from '../app';
 
 const app = useApp();
 const multipleSequenceAlignmentOpen = ref(false);
 const mmseqsLogOpen = ref(false);
 const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequencesRef === undefined);
+
+// Watch for when the workflow starts running and close settings
+watch(() => app.model.outputs.isRunning, (isRunning) => {
+  if (isRunning) {
+    settingsOpen.value = false;
+  }
+});
 // With selection we will get the axis of cluster id
 const selection = ref<PlSelectionModel>({
   axesSpec: [],
