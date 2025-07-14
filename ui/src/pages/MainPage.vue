@@ -125,7 +125,7 @@ const clusterAxis = computed<AxisId>(() => {
     </template>
     <template #append>
       <PlBtnGhost @click.stop="() => (mmseqsLogOpen = true)">
-        MMseqs2 Log
+        Logs
         <template #append>
           <PlMaskIcon24 name="progress" />
         </template>
