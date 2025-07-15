@@ -166,6 +166,8 @@ export const model = BlockModel.create()
     return createPlDataTableV2(ctx, pCols, ctx.uiState.tableState);
   })
 
+  .output('mmseqsOutput', (ctx) => ctx.outputs?.resolve('mmseqsOutput')?.getLogHandle())
+
   .output('msaPf', (ctx) => {
     const msaCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
     if (!msaCols) return undefined;
