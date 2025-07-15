@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.10.0
+
+### Minor Changes
+
+- 6a8a756: Add mmseq logs button
+
+### Patch Changes
+
+- Updated dependencies [6a8a756]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.11.0
+
 ## 3.9.0
 
 ### Minor Changes

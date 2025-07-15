@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.19.0
+
+### Minor Changes
+
+- 6a8a756: Add mmseq logs button
+
 ## 3.18.0
 
 ### Minor Changes
