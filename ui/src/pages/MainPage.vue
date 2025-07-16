@@ -95,10 +95,6 @@ const isSequenceColumn = (column: PColumnIdAndSpec) => {
   return app.model.args.sequencesRef?.some((r) => r === column.columnId);
 };
 
-const isLinkerColumn = (column: PColumnIdAndSpec) => {
-  return column.columnId === app.model.outputs.linkerColumnId;
-};
-
 // Set instructions to track cluster axis
 const clusterAxis = computed<AxisId>(() => {
   if (app.model.outputs.clusterAbundanceSpec?.axesSpec[1] === undefined) {
@@ -232,13 +228,16 @@ const clusterAxis = computed<AxisId>(() => {
     </PlSlideModal>
   </PlBlockPage>
   <!-- Slide window with MSA -->
-  <PlSlideModal v-model="multipleSequenceAlignmentOpen" width="100%">
+  <PlSlideModal
+    v-model="multipleSequenceAlignmentOpen"
+    width="100%"
+    :close-on-outside-click="false"
+  >
     <template #title>Multiple Sequence Alignment</template>
     <PlMultiSequenceAlignment
       v-if="app.model.outputs.inputState === false"
       v-model="app.model.ui.alignmentModel"
       :sequence-column-predicate="isSequenceColumn"
-      :linker-column-predicate="isLinkerColumn"
       :p-frame="app.model.outputs.msaPf"
       :selection="selection"
     />
