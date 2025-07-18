@@ -25,8 +25,8 @@
     "meta": {
       "title": "Clonotype clustering",
       "logo": "file:../logos/block-logo.png",
-      "url": "https://github.com/milaboratory/platforma-clonotype-clustering",
-      "docs": "https://github.com/milaboratory/platforma-clonotype-clustering/docs",
+      "url": "https://github.com/platforma-open/clonotype-clustering",
+      "docs": "https://github.com/platforma-open/clonotype-clustering/docs",
       "support": "mailto:support@milaboratories.com",
       "description": "Fast, sequence-based clonotype clustering.",
       "longDescription": "file:../docs/description.md",
