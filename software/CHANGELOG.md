@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.8.1
+
+### Patch Changes
+
+- 829a9ab: Update python package versions
+
 ## 3.8.0
 
 ### Minor Changes
