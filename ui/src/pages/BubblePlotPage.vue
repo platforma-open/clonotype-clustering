@@ -3,7 +3,7 @@ import '@milaboratories/graph-maker/styles';
 import { PlBlockPage } from '@platforma-sdk/ui-vue';
 import { useApp } from '../app';
 
-import type { GraphMakerProps, PredefinedGraphOption } from '@milaboratories/graph-maker';
+import type { PredefinedGraphOption } from '@milaboratories/graph-maker';
 import { GraphMaker } from '@milaboratories/graph-maker';
 import { computed } from 'vue';
 import type { PColumnIdAndSpec } from '@platforma-sdk/model';
@@ -11,7 +11,7 @@ import type { PColumnIdAndSpec } from '@platforma-sdk/model';
 const app = useApp();
 
 // if there is no output or abundance spec, return undefined
-const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
+const defaultOptions = computed((): PredefinedGraphOption<'bubble'>[] | undefined => {
   if (!app.model.outputs.bubblePlotPfPcols || !app.model.outputs.clusterAbundanceSpec)
     return undefined;
 
