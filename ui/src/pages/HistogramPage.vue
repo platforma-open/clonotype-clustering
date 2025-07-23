@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { GraphMakerProps, PredefinedGraphOption } from '@milaboratories/graph-maker';
+import type { PredefinedGraphOption } from '@milaboratories/graph-maker';
 import { GraphMaker } from '@milaboratories/graph-maker';
 import { PlBlockPage } from '@platforma-sdk/ui-vue';
 import { useApp } from '../app';
@@ -24,7 +24,7 @@ const app = useApp();
  */
 
 // if there is no output or abundance spec, return undefined
-const defaultOptions = computed((): GraphMakerProps['defaultOptions'] => {
+const defaultOptions = computed((): PredefinedGraphOption<'histogram'>[] | undefined => {
   if (!app.model.outputs.clustersPfPcols)
     return undefined;
 
