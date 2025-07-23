@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.10.2
+
+### Patch Changes
+
+- 7c4541c: Update Graph Maker
+
 ## 3.10.1
 
 ### Patch Changes
