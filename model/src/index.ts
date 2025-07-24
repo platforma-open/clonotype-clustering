@@ -106,6 +106,16 @@ export const model = BlockModel.create()
     if (ref === undefined) return undefined;
 
     const isSingleCell = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
+
+    // Check if any PColumns in the dataset have the name "pl7.app/vdj/scFv-sequence"
+    const scfvColumns = ctx.resultPool.getAnchoredPColumns(
+      { main: ref },
+      [{
+        name: 'pl7.app/vdj/scFv-sequence',
+      }],
+    );
+    const isScfv = scfvColumns && scfvColumns.length > 0;
+
     const sequenceMatchers = [];
     // const allowedFeatures = ['CDR1', 'CDR2', 'CDR3', 'FR1', 'FR2',
     //   'FR3', 'FR4', 'FR4InFrame', 'VDJRegion', 'VDJRegionInFrame'];
@@ -126,6 +136,17 @@ export const model = BlockModel.create()
         name: 'pl7.app/vdj/sequence',
         domain: {
           // 'pl7.app/vdj/feature': feature,
+          'pl7.app/alphabet': ctx.args.sequenceType,
+        },
+      });
+    }
+
+    // Add scFv sequence matcher if scFv columns exist in the dataset
+    if (isScfv) {
+      sequenceMatchers.push({
+        axes: [{ anchor: 'main', idx: 1 }],
+        name: 'pl7.app/vdj/scFv-sequence',
+        domain: {
           'pl7.app/alphabet': ctx.args.sequenceType,
         },
       });
