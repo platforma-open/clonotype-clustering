@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.12.0
+
+### Minor Changes
+
+- ba0abb1: scfv construct support
+
 ## 2.11.0
 
 ### Minor Changes
