@@ -8,7 +8,11 @@ maps := import("@platforma-sdk/workflow-tengo:maps")
 pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 text := import("text")
 slices := import("@platforma-sdk/workflow-tengo:slices")
+render := import("@platforma-sdk/workflow-tengo:render")
 
+createDbTpl := assets.importTemplate(":mmseqs-createdb")
+clusterTpl := assets.importTemplate(":mmseqs-cluster")
+createTsvTpl := assets.importTemplate(":mmseqs-createtsv")
 prepareFastaSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:prepare-fasta")
 processResultsSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:process-results")
 mmseqsSw := assets.importSoftware("@platforma-open/soedinglab.software-mmseqs2:main")
@@ -86,12 +90,11 @@ self.body(func(inputs) {
             addFile("input.tsv", seqTable).
             saveFile("output.fasta").
             run()
-
-        // get split memory limit based on real system ram
-	    memLimit := "{int(ceil(system.ram.gb * 0.8))}" + "G"
+		
+		fastaFile := fasta.getFile("output.fasta")
 
         mem := "32GiB" // @TODO: set based on the size of the input
-	    cpu := 16
+        cpu := 16
 
         if !is_undefined(inputs.mem) {
             mem = string(inputs.mem) + "GiB"
@@ -103,28 +106,49 @@ self.body(func(inputs) {
         // run mmseqs2
         // NOTE: mmseqs2 produces different results for same input (different line order),
         // so we save the result in the output to prevent CID conflict by deduplication
-        mmseqs := exec.builder().
-            software(mmseqsSw).
-            mem(mem).
-		    cpu(cpu).
-            printErrStreamToStdout(). 
-            arg("easy-cluster").
-            arg("input.fasta").
-            arg("result").
-            arg("tmp").
-            arg("--split-memory-limit").argWithVar(memLimit).
-            arg("--threads").argWithVar("{system.cpu}").
-            arg("--min-seq-id").arg(string(identity)).
-            arg("-c").arg(string(coverageThreshold)).
-            arg("--cov-mode").arg(string(coverageMode)).
-            //  --similarity-type INT            Type of score used for clustering. 1: alignment score 2: sequence identity [2]
-            arg("--similarity-type").arg(similarityType == "sequence-identity" ? "2" : "1").
-            addFile("input.fasta", fasta.getFile("output.fasta")).
-            saveFile("result_cluster.tsv").
-            run()
 
-        clusters := mmseqs.getFile("result_cluster.tsv")
-        mmseqsOutput := mmseqs.getStdoutStream()
+        // NOTE 2: For compatibility with windows, mmseqs easy-cluster command has been replaced with separate, 
+        // equivalent calls to mmseqs createdb, mmseqs2 cluster and mmseqs2 createtsv
+        // createdb and cluster generate variable numbers of db.x files (as many as threads) and
+        // currently for addFiles() to work, commands must be in separate templates.
+
+        // mmseqs createdb generates the database input.db.* search files
+		createDbResults := render.create(createDbTpl, {
+			fasta: fastaFile,
+			mem: mem,
+			cpu: cpu
+		})
+
+		inputDbFileSet := createDbResults.output("inputDbFileSet")
+		createDbStdout := createDbResults.output("stdout")
+
+        // @TODO: currently, this is the only log passed to model
+        mmseqsOutput := createDbStdout
+
+        // mmseqs2 cluster runs the clustering and generates the cluster.db.* files
+		clusterResults := render.create(clusterTpl, {
+			inputDbFileSet: inputDbFileSet,
+			identity: identity,
+			similarityType: similarityType,
+			coverageThreshold: coverageThreshold,
+			coverageMode: coverageMode,
+			mem: mem,
+			cpu: cpu
+		})
+
+		clusterDbFileSet := clusterResults.output("clusterDbFileSet")
+		clusterStdout := clusterResults.output("stdout")
+
+        // mmseqs2 createtsv generates the result_cluster.tsv with [centroid clonotypeId] to [clonotypeId] mapping
+		createTsvResults := render.create(createTsvTpl, {
+			inputDbFileSet: inputDbFileSet,
+			clusterDbFileSet: clusterDbFileSet,
+			mem: mem,
+			cpu: cpu
+		})
+
+		clusters := createTsvResults.output("clustersFile")
+		createTsvStdout := createTsvResults.output("stdout")
 
         /******* Step 2: aggregate all data and generate results *******/
         cloneTableBuilder := pframes.tsvFileBuilder()

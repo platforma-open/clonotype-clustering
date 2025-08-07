@@ -1,0 +1,35 @@
+self := import("@platforma-sdk/workflow-tengo:tpl")
+exec := import("@platforma-sdk/workflow-tengo:exec")
+assets:= import("@platforma-sdk/workflow-tengo:assets")
+
+mmseqsSw := assets.importSoftware("@platforma-open/soedinglab.software-mmseqs2:main")
+
+self.validateInputs({
+    "__options__,closed": "",
+    fasta: "any",
+    mem: "string",
+    cpu: "number"
+})
+
+self.defineOutputs("inputDbFileSet", "stdout")
+
+self.body(func(inputs) {
+    createDbBuilder := exec.builder().
+        software(mmseqsSw).
+        mem(inputs.mem).
+        cpu(inputs.cpu).
+        printErrStreamToStdout().
+        arg("createdb").
+        arg("input.fasta").
+        arg("input.db").
+        addFile("input.fasta", inputs.fasta).
+        // Save all generated input.db.* files
+        saveFileSet("db", "^input\\.db.*")
+
+    createDb := createDbBuilder.run()
+
+    return {
+        inputDbFileSet: createDb.getFileSet("db"),
+        stdout: createDb.getStdoutStream()
+    }
+})
