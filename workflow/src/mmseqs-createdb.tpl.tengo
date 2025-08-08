@@ -22,6 +22,8 @@ self.body(func(inputs) {
         arg("createdb").
         arg("input.fasta").
         arg("input.db").
+        arg("--shuffle").arg("1"). // Need this to match easy-cluster behavior
+        arg("--createdb-mode").arg("1"). // Need this to match easy-cluster behavior
         addFile("input.fasta", inputs.fasta).
         // Save all generated input.db.* files
         saveFileSet("db", "^input\\.db.*")
