@@ -1,0 +1,50 @@
+self := import("@platforma-sdk/workflow-tengo:tpl")
+exec := import("@platforma-sdk/workflow-tengo:exec")
+assets:= import("@platforma-sdk/workflow-tengo:assets")
+
+mmseqsSw := assets.importSoftware("@platforma-open/soedinglab.software-mmseqs2:main")
+
+self.validateInputs({
+    "__options__,closed": "",
+    inputDbFileSet: "any",
+    identity: "number",
+    similarityType: "string",
+    coverageThreshold: "number",
+    coverageMode: "number",
+    mem: "string",
+    cpu: "number"
+})
+
+self.defineOutputs("clusterDbFileSet", "stdout")
+
+self.body(func(inputs) {
+    // get split memory limit based on real system ram
+    memLimit := "{int(ceil(system.ram.gb * 0.8))}" + "G"
+
+    clusterRunBuilder := exec.builder().
+        software(mmseqsSw).
+        mem(inputs.mem).
+        cpu(inputs.cpu).
+        printErrStreamToStdout().
+        arg("cluster").
+        arg("input.db").
+        arg("cluster.db").
+        arg("tmp").
+        arg("--split-memory-limit").argWithVar(memLimit).
+        arg("--threads").argWithVar("{system.cpu}").
+        arg("--min-seq-id").arg(string(inputs.identity)).
+        arg("-c").arg(string(inputs.coverageThreshold)).
+        arg("--cov-mode").arg(string(inputs.coverageMode)).
+        //  --similarity-type INT (Type of score used for clustering. 1: alignment score 2: sequence identity [2]
+        arg("--similarity-type").arg(inputs.similarityType == "sequence-identity" ? "2" : "1").
+        addFiles(inputs.inputDbFileSet).
+        // Save all generated cluster.db.* files
+        saveFileSet("db", "^cluster\\.db.*")
+
+    clusterRun := clusterRunBuilder.run()
+
+    return {
+        clusterDbFileSet: clusterRun.getFileSet("db"),
+        stdout: clusterRun.getStdoutStream()
+    }
+})

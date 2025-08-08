@@ -187,7 +187,9 @@ export const model = BlockModel.create()
     return createPlDataTableV2(ctx, pCols, ctx.uiState.tableState);
   })
 
-  .output('mmseqsOutput', (ctx) => ctx.outputs?.resolve('mmseqsOutput')?.getLogHandle())
+  .output('createDbLog', (ctx) => ctx.outputs?.resolve('createDbLog')?.getLogHandle())
+  .output('clusterLog', (ctx) => ctx.outputs?.resolve('clusterLog')?.getLogHandle())
+  .output('createTsvLog', (ctx) => ctx.outputs?.resolve('createTsvLog')?.getLogHandle())
 
   .output('msaPf', (ctx) => {
     const msaCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
