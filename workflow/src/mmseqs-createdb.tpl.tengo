@@ -22,11 +22,15 @@ self.body(func(inputs) {
         arg("createdb").
         arg("input.fasta").
         arg("input.db").
-        arg("--shuffle").arg("1"). // Need this to match easy-cluster behavior
-        arg("--createdb-mode").arg("1"). // Need this to match easy-cluster behavior
+        arg("--shuffle").arg("0"). // Set to 0 to match previous easy-cluster workflow results
+        arg("--createdb-mode").arg("0"). // Set to 0 to avoid soft links that cause problems on windows
         addFile("input.fasta", inputs.fasta).
         // Save all generated input.db.* files
         saveFileSet("db", "^input\\.db.*")
+
+        // From mmseqs createdb --help, [default values]:
+        // --shuffle BOOL        Shuffle input database [1]
+        // --createdb-mode INT   Createdb mode 0: copy data, 1: soft link data and write new index (works only with single line fasta/q) [0]
 
     createDb := createDbBuilder.run()
 
