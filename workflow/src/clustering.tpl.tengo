@@ -44,7 +44,7 @@ self.validateInputs({
     "cpu,?": "number"
 })
 
-self.defineOutputs("clustersPf", "bubblePlotPf", "msaPf", "pf", "clusterAbundanceSpec", "mmseqs", "mmseqsOutput", "isEmpty")
+self.defineOutputs("clustersPf", "bubblePlotPf", "msaPf", "pf", "clusterAbundanceSpec", "mmseqs", "isEmpty", "createDbLog", "clusterLog", "createTsvLog")
 
 self.body(func(inputs) {
     clustersPf := {}
@@ -53,7 +53,9 @@ self.body(func(inputs) {
     pf := {}
     clusterAbundanceSpec := {}
     mmseqs := {}
-    mmseqsOutput := {}
+    createDbLog := {}
+    clusterLog := {}
+    createTsvLog := {}
 	isEmpty := false
 
     seqTable := inputs.seqTable
@@ -76,7 +78,9 @@ self.body(func(inputs) {
             pf: pf,
             clusterAbundanceSpec: clusterAbundanceSpec,
             mmseqs: mmseqs,
-            mmseqsOutput: mmseqsOutput,
+            createDbLog: createDbLog,
+            clusterLog: clusterLog,
+            createTsvLog: createTsvLog,
 			isEmpty: true
 		}
 
@@ -121,9 +125,6 @@ self.body(func(inputs) {
 
 		inputDbFileSet := createDbResults.output("inputDbFileSet")
 		createDbStdout := createDbResults.output("stdout")
-
-        // @TODO: currently, this is the only log passed to model
-        mmseqsOutput := createDbStdout
 
         // mmseqs2 cluster runs the clustering and generates the cluster.db.* files
 		clusterResults := render.create(clusterTpl, {
@@ -520,7 +521,9 @@ self.body(func(inputs) {
 			// save mmseqs2 result in the output to enable deduplication of mmseqs2 run
 			// NOTE: mmseqs2 produces different results for same input (different line order)
 			mmseqs: clusters,
-			mmseqsOutput: mmseqsOutput,
+			createDbLog: createDbStdout,
+			clusterLog: clusterStdout,
+			createTsvLog: createTsvStdout,
 			isEmpty: false
 		}
 	} 

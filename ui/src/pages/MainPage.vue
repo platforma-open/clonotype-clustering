@@ -245,6 +245,11 @@ const clusterAxis = computed<AxisId>(() => {
   <!-- Slide window with MMseqs2 log -->
   <PlSlideModal v-model="mmseqsLogOpen" width="80%">
     <template #title>MMseqs2 Log</template>
-    <PlLogView :log-handle="app.model.outputs.mmseqsOutput"/>
+    <h4>DB creation</h4>
+    <PlLogView :log-handle="app.model.outputs.createDbLog"/>
+    <h4>Clustering</h4>
+    <PlLogView :log-handle="app.model.outputs.clusterLog"/>
+    <h4>Generate results table</h4>
+    <PlLogView :log-handle="app.model.outputs.createTsvLog"/>
   </PlSlideModal>
 </template>
