@@ -1,0 +1,39 @@
+self := import("@platforma-sdk/workflow-tengo:tpl")
+exec := import("@platforma-sdk/workflow-tengo:exec")
+assets:= import("@platforma-sdk/workflow-tengo:assets")
+
+mmseqsSw := assets.importSoftware("@platforma-open/soedinglab.software-mmseqs2:main")
+
+self.validateInputs({
+    "__options__,closed": "",
+    inputDbFileSet: "any",
+    clusterDbFileSet: "any",
+    mem: "string",
+    cpu: "number"
+})
+
+self.defineOutputs("clustersFile", "stdout")
+
+self.body(func(inputs) {
+    createTsvBuilder := exec.builder().
+        software(mmseqsSw).
+        mem(inputs.mem).
+        cpu(inputs.cpu).
+        printErrStreamToStdout().
+        arg("createtsv").
+        arg("input.db").
+        arg("input.db"). 
+        arg("cluster.db").
+        arg("result_cluster.tsv").
+        arg("--threads").argWithVar("{system.cpu}").
+        addFiles(inputs.inputDbFileSet).
+        addFiles(inputs.clusterDbFileSet).
+        saveFile("result_cluster.tsv")
+        
+    createTsv := createTsvBuilder.run()
+
+    return {
+        clustersFile: createTsv.getFile("result_cluster.tsv"),
+        stdout: createTsv.getStdoutStream()
+    }
+})
