@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.test
 
+## 1.1.3
+
+### Patch Changes
+
+- 7092f34: Updated SDK to support polars.
+
 ## 1.1.2
 
 ### Patch Changes

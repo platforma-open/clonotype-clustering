@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.8.2
+
+### Patch Changes
+
+- 7092f34: Updated SDK to support polars.
+
 ## 3.8.1
 
 ### Patch Changes

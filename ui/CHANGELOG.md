@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.10.4
+
+### Patch Changes
+
+- 7092f34: Updated SDK to support polars.
+- Updated dependencies [7092f34]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.12.1
+
 ## 3.10.3
 
 ### Patch Changes
