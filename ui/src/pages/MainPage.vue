@@ -202,6 +202,30 @@ const clusterAxis = computed<AxisId>(() => {
 
       <PlAccordionSection label="Advanced Settings">
         <PlNumberField
+          v-model="app.model.args.trimStart"
+          label="Trim from start (amino acids)"
+          :minValue="0"
+          :step="1"
+          :maxValue="100"
+        >
+          <template #tooltip>
+            Number of amino acids to remove from the beginning of each sequence before clustering.
+          </template>
+        </PlNumberField>
+
+        <PlNumberField
+          v-model="app.model.args.trimEnd"
+          label="Trim from end (amino acids)"
+          :minValue="0"
+          :step="1"
+          :maxValue="100"
+        >
+          <template #tooltip>
+            Number of amino acids to remove from the end of each sequence before clustering.
+          </template>
+        </PlNumberField>
+
+        <PlNumberField
           v-model="app.model.args.mem"
           label="Memory (GiB)"
           :minValue="1"
