@@ -24,6 +24,8 @@ export type BlockArgs = {
   similarityType: 'alignment-score' | 'sequence-identity';
   coverageThreshold: number; // fraction of aligned residues required
   coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
+  trimStart?: number; // number of amino acids to remove from the beginning
+  trimEnd?: number; // number of amino acids to remove from the end
   mem?: number;
   cpu?: number;
 };
@@ -45,6 +47,8 @@ export const model = BlockModel.create()
     similarityType: 'sequence-identity',
     coverageThreshold: 0.8, // default value matching MMseqs2 default
     coverageMode: 0, // default to coverage of query and target
+    trimStart: 0, // default to no trimming from start
+    trimEnd: 0, // default to no trimming from end
   })
 
   .withUiState<UiState>({

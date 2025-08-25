@@ -36,6 +36,8 @@ self.validateInputs({
     coverageMode: "number",
     sequencesRef: "any",
     blockId: "string",
+    "trimStart,?": "number",
+    "trimEnd,?": "number",
     "mem,?": "number",
     "cpu,?": "number"
 })
@@ -62,6 +64,8 @@ self.body(func(inputs) {
     coverageMode := inputs.coverageMode
     sequencesRef := inputs.sequencesRef
     blockId := inputs.blockId
+    trimStart := inputs.trimStart
+    trimEnd := inputs.trimEnd
 
 	if string(inputs.emptyOrNot.getData()) == "empty" {
 		// If matrix is not full rank return empty objects
@@ -84,6 +88,8 @@ self.body(func(inputs) {
             mem("16GiB").
 		    cpu(1).
             addFile("input.tsv", seqTable).
+            arg("--trim-start").arg(string(trimStart)).
+            arg("--trim-end").arg(string(trimEnd)).
             saveFile("output.fasta").
             run()
 
