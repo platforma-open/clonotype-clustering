@@ -165,6 +165,8 @@ self.body(func(inputs) {
             cpu(8). // @TODO: set based on the size of the input
             addFile("clusters.tsv", clusters).
             addFile("cloneTable.tsv", cloneTable).
+            arg("--trim-start").arg(string(trimStart)).
+            arg("--trim-end").arg(string(trimEnd)).
             saveFile("abundances.tsv").
             saveFile("cluster-to-seq.tsv").
             saveFile("clone-to-cluster.tsv").

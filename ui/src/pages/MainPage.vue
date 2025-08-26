@@ -95,6 +95,23 @@ const isSequenceColumn = (column: PColumnIdAndSpec) => {
   return app.model.args.sequencesRef?.some((r) => r === column.columnId);
 };
 
+// Check if any selected sequence is CDR3
+const hasCDR3Sequences = computed(() => {
+  if (!app.model.args.sequencesRef || !app.model.outputs.sequenceOptions) {
+    return false;
+  }
+
+  const sequenceOptions = app.model.outputs.sequenceOptions;
+  return app.model.args.sequencesRef.some((selectedId) => {
+    const option = sequenceOptions.find((opt) => opt.value === selectedId);
+    if (!option) return false;
+
+    // Check if the column name contains CDR3 (case insensitive)
+    const columnName = option.label?.toLowerCase() || '';
+    return columnName.includes('cdr3') || columnName.includes('cdr-3');
+  });
+});
+
 // Set instructions to track cluster axis
 const clusterAxis = computed<AxisId>(() => {
   if (app.model.outputs.clusterAbundanceSpec?.axesSpec[1] === undefined) {
@@ -201,29 +218,31 @@ const clusterAxis = computed<AxisId>(() => {
       </PlAlert>
 
       <PlAccordionSection label="Advanced Settings">
-        <PlNumberField
-          v-model="app.model.args.trimStart"
-          label="Trim from start (amino acids)"
-          :minValue="0"
-          :step="1"
-          :maxValue="100"
-        >
-          <template #tooltip>
-            Number of amino acids to remove from the beginning of each sequence before clustering.
-          </template>
-        </PlNumberField>
+        <template v-if="hasCDR3Sequences">
+          <PlNumberField
+            v-model="app.model.args.trimStart"
+            label="Trim from start (amino acids)"
+            :minValue="0"
+            :step="1"
+            :maxValue="100"
+          >
+            <template #tooltip>
+              Number of amino acids to remove from the beginning of each CDR3 sequence before clustering.
+            </template>
+          </PlNumberField>
 
-        <PlNumberField
-          v-model="app.model.args.trimEnd"
-          label="Trim from end (amino acids)"
-          :minValue="0"
-          :step="1"
-          :maxValue="100"
-        >
-          <template #tooltip>
-            Number of amino acids to remove from the end of each sequence before clustering.
-          </template>
-        </PlNumberField>
+          <PlNumberField
+            v-model="app.model.args.trimEnd"
+            label="Trim from end (amino acids)"
+            :minValue="0"
+            :step="1"
+            :maxValue="100"
+          >
+            <template #tooltip>
+              Number of amino acids to remove from the end of each CDR3 sequence before clustering.
+            </template>
+          </PlNumberField>
+        </template>
 
         <PlNumberField
           v-model="app.model.args.mem"
