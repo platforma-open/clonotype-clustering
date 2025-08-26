@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.10.5
+
+### Patch Changes
+
+- d689179: Change to new log icon
+
 ## 3.10.4
 
 ### Patch Changes
