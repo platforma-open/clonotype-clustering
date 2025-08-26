@@ -16,6 +16,7 @@ import {
   PlMaskIcon24,
   PlMultiSequenceAlignment,
   PlNumberField,
+  PlSectionSeparator,
   PlSlideModal,
   usePlDataTableSettingsV2,
 } from '@platforma-sdk/ui-vue';
@@ -225,6 +226,7 @@ const clusterAxis = computed<AxisId>(() => {
 
       <PlAccordionSection label="Advanced Settings">
         <template v-if="hasCDR3Sequences">
+          <PlSectionSeparator>Trimming options</PlSectionSeparator>
           <PlNumberField
             v-model="app.model.args.trimStart"
             label="Trim from start (amino acids)"
@@ -250,6 +252,7 @@ const clusterAxis = computed<AxisId>(() => {
           </PlNumberField>
         </template>
 
+        <PlSectionSeparator>Resource Allocation</PlSectionSeparator>
         <PlNumberField
           v-model="app.model.args.mem"
           label="Memory (GiB)"
