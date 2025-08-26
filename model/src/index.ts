@@ -197,6 +197,12 @@ export const model = BlockModel.create()
     const msaCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
     if (!msaCols) return undefined;
 
+    // When trimming is enabled, use trimmed sequences from msaPf only
+    const trimEnabled = (ctx.args.trimStart ?? 0) > 0 || (ctx.args.trimEnd ?? 0) > 0;
+    if (trimEnabled) {
+      return createPFrameForGraphs(ctx, msaCols);
+    }
+
     const datasetRef = ctx.args.datasetRef;
     if (datasetRef === undefined)
       return undefined;

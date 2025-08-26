@@ -92,7 +92,13 @@ const similarityTypeOptions = [
 ]; */
 
 const isSequenceColumn = (column: PColumnIdAndSpec) => {
-  return app.model.args.sequencesRef?.some((r) => r === column.columnId);
+  const trimEnabled = ((app.model.args.trimStart ?? 0) > 0) || ((app.model.args.trimEnd ?? 0) > 0);
+  if (trimEnabled) {
+    // When trimming is enabled, use annotation to include only trimmed sequences
+    return column.spec?.annotations?.['pl7.app/sequence/trimmed'] === 'true';
+  }
+  // Default: only show the clustering sequence(s) selected by the user
+  return app.model.args.sequencesRef?.some((r) => r === column.columnId) ?? false;
 };
 
 // Check if any selected sequence is CDR3
