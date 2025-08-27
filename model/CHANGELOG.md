@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.13.0
+
+### Minor Changes
+
+- c722cfb: Included input sequence trimming option for clustering
+
 ## 2.12.1
 
 ### Patch Changes
