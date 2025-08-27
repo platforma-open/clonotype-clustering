@@ -36,6 +36,8 @@ self.validateInputs({
     coverageMode: "number",
     sequencesRef: "any",
     blockId: "string",
+    "trimStart,?": "number",
+    "trimEnd,?": "number",
     "mem,?": "number",
     "cpu,?": "number"
 })
@@ -62,6 +64,12 @@ self.body(func(inputs) {
     coverageMode := inputs.coverageMode
     sequencesRef := inputs.sequencesRef
     blockId := inputs.blockId
+    trimStart := inputs.trimStart
+    trimEnd := inputs.trimEnd
+
+    // Determine if single-cell and likely two chains selected
+    isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
+    perChainTrim := isSingleCell && len(sequencesRef) > 1
 
 	if string(inputs.emptyOrNot.getData()) == "empty" {
 		// If matrix is not full rank return empty objects
@@ -79,11 +87,19 @@ self.body(func(inputs) {
 	} else {
         /***** Step 1: do clustering on the clonotype level *****/
         // prepare fasta file
-        fasta := exec.builder().
+        fastaBuilder := exec.builder().
             software(prepareFastaSw).
             mem("16GiB").
-		    cpu(1).
+	    cpu(1).
             addFile("input.tsv", seqTable).
+            arg("--trim-start").arg(string(trimStart)).
+            arg("--trim-end").arg(string(trimEnd))
+
+        if perChainTrim {
+            fastaBuilder = fastaBuilder.arg("--per-chain-trim")
+        }
+
+        fasta := fastaBuilder.
             saveFile("output.fasta").
             run()
 
@@ -106,7 +122,7 @@ self.body(func(inputs) {
         mmseqs := exec.builder().
             software(mmseqsSw).
             mem(mem).
-		    cpu(cpu).
+	    cpu(cpu).
             printErrStreamToStdout(). 
             arg("easy-cluster").
             arg("input.fasta").
@@ -153,12 +169,20 @@ self.body(func(inputs) {
         cloneTable := cloneTableBuilder.build()
 
 
-        result := exec.builder().
+        resultBuilder := exec.builder().
             software(processResultsSw).
             mem("32GiB"). // @TODO: set based on the size of the input
             cpu(8). // @TODO: set based on the size of the input
             addFile("clusters.tsv", clusters).
             addFile("cloneTable.tsv", cloneTable).
+            arg("--trim-start").arg(string(trimStart)).
+            arg("--trim-end").arg(string(trimEnd))
+
+        if perChainTrim {
+            resultBuilder = resultBuilder.arg("--per-chain-trim")
+        }
+
+        result := resultBuilder.
             saveFile("abundances.tsv").
             saveFile("cluster-to-seq.tsv").
             saveFile("clone-to-cluster.tsv").
@@ -168,6 +192,7 @@ self.body(func(inputs) {
             saveFile("cluster-to-seq-top.tsv"). // top clusters for bubble plot
             saveFile("cluster-radius-top.tsv"). // top clusters for bubble plot
             saveFile("abundances-top.tsv"). // top clusters for bubble plot
+            saveFile("trimmed-sequences.tsv"). // per-clonotype trimmed sequences
             run()
 
 
@@ -317,6 +342,48 @@ self.body(func(inputs) {
             })
         }
 
+        // For single cell, add per-chain trimmed columns when trimming is enabled; for bulk add one trimmed
+        if (trimStart > 0) || (trimEnd > 0) {
+            isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
+            if isSingleCell {
+                for nr, seq in sequencesRef {
+                    baseSpec := maps.clone(columns.getSpec(seq))
+                    delete(baseSpec.annotations, "pl7.app/vdj/imputed")
+                    delete(baseSpec.annotations, "pl7.app/vdj/isAssemblingFeature")
+                    delete(baseSpec.annotations, "pl7.app/vdj/isMainSequence")
+                    baseSpec.annotations["pl7.app/label"] = "Centroid trimmed " + baseSpec.annotations["pl7.app/label"]
+                    seqColumns = append(seqColumns, {
+                        column: "trim_" + ("sequence_" + string(nr)),
+                        spec: setTableProps({
+                            name: baseSpec.name,
+                            valueType: baseSpec.valueType,
+                            domain: baseSpec.domain,
+                            annotations: baseSpec.annotations
+                        }, baseSpec.annotations["pl7.app/label"], true, "11")
+                    })
+                }
+            } else if len(sequencesRef) > 0 {
+                baseSpec := maps.clone(columns.getSpec(sequencesRef[0]))
+                delete(baseSpec.annotations, "pl7.app/vdj/imputed")
+                delete(baseSpec.annotations, "pl7.app/vdj/isAssemblingFeature")
+                delete(baseSpec.annotations, "pl7.app/vdj/isMainSequence")
+                // Derive label parts
+                feature := baseSpec.domain["pl7.app/vdj/feature"]
+                alphabet := baseSpec.domain["pl7.app/alphabet"]
+                alphaSuffix := (alphabet == "aminoacid" ? " aa" : (alphabet == "nucleotide" ? " nt" : ""))
+                baseSpec.annotations["pl7.app/label"] = "Centroid trimmed " + string(feature) + alphaSuffix
+                seqColumns = append(seqColumns, {
+                    column: "trimmed_fullSequence",
+                    spec: setTableProps({
+                        name: baseSpec.name,
+                        valueType: baseSpec.valueType,
+                        domain: baseSpec.domain,
+                        annotations: baseSpec.annotations
+                    }, baseSpec.annotations["pl7.app/label"], true, "11")
+                })
+            }
+        }
+
         clusterToSeqPf := xsv.importFile(clusterToSeq, "tsv", {
             axes: [{
                 column: "clusterId",
@@ -457,12 +524,59 @@ self.body(func(inputs) {
         }
         bubblePlotPf := bubblePlotPfBuilder.build()
 
-        // Generate pFrames with sequences
+        // Generate pFrames with sequences for MSA
+        // Prefer trimmed sequences for MSA if present
+        // Build labels for each selected sequence and append " (trimmed)" only
+        trimmedLabels := []
+        for nr, seq in sequencesRef {
+            baseSpecForTrim := maps.clone(columns.getSpec(seq))
+            baseLabelForTrim := baseSpecForTrim.annotations["pl7.app/label"]
+            if !is_undefined(baseLabelForTrim) {
+                trimmedLabels = append(trimmedLabels, baseLabelForTrim + " (trimmed)")
+            } else {
+                trimmedLabels = append(trimmedLabels, "Sequence " + string(nr) + " (trimmed)")
+            }
+        }
+        trimmedSeq := result.getFile("trimmed-sequences.tsv")
+        trimmedSeqPf := xsv.importFile(trimmedSeq, "tsv", {
+            axes: [{
+                column: "clonotypeKey",
+                spec: datasetSpec.axesSpec[1]
+            }],
+            columns: func() {
+                cols := []
+                // If per-chain trimmed columns are present, include them with per-chain labels
+                // We expect columns named like trim_sequence_0, trim_sequence_1, ...
+                // Try to detect up to the number of selected sequences
+                for nr, seq in sequencesRef {
+                    cname := "trim_sequence_" + string(nr)
+                    baseSpecForTrim := maps.clone(columns.getSpec(seq))
+                    chain := baseSpecForTrim.domain["pl7.app/vdj/scClonotypeChain"]
+                    chainIndex := baseSpecForTrim.domain["pl7.app/vdj/scClonotypeChain/index"]
+                    cols = append(cols, {
+                        column: cname,
+                        spec: setTableProps({
+                            name: "pl7.app/vdj/sequence",
+                            valueType: "String",
+                            domain: maps.deepMerge(datasetSpec.axesSpec[1].domain, {
+                                "pl7.app/vdj/scClonotypeChain": chain,
+                                "pl7.app/vdj/scClonotypeChain/index": chainIndex
+                            }),
+                            annotations: {
+                                "pl7.app/sequence/trimmed": "true"
+                            }
+                        }, trimmedLabels[nr], true, "10")
+                    })
+                }
+                return cols
+            }()
+        }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
         msaPf := pframes.pFrameBuilder()
         i := 0
-        for pf in [cloneToClusterLinkPf, distancesPf] {
+        for pf in [trimmedSeqPf, cloneToClusterLinkPf, distancesPf] {
             for k, v in pf {
-                msaPf.add(k + string(i), trace.inject(v.spec), v.data) // label, specs, data
+                msaPf.add(k + string(i), trace.inject(v.spec), v.data)
                 i = i + 1
             }
         }
