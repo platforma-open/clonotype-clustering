@@ -64,8 +64,9 @@ self.body(func(inputs) {
     coverageMode := inputs.coverageMode
     sequencesRef := inputs.sequencesRef
     blockId := inputs.blockId
-    trimStart := inputs.trimStart
-    trimEnd := inputs.trimEnd
+    // Treat undefined trimming values as zero (no trimming)
+    trimStart := is_undefined(inputs.trimStart) ? 0 : inputs.trimStart
+    trimEnd := is_undefined(inputs.trimEnd) ? 0 : inputs.trimEnd
 
     // Determine if single-cell and likely two chains selected
     isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
