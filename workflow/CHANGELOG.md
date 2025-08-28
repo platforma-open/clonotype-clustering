@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.21.0
+
+### Minor Changes
+
+- 45969f6: fix empty trimming fields
+
 ## 3.20.0
 
 ### Minor Changes
