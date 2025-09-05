@@ -302,6 +302,6 @@ export const model = BlockModel.create()
     { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
   ])
 
-  .done();
+  .done(2);
 
 export type BlockOutputs = InferOutputsType<typeof model>;
