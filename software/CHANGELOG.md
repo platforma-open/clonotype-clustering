@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.9.1
+
+### Patch Changes
+
+- 823ff69: Full SDK update
+
 ## 3.9.0
 
 ### Minor Changes
