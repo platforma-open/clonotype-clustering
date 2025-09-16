@@ -1,5 +1,37 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.21.1
+
+### Patch Changes
+
+- Updated dependencies [823ff69]
+  - @platforma-open/milaboratories.clonotype-clustering.software@3.9.1
+
+## 3.21.0
+
+### Minor Changes
+
+- 45969f6: fix empty trimming fields
+
+## 3.20.0
+
+### Minor Changes
+
+- c722cfb: Included input sequence trimming option for clustering
+
+### Patch Changes
+
+- Updated dependencies [c722cfb]
+  - @platforma-open/milaboratories.clonotype-clustering.software@3.9.0
+
+## 3.19.2
+
+### Patch Changes
+
+- 7092f34: Updated SDK to support polars.
+- Updated dependencies [7092f34]
+  - @platforma-open/milaboratories.clonotype-clustering.software@3.8.2
+
 ## 3.19.1
 
 ### Patch Changes

@@ -1,5 +1,16 @@
 import polars as pl
 import polars_ds as pds
+import argparse
+
+parser = argparse.ArgumentParser(description='Process clustering results and compute summaries')
+parser.add_argument('--trim-start', type=int, default=0, help='Number of amino acids to remove from start')
+parser.add_argument('--trim-end', type=int, default=0, help='Number of amino acids to remove from end')
+parser.add_argument('--per-chain-trim', action='store_true', help='Apply trimming to each chain before computing distances and summaries')
+args = parser.parse_args()
+
+trim_start = args.trim_start
+trim_end = args.trim_end
+per_chain_trim = args.per_chain_trim
 
 clustersTsv = "clusters.tsv"
 cloneTableTsv = "cloneTable.tsv"
@@ -8,6 +19,7 @@ cloneToClusterTsv = "clone-to-cluster.tsv"
 abundancesTsv = "abundances.tsv"
 abundancesPerClusterTsv = "abundances-per-cluster.tsv"
 clusterRadiusTsv = "cluster-radius.tsv"
+trimmedSequencesTsv = "trimmed-sequences.tsv"
 
 # sampleId, clonotypeKey, clonotypeKeyLabel,sequence_..., 
 # ...VGene, JGene
@@ -17,21 +29,48 @@ cloneTable = pl.read_csv(cloneTableTsv, separator="\t")
 sequence_cols = [col for col in cloneTable.columns 
                  if col.startswith('sequence_')]
 
+# Create trimmed versions of sequence columns if needed
+def make_trimmed_expr(col_name: str) -> pl.Expr:
+    expr = pl.col(col_name).fill_null("")
+    if trim_start > 0:
+        expr = expr.str.slice(trim_start)
+    if trim_end > 0:
+        # compute remaining length after end-trim; ensure non-negative
+        rem_len = pl.when(expr.str.len_chars() > trim_end).then(
+            (expr.str.len_chars() - pl.lit(trim_end))
+        ).otherwise(pl.lit(0))
+        expr = expr.str.slice(0, rem_len)
+    return expr
+
+trimmed_cols = []
+if sequence_cols and (trim_start > 0 or trim_end > 0):
+    # Generate trimmed columns for each sequence column
+    with_exprs = []
+    for c in sequence_cols:
+        tcol = f"trim_{c}"
+        trimmed_cols.append(tcol)
+        with_exprs.append(make_trimmed_expr(c).alias(tcol))
+    cloneTable = cloneTable.with_columns(with_exprs)
+else:
+    trimmed_cols = [f"trim_{c}" for c in sequence_cols]
+    # If no trimming, just mirror originals for downstream uniformity
+    with_exprs = [pl.col(c).fill_null("").alias(f"trim_{c}") for c in sequence_cols]
+    if with_exprs:
+        cloneTable = cloneTable.with_columns(with_exprs)
+
 # Create a 'fullSequence' column by concatenating sequence_cols if they exist
 if not sequence_cols:
     print("Warning: No sequence columns (e.g., 'sequence_0') found. Sequence-based distance calculation might fail or be incorrect.")
-elif len(sequence_cols) == 1:
-    cloneTable = cloneTable.with_columns(
-        pl.col(sequence_cols[0]).alias('fullSequence')
-    )
 else:
-    # Sort columns to ensure consistent concatenation order, e.g., sequence_0, sequence_1, ...
     sorted_sequence_cols = sorted(sequence_cols)
+    sorted_trimmed_cols = sorted(trimmed_cols)
+    # Build original concatenation
     cloneTable = cloneTable.with_columns(
-        pl.concat_str(
-            [pl.col(c) for c in sorted_sequence_cols],
-            separator="===="  # Use "====" as separator
-        ).alias('fullSequence')
+        pl.concat_str([pl.col(c).fill_null("") for c in sorted_sequence_cols], separator="====").alias('fullSequence')
+    )
+    # Build trimmed concatenation (per-chain trimming already applied into trim_* columns)
+    cloneTable = cloneTable.with_columns(
+        pl.concat_str([pl.col(c).fill_null("") for c in sorted_trimmed_cols], separator="====").alias('trimmed_fullSequence')
     )
 
 # Transform clonotypeKeyLabel from "C-XXXXXX" with "CL-XXXXXX"
@@ -82,7 +121,7 @@ clusters = clusters.join(
 
 # Select sequence columns and 'clonotypeKey' from cloneTable for centroids
 centroid_sequences_for_cts = cloneTable.select(
-    [pl.col('clonotypeKey').alias("centroid_key_cts")] + sequence_cols
+    [pl.col('clonotypeKey').alias("centroid_key_cts")] + sequence_cols + trimmed_cols + (["trimmed_fullSequence"] if sequence_cols else [])
 ).unique("centroid_key_cts", keep="first")
 
 # Join clusters with centroid_sequences_for_cts
@@ -94,7 +133,7 @@ temp_cluster_to_seq_data = clusters.join(
     how="left" # Keep all clusters
 )
 
-required_cols_cts = ['clusterId', 'clusterLabel', 'size'] + sequence_cols
+required_cols_cts = ['clusterId', 'clusterLabel', 'size'] + sequence_cols + trimmed_cols + (['trimmed_fullSequence'] if sequence_cols else [])
 # Select necessary columns. The sequence_cols will be from the centroid.
 # We need to ensure we pick one row per clusterId.
 # The join above might create multiple rows if a clusterId appeared multiple times in clusters
@@ -164,6 +203,31 @@ top_cluster_ids_df = abundances_per_cluster.sort(
     'abundance_per_cluster', descending=True
 ).head(100).select('clusterId')
 
+# --- Export per-clonotype trimmed sequences ---
+if sequence_cols:
+    # Ensure trimmed_fullSequence and per-chain trimmed columns exist (created earlier)
+    select_exprs = [pl.col("clonotypeKey")]
+    if "trimmed_fullSequence" in cloneTable.columns:
+        select_exprs.append(pl.col("trimmed_fullSequence"))
+    elif "fullSequence" in cloneTable.columns:
+        select_exprs.append(pl.col("fullSequence").alias("trimmed_fullSequence"))
+
+    for c in sorted(trimmed_cols):
+        if c in cloneTable.columns:
+            select_exprs.append(pl.col(c))
+
+    (
+        cloneTable
+        .select(select_exprs)
+        .unique(subset=["clonotypeKey"], keep="first")
+    ).write_csv(trimmedSequencesTsv, separator="\t")
+else:
+    # No sequences — write empty file with headers
+    pl.DataFrame({
+        "clonotypeKey": [],
+        "trimmed_fullSequence": []
+    }).write_csv(trimmedSequencesTsv, separator="\t")
+
 # --- Generate distance_to_centroid.tsv (New Segmented Approach) ---
 
 # Base DataFrame: member's key and original label
@@ -198,45 +262,42 @@ if not sequence_cols:
     print("No sequence columns found. Setting distanceToCentroid to 0.0 for all entries.")
     distance_df = distance_df.with_columns(
         pl.lit(0.0, dtype=pl.Float64).alias("distanceToCentroid"),
-        pl.lit(0, dtype=pl.Int64).alias("total_raw_distance")  # Add this for cluster radius calculation
+        pl.lit(0, dtype=pl.Int64).alias("total_raw_distance")
     )
 else:
-    # Prepare member's sequence data for join
+    # Use trimmed per-chain columns for distance computation
     member_seq_select_expr = [pl.col("clonotypeKey").alias("member_join_key_seq")] + \
-                             [pl.col(sc).alias(f"member_{sc}") for sc in sequence_cols]
+                             [pl.col(f"trim_{sc}").alias(f"member_{sc}") for sc in sequence_cols]
     member_sequences_to_join = cloneTable.select(member_seq_select_expr).unique("member_join_key_seq", keep="first")
 
-    # Prepare centroid's sequence data for join
     centroid_seq_select_expr = [pl.col("clonotypeKey").alias("centroid_join_key_seq")] + \
-                               [pl.col(sc).alias(f"centroid_{sc}") for sc in sequence_cols]
+                               [pl.col(f"trim_{sc}").alias(f"centroid_{sc}") for sc in sequence_cols]
     centroid_sequences_to_join = cloneTable.select(centroid_seq_select_expr).unique("centroid_join_key_seq", keep="first")
-    
-    # Add member sequences to distance_df
+
     distance_df = distance_df.join(
         member_sequences_to_join,
-        left_on="clonotypeKey", # Member's key from distance_df
+        left_on="clonotypeKey",
         right_on="member_join_key_seq",
-        how="left" 
+        how="left"
     )
-    
-    # Add centroid sequences to distance_df
+
     distance_df = distance_df.join(
         centroid_sequences_to_join,
-        left_on="clusterId", # Centroid's key from distance_df
+        left_on="clusterId",
         right_on="centroid_join_key_seq",
-        how="left" 
+        how="left"
     )
 
     temp_raw_dist_cols = []
     temp_len_centroid_cols = []
 
-    for sc_base_name in sequence_cols: # e.g., "sequence_0", "sequence_1"
+    for sc_base_name in sequence_cols:
         member_sc_col = f"member_{sc_base_name}"
         centroid_sc_col = f"centroid_{sc_base_name}"
-        
+
         raw_dist_segment_col = f"__raw_dist_{sc_base_name}"
         len_centroid_segment_col = f"__len_centroid_{sc_base_name}"
-        
+
         temp_raw_dist_cols.append(raw_dist_segment_col)
         temp_len_centroid_cols.append(len_centroid_segment_col)
 
@@ -247,35 +308,38 @@ else:
               .then(pl.col(member_sc_col).str.len_chars())
               .when(pl.col(member_sc_col).is_null() & pl.col(centroid_sc_col).is_not_null())
               .then(pl.col(centroid_sc_col).str.len_chars())
-              .otherwise(0) # Both null
+              .otherwise(0)
               .alias(raw_dist_segment_col),
-            
+
             pl.col(centroid_sc_col).str.len_chars().fill_null(0).alias(len_centroid_segment_col)
         )
-    
+
     distance_df = distance_df.with_columns(
         pl.sum_horizontal([pl.col(name) for name in temp_raw_dist_cols]).alias("total_raw_distance"),
         pl.sum_horizontal([pl.col(name) for name in temp_len_centroid_cols]).alias("total_centroid_length_for_norm")
     )
-    
+
     distance_df = distance_df.with_columns(
         pl.when(pl.col("total_centroid_length_for_norm") > 0)
           .then(
-              pl.min_horizontal( 
+              pl.min_horizontal(
                   pl.lit(1.0, dtype=pl.Float64),
                   pl.col("total_raw_distance").cast(pl.Float64) / pl.col("total_centroid_length_for_norm").cast(pl.Float64)
               )
           )
-          .when(pl.col("total_raw_distance") == 0) 
+          .when(pl.col("total_raw_distance") == 0)
           .then(pl.lit(0.0, dtype=pl.Float64))
-          .otherwise(pl.lit(1.0, dtype=pl.Float64)) 
+          .otherwise(pl.lit(1.0, dtype=pl.Float64))
           .alias("distanceToCentroid")
     )
-    
-    cols_to_drop_after_calc = temp_raw_dist_cols + temp_len_centroid_cols + \
-                              [f"member_{sc}" for sc in sequence_cols] + \
-                              [f"centroid_{sc}" for sc in sequence_cols] + \
-                              ["member_join_key_seq", "centroid_join_key_seq"]
+
+    cols_to_drop_after_calc = (
+        temp_raw_dist_cols
+        + temp_len_centroid_cols
+        + [f"member_{sc}" for sc in sequence_cols]
+        + [f"centroid_{sc}" for sc in sequence_cols]
+        + ["member_join_key_seq", "centroid_join_key_seq"]
+    )
 
     existing_cols_to_drop = [col for col in cols_to_drop_after_calc if col in distance_df.columns]
     if existing_cols_to_drop:

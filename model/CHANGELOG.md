@@ -1,5 +1,23 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.13.1
+
+### Patch Changes
+
+- 823ff69: Full SDK update
+
+## 2.13.0
+
+### Minor Changes
+
+- c722cfb: Included input sequence trimming option for clustering
+
+## 2.12.1
+
+### Patch Changes
+
+- 7092f34: Updated SDK to support polars.
+
 ## 2.12.0
 
 ### Minor Changes

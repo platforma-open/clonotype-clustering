@@ -122,6 +122,8 @@ wf.body(func(args) {
 		coverageMode: args.coverageMode,
 		sequencesRef: sequencesRef,
 		blockId: blockId,
+		trimStart: args.trimStart,
+		trimEnd: args.trimEnd,
 		mem: args.mem,
 		cpu: args.cpu
 	})

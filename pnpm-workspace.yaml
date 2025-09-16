@@ -20,12 +20,13 @@ catalog:
 
   '@milaboratories/software-pframes-conv': ^2.2.7
   '@platforma-open/milaboratories.runenv-python-3': ^1.4.9
+
   '@platforma-open/soedinglab.software-mmseqs2': 1.17.0
 
   'vue': ^3.5.13
   'vue-tsc': ^2.2.8
 
-  'typescript': ~5.5.4
+  'typescript': 5.5.4
   'tsup': ~8.3.5
   'turbo': ^2.5.4
 

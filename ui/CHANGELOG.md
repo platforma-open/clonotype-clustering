@@ -1,5 +1,37 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.11.1
+
+### Patch Changes
+
+- Updated dependencies [823ff69]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.1
+
+## 3.11.0
+
+### Minor Changes
+
+- c722cfb: Included input sequence trimming option for clustering
+
+### Patch Changes
+
+- Updated dependencies [c722cfb]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.0
+
+## 3.10.5
+
+### Patch Changes
+
+- d689179: Change to new log icon
+
+## 3.10.4
+
+### Patch Changes
+
+- 7092f34: Updated SDK to support polars.
+- Updated dependencies [7092f34]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.12.1
+
 ## 3.10.3
 
 ### Patch Changes

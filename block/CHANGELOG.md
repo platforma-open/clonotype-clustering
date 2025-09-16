@@ -1,5 +1,47 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.4.14
+
+### Patch Changes
+
+- Updated dependencies [823ff69]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.1
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.21.1
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.11.1
+
+## 2.4.13
+
+### Patch Changes
+
+- Updated dependencies [45969f6]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.21.0
+
+## 2.4.12
+
+### Patch Changes
+
+- Updated dependencies [c722cfb]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.20.0
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.0
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.11.0
+
+## 2.4.11
+
+### Patch Changes
+
+- Updated dependencies [d689179]
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.10.5
+
+## 2.4.10
+
+### Patch Changes
+
+- 7092f34: Updated SDK to support polars.
+- Updated dependencies [7092f34]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.12.1
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.10.4
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.19.2
+
 ## 2.4.9
 
 ### Patch Changes

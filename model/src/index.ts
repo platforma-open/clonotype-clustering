@@ -24,6 +24,8 @@ export type BlockArgs = {
   similarityType: 'alignment-score' | 'sequence-identity';
   coverageThreshold: number; // fraction of aligned residues required
   coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
+  trimStart?: number; // number of amino acids to remove from the beginning
+  trimEnd?: number; // number of amino acids to remove from the end
   mem?: number;
   cpu?: number;
 };
@@ -45,6 +47,8 @@ export const model = BlockModel.create()
     similarityType: 'sequence-identity',
     coverageThreshold: 0.8, // default value matching MMseqs2 default
     coverageMode: 0, // default to coverage of query and target
+    trimStart: 0, // default to no trimming from start
+    trimEnd: 0, // default to no trimming from end
   })
 
   .withUiState<UiState>({
@@ -193,6 +197,12 @@ export const model = BlockModel.create()
     const msaCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
     if (!msaCols) return undefined;
 
+    // When trimming is enabled, use trimmed sequences from msaPf only
+    const trimEnabled = (ctx.args.trimStart ?? 0) > 0 || (ctx.args.trimEnd ?? 0) > 0;
+    if (trimEnabled) {
+      return createPFrameForGraphs(ctx, msaCols);
+    }
+
     const datasetRef = ctx.args.datasetRef;
     if (datasetRef === undefined)
       return undefined;
@@ -292,6 +302,6 @@ export const model = BlockModel.create()
     { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
   ])
 
-  .done();
+  .done(2);
 
 export type BlockOutputs = InferOutputsType<typeof model>;
