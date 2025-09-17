@@ -136,6 +136,7 @@ importers:
       '@platforma-sdk/package-builder':
         specifier: 'catalog:'
         version: 3.5.4
+        version: 3.5.4
 
   test:
     dependencies:
@@ -1265,6 +1266,8 @@ packages:
   '@platforma-sdk/model@1.43.2':
     resolution: {integrity: sha512-qI9zlRRKF8tx6jQUsfHDKNQ/aBcOz05ERtBDFgStH8Sn3ehZZcXRRmWsX0QRDTifdhSiMklioalmT/2mx8SDOA==}
 
+  '@platforma-sdk/package-builder@3.5.4':
+    resolution: {integrity: sha512-7BsxfR/uEq+Dh95uhojceNuATbZ1bJB6logGqai92/tlzKkUUyJME2Vx3w8mytHraaF0kbkKKYobmvzXtBMmXA==}
   '@platforma-sdk/package-builder@3.5.4':
     resolution: {integrity: sha512-7BsxfR/uEq+Dh95uhojceNuATbZ1bJB6logGqai92/tlzKkUUyJME2Vx3w8mytHraaF0kbkKKYobmvzXtBMmXA==}
     hasBin: true
@@ -6961,6 +6964,7 @@ snapshots:
       utility-types: 3.11.0
       zod: 3.23.8
 
+  '@platforma-sdk/package-builder@3.5.4':
   '@platforma-sdk/package-builder@3.5.4':
     dependencies:
       '@aws-sdk/client-s3': 3.859.0

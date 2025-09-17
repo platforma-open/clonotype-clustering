@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.4.15
+
+### Patch Changes
+
+- c7f0a1c: os limitations
+
 ## 2.4.14
 
 ### Patch Changes
