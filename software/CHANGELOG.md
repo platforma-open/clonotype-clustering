@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.9.3
+
+### Patch Changes
+
+- c0bb670: technical release
+
 ## 3.9.2
 
 ### Patch Changes

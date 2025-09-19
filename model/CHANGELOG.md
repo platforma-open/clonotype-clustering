@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.13.2
+
+### Patch Changes
+
+- c0bb670: technical release
+
 ## 2.13.1
 
 ### Patch Changes
