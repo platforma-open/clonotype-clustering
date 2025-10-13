@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.11.4
+
+### Patch Changes
+
+- 2065c11: [blocks] no message about unsupported OS
+- Updated dependencies [2065c11]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.4
+
 ## 3.11.3
 
 ### Patch Changes

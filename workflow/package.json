@@ -1,6 +1,6 @@
 {
   "name": "@platforma-open/milaboratories.clonotype-clustering.workflow",
-  "version": "3.21.4",
+  "version": "3.21.5",
   "type": "module",
   "description": "Block Workflow",
   "scripts": {

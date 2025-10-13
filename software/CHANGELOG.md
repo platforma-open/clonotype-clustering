@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.9.5
+
+### Patch Changes
+
+- 2065c11: [blocks] no message about unsupported OS
+
 ## 3.9.4
 
 ### Patch Changes
