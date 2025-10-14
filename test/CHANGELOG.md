@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.test
 
+## 1.1.6
+
+### Patch Changes
+
+- 2065c11: [blocks] no message about unsupported OS
+
 ## 1.1.5
 
 ### Patch Changes
