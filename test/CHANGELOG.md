@@ -1,5 +1,14 @@
 # @platforma-open/milaboratories.clonotype-clustering.test
 
+## 1.1.7
+
+### Patch Changes
+
+- 13758de: technical release
+- 008f95c: technical release
+- b8c8bc3: technical release
+- bffa615: technical release
+
 ## 1.1.6
 
 ### Patch Changes
