@@ -72,6 +72,13 @@ self.body(func(inputs) {
     isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
     perChainTrim := isSingleCell && len(sequencesRef) > 1
 
+    // Get used sequences annotation labels
+    usedSequenceLabels := []
+    for nr, seq in sequencesRef {
+        usedSequenceLabels = append(usedSequenceLabels, columns.getSpec(seq).annotations["pl7.app/label"])
+    }
+    usedSequenceLabels = slices.quickSort(usedSequenceLabels)
+
 	if string(inputs.emptyOrNot.getData()) == "empty" {
 		// If matrix is not full rank return empty objects
 		return {
@@ -123,7 +130,7 @@ self.body(func(inputs) {
         mmseqs := exec.builder().
             software(mmseqsSw).
             mem(mem).
-	    cpu(cpu).
+	        cpu(cpu).
             printErrStreamToStdout(). 
             arg("easy-cluster").
             arg("input.fasta").
@@ -447,8 +454,13 @@ self.body(func(inputs) {
         
         trace := pSpec.makeTrace(abundanceSpec,
             {
-                type: "milaboratories.clonotype-clustering",
-                importance: 70,
+                type: "milaboratories.clonotype-clustering.sequences",
+                importance: 90,
+                label: text.join(usedSequenceLabels, " - ")
+            },
+            {
+                type: "milaboratories.clonotype-clustering.clustering",
+                importance: 85,
                 label: traceLabel
             })
 
