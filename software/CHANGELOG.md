@@ -1,5 +1,38 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.9.6
+
+### Patch Changes
+
+- 13758de: technical release
+- 008f95c: technical release
+- b8c8bc3: technical release
+- bffa615: technical release
+
+## 3.9.5
+
+### Patch Changes
+
+- 2065c11: [blocks] no message about unsupported OS
+
+## 3.9.4
+
+### Patch Changes
+
+- 666689a: technical release
+
+## 3.9.3
+
+### Patch Changes
+
+- c0bb670: technical release
+
+## 3.9.2
+
+### Patch Changes
+
+- b85a5c7: Update python
+
 ## 3.9.1
 
 ### Patch Changes

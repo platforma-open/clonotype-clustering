@@ -1,5 +1,43 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.11.5
+
+### Patch Changes
+
+- 13758de: technical release
+- 008f95c: technical release
+- b8c8bc3: technical release
+- bffa615: technical release
+- Updated dependencies [13758de]
+- Updated dependencies [008f95c]
+- Updated dependencies [b8c8bc3]
+- Updated dependencies [bffa615]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.5
+
+## 3.11.4
+
+### Patch Changes
+
+- 2065c11: [blocks] no message about unsupported OS
+- Updated dependencies [2065c11]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.4
+
+## 3.11.3
+
+### Patch Changes
+
+- 666689a: technical release
+- Updated dependencies [666689a]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.3
+
+## 3.11.2
+
+### Patch Changes
+
+- c0bb670: technical release
+- Updated dependencies [c0bb670]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.2
+
 ## 3.11.1
 
 ### Patch Changes

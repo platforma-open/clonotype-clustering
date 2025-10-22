@@ -1,5 +1,76 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.5.4
+
+### Patch Changes
+
+- Updated dependencies [17b1920]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.22.0
+
+## 2.5.3
+
+### Patch Changes
+
+- 13758de: technical release
+- 008f95c: technical release
+- b8c8bc3: technical release
+- bffa615: technical release
+- Updated dependencies [13758de]
+- Updated dependencies [008f95c]
+- Updated dependencies [b8c8bc3]
+- Updated dependencies [bffa615]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.5
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.11.5
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.21.6
+
+## 2.5.2
+
+### Patch Changes
+
+- 2065c11: [blocks] no message about unsupported OS
+- Updated dependencies [2065c11]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.4
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.11.4
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.21.5
+
+## 2.5.1
+
+### Patch Changes
+
+- 666689a: technical release
+- Updated dependencies [666689a]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.3
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.11.3
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.21.4
+
+## 2.5.0
+
+### Minor Changes
+
+- d1ae791: Update dependencies
+
+## 2.4.17
+
+### Patch Changes
+
+- c0bb670: technical release
+- Updated dependencies [c0bb670]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.2
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.11.2
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.21.3
+
+## 2.4.16
+
+### Patch Changes
+
+- @platforma-open/milaboratories.clonotype-clustering.workflow@3.21.2
+
+## 2.4.15
+
+### Patch Changes
+
+- c7f0a1c: os limitations
+
 ## 2.4.14
 
 ### Patch Changes

@@ -1,6 +1,6 @@
 {
   "name": "@platforma-open/milaboratories.clonotype-clustering",
-  "version": "2.4.14",
+  "version": "2.5.4",
   "scripts": {
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json,vue}\"",
     "build": "rm -rf ./block-pack && block-tools pack",
@@ -40,7 +40,13 @@
         "name": "MiLaboratories Inc",
         "url": "https://milaboratories.com/",
         "logo": "file:../logos/organization-logo.png"
-      }
+      },
+      "supportedPlatforms": [
+        "linux-x64",
+        "linux-aarch64",
+        "macosx-x64",
+        "macosx-aarch64"
+      ]
     }
   },
   "devDependencies": {
