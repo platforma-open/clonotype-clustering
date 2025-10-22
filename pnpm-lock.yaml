@@ -19,8 +19,8 @@ catalogs:
       specifier: ^1.4.12
       version: 1.5.8
     '@platforma-open/soedinglab.software-mmseqs2':
-      specifier: 1.17.0
-      version: 1.17.0
+      specifier: 1.17.1
+      version: 1.17.1
     '@platforma-sdk/block-tools':
       specifier: ^2.6.15
       version: 2.6.15
@@ -70,7 +70,7 @@ catalogs:
       specifier: ^3.5.13
       version: 3.5.13
     vue-tsc:
-      specifier: ^2.2.8s
+      specifier: ^2.2.8
       version: 2.2.8
 
 importers:
@@ -194,7 +194,7 @@ importers:
         version: link:../software
       '@platforma-open/soedinglab.software-mmseqs2':
         specifier: 'catalog:'
-        version: 1.17.0
+        version: 1.17.1
       '@platforma-sdk/workflow-tengo':
         specifier: 'catalog:'
         version: 5.4.2
@@ -1245,8 +1245,8 @@ packages:
   '@platforma-open/milaboratories.software-small-binaries@1.15.23':
     resolution: {integrity: sha512-I1G2qEWALvNAJy9kOTXjryu0GvK+hvUCVPckNhGkFO/cGIsST7R7s9pm0exhG92PyuLFa5lwJFx/fgobqWUWNw==}
 
-  '@platforma-open/soedinglab.software-mmseqs2@1.17.0':
-    resolution: {integrity: sha512-TWdVIVKNG9tO6w/QBlvwySdHuvlSJtKgUn6bWgVdzqGpNqOCSUBENsqBJBwHrCx8Mkt5YCZdwZJ/yXsHDriRXw==}
+  '@platforma-open/soedinglab.software-mmseqs2@1.17.1':
+    resolution: {integrity: sha512-lKgnSj2MMs3RMsZfE97loReFM2gcibmlRkzvRLVYyT7T4aiYNzg3mTlwm2FbqgDmFB08CXE+uiNEelBFCVj7uw==}
 
   '@platforma-sdk/block-tools@2.6.15':
     resolution: {integrity: sha512-O7bEUecLWEQbHM0cvmT1UugUpCrtGXiZ/97gm2uEeKAsKJXLZAqUDBzhC0vNeCpo42Rdy0FJAjW/3Icp6siLaw==}
@@ -7111,7 +7111,7 @@ snapshots:
       '@platforma-open/milaboratories.software-small-binaries.small-asset': 1.1.4
       '@platforma-open/milaboratories.software-small-binaries.table-converter': 1.3.1
 
-  '@platforma-open/soedinglab.software-mmseqs2@1.17.0': {}
+  '@platforma-open/soedinglab.software-mmseqs2@1.17.1': {}
 
   '@platforma-sdk/block-tools@2.6.15':
     dependencies:
