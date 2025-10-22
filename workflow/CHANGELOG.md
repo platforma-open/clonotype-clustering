@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.22.0
+
+### Minor Changes
+
+- 17b1920: Fix trace
+
 ## 3.21.6
 
 ### Patch Changes
