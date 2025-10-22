@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.9.7
+
+### Patch Changes
+
+- 74ab1cf: Fix polars version
+
 ## 3.9.6
 
 ### Patch Changes
