@@ -253,7 +253,9 @@ self.body(func(inputs) {
                         "pl7.app/abundance/normalized": "true"
                     }
                 }), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
-            }]
+            }],
+            storageFormat: "Parquet",
+            partitionKeyLength: 1
         }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
 
@@ -267,7 +269,9 @@ self.body(func(inputs) {
             columns: [{
                 column: "abundance_per_cluster",
                 spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", false, undefined)
-            }]
+            }],
+            storageFormat: "Parquet",
+            partitionKeyLength: 0
         }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         cloneToCluster := result.getFile("clone-to-cluster.tsv")
@@ -284,7 +288,9 @@ self.body(func(inputs) {
                     domain: clusterIdAxisSpec.domain,
                     annotations: clusterIdAxisSpec.annotations
                 }, "Cluster Id", false, undefined)
-            }]
+            }],
+            storageFormat: "Parquet",
+            partitionKeyLength: 0
         }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         cloneToClusterLinkPf := xsv.importFile(cloneToCluster, "tsv", {
@@ -304,7 +310,9 @@ self.body(func(inputs) {
                         "pl7.app/isLinkerColumn": "true"
                     }
                 }, "Clone to cluster link", false, undefined)
-            }]
+            }],
+            storageFormat: "Parquet",
+            partitionKeyLength: 0
         }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         clusterToSeq := result.getFile("cluster-to-seq.tsv")
@@ -397,7 +405,9 @@ self.body(func(inputs) {
                 column: "clusterId",
                 spec: clusterIdAxisSpec
             }],
-            columns: seqColumns
+            columns: seqColumns,
+            storageFormat: "Parquet",
+            partitionKeyLength: 0
         }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
 
@@ -419,7 +429,9 @@ self.body(func(inputs) {
                         "pl7.app/format": ".2f"
                     }
                 }, "Distance to centroid", false, undefined)
-            }]
+            }],
+            storageFormat: "Parquet",
+            partitionKeyLength: 0
         }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         clusterRadiusPf := xsv.importFile(result.getFile("cluster-radius.tsv"), "tsv", {
@@ -439,7 +451,9 @@ self.body(func(inputs) {
                         "pl7.app/format": ".2f"
                     }
                 }, "Cluster radius", true, undefined)
-            }]
+            }],
+            storageFormat: "Parquet",
+            partitionKeyLength: 0
         }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         // building outputs & exports
@@ -498,7 +512,9 @@ self.body(func(inputs) {
                             "pl7.app/abundance/normalized": "true"
                         }
                     }), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
-                }]
+                }],
+                storageFormat: "Parquet",
+                partitionKeyLength: 1
             }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         clusterToSeqTopPf := xsv.importFile(result.getFile("cluster-to-seq-top.tsv"), "tsv", {
@@ -506,7 +522,9 @@ self.body(func(inputs) {
                 column: "clusterId",
                 spec: clusterIdAxisSpec
             }],
-            columns: seqColumns
+            columns: seqColumns,
+            storageFormat: "Parquet",
+            partitionKeyLength: 0
         }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         clusterRadiusTopPf := xsv.importFile(result.getFile("cluster-radius-top.tsv"), "tsv", {
@@ -526,7 +544,9 @@ self.body(func(inputs) {
                         "pl7.app/format": ".2f"
                     }
                 }, "Cluster radius", true, undefined)
-            }]
+            }],
+            storageFormat: "Parquet",
+            partitionKeyLength: 0
         }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         bubblePlotPfBuilder := pframes.pFrameBuilder()
@@ -582,7 +602,9 @@ self.body(func(inputs) {
                     })
                 }
                 return cols
-            }()
+            }(),
+            storageFormat: "Parquet",
+            partitionKeyLength: 0
         }, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
         msaPf := pframes.pFrameBuilder()
