@@ -455,12 +455,12 @@ self.body(func(inputs) {
         trace := pSpec.makeTrace(abundanceSpec,
             {
                 type: "milaboratories.clonotype-clustering.sequences",
-                importance: 105,
+                importance: 35,
                 label: text.join(usedSequenceLabels, " - ")
             },
             {
                 type: "milaboratories.clonotype-clustering.clustering",
-                importance: 100,
+                importance: 30,
                 label: traceLabel
             })
 
