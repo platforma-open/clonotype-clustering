@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.22.1
+
+### Patch Changes
+
+- 8f3a04e: Support parquet format (update SDK)
+
 ## 3.22.0
 
 ### Minor Changes
