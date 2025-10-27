@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.11.6
+
+### Patch Changes
+
+- c2f4dea: update graph-maker version
+
 ## 3.11.5
 
 ### Patch Changes
