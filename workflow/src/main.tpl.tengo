@@ -8,8 +8,7 @@ maps := import("@platforma-sdk/workflow-tengo:maps")
 slices := import("@platforma-sdk/workflow-tengo:slices")
 render := import("@platforma-sdk/workflow-tengo:render")
 clusteringTpl := assets.importTemplate(":clustering")
-
-emptyCheckSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:empty-check")
+emptyCheckTpl := assets.importTemplate(":empty-check")
 
 // Write query function
 doQuery := func(wf, args) {
@@ -90,23 +89,13 @@ wf.body(func(args) {
 	}
 	seqTable := seqTableBuilder.build()
 
-	// Run script to check if input table is emptyAdd commentMore actions
-	emptyCheck := exec.builder().
-			software(emptyCheckSw).
-			mem("16GiB").
-			cpu(1).
-			addFile("sequences.tsv", seqTable).
-			arg("--output-dir").arg(".").
-			arg("--input").arg("sequences.tsv").
-			arg("--input-separator").arg("\t").
-			saveFileContent("isFileEmpty.txt").
-			printErrStreamToStdout().
-			saveStdoutContent().
-			cache(24 * 60 * 60 * 1000).
-			run()
-
+	// Check if input pcols are empty
+	emptyCheckAnalysis := render.create(emptyCheckTpl, {
+		seqTable: seqTable
+	})
+	
 	// get check content to be resolved in sub-templateAdd commentMore actions
-	emptyOrNot := emptyCheck.getFileContent("isFileEmpty.txt")
+	emptyOrNot := emptyCheckAnalysis.output("emptyResult")
 
 	/////////// Run clustering template ///////////
 	// Analysis will only run if result from emptyOrNot is "notEmpty"
@@ -121,11 +110,13 @@ wf.body(func(args) {
 		coverageThreshold: args.coverageThreshold,
 		coverageMode: args.coverageMode,
 		sequencesRef: sequencesRef,
-		blockId: blockId,
 		trimStart: args.trimStart,
 		trimEnd: args.trimEnd,
-		mem: args.mem,
-		cpu: args.cpu
+		metaInputs: {
+			mem: args.mem,
+			cpu: args.cpu,
+			blockId: blockId
+		}
 	})
 
 	// Gather results from clusteringAnalysis template

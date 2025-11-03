@@ -35,11 +35,14 @@ self.validateInputs({
     coverageThreshold: "number",
     coverageMode: "number",
     sequencesRef: "any",
-    blockId: "string",
     "trimStart,?": "number",
     "trimEnd,?": "number",
-    "mem,?": "number",
-    "cpu,?": "number"
+    metaInputs: {
+        "__options__,closed": "",
+        "blockId,omitempty": "string",
+        "mem,?": "number",
+        "cpu,?": "number"
+    }
 })
 
 self.defineOutputs("clustersPf", "bubblePlotPf", "msaPf", "pf", "clusterAbundanceSpec", "mmseqs", "mmseqsOutput", "isEmpty")
@@ -63,7 +66,7 @@ self.body(func(inputs) {
     coverageThreshold := inputs.coverageThreshold
     coverageMode := inputs.coverageMode
     sequencesRef := inputs.sequencesRef
-    blockId := inputs.blockId
+    blockId := inputs.metaInputs.blockId
     // Treat undefined trimming values as zero (no trimming)
     trimStart := is_undefined(inputs.trimStart) ? 0 : inputs.trimStart
     trimEnd := is_undefined(inputs.trimEnd) ? 0 : inputs.trimEnd
@@ -117,11 +120,11 @@ self.body(func(inputs) {
         mem := "32GiB" // @TODO: set based on the size of the input
 	    cpu := 16
 
-        if !is_undefined(inputs.mem) {
-            mem = string(inputs.mem) + "GiB"
+        if !is_undefined(inputs.metaInputs.mem) {
+            mem = string(inputs.metaInputs.mem) + "GiB"
         }
-        if !is_undefined(inputs.cpu) {
-            cpu = inputs.cpu
+        if !is_undefined(inputs.metaInputs.cpu) {
+            cpu = inputs.metaInputs.cpu
         }
 
         // run mmseqs2
