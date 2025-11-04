@@ -9,6 +9,7 @@ slices := import("@platforma-sdk/workflow-tengo:slices")
 render := import("@platforma-sdk/workflow-tengo:render")
 clusteringTpl := assets.importTemplate(":clustering")
 emptyCheckTpl := assets.importTemplate(":empty-check")
+buildResults := assets.importTemplate(":build-results")
 
 // Write query function
 doQuery := func(wf, args) {
@@ -114,20 +115,54 @@ wf.body(func(args) {
 		trimEnd: args.trimEnd,
 		metaInputs: {
 			mem: args.mem,
-			cpu: args.cpu,
+			cpu: args.cpu
+		}
+	})
+
+	// Gather raw results from clusteringAnalysis template
+	mmseqs := clusteringAnalysis.output("mmseqs")
+	mmseqsOutput := clusteringAnalysis.output("mmseqsOutput")
+	isEmpty := clusteringAnalysis.output("isEmpty")
+
+	// Build pFrames using the library
+	defaultConvMem := "16GiB"
+	defaultConvCpu := 1
+	trimStart := is_undefined(args.trimStart) ? 0 : args.trimStart
+	trimEnd := is_undefined(args.trimEnd) ? 0 : args.trimEnd
+
+	builtResults := render.create(buildResults, {
+		emptyOrNot: emptyOrNot,
+		abundances: clusteringAnalysis.output("abundances"),
+		clusterToSeq: clusteringAnalysis.output("clusterToSeq"),
+		cloneToCluster: clusteringAnalysis.output("cloneToCluster"),
+		abundancesPerCluster: clusteringAnalysis.output("abundancesPerCluster"),
+		distanceToCentroid: clusteringAnalysis.output("distanceToCentroid"),
+		clusterRadius: clusteringAnalysis.output("clusterRadius"),
+		clusterToSeqTop: clusteringAnalysis.output("clusterToSeqTop"),
+		clusterRadiusTop: clusteringAnalysis.output("clusterRadiusTop"),
+		abundancesTop: clusteringAnalysis.output("abundancesTop"),
+		trimmedSequences: clusteringAnalysis.output("trimmedSequences"),
+		datasetSpec: datasetSpec,
+		abundanceSpec: abundanceSpec,
+		columns: doQuery(wf, args),
+		sequencesRef: sequencesRef,
+		trimStart: trimStart,
+		trimEnd: trimEnd,
+		identity: args.identity,
+		similarityType: args.similarityType,
+		coverageThreshold: args.coverageThreshold,
+		defaultConvMem: defaultConvMem,
+		defaultConvCpu: defaultConvCpu,
+		metaInputs: {
 			blockId: blockId
 		}
 	})
 
-	// Gather results from clusteringAnalysis template
-	clustersPf := clusteringAnalysis.output("clustersPf", 24 * 60 * 60 * 1000)
-	bubblePlotPf := clusteringAnalysis.output("bubblePlotPf", 24 * 60 * 60 * 1000)
-	msaPf := clusteringAnalysis.output("msaPf", 24 * 60 * 60 * 1000)
-	pf := clusteringAnalysis.output("pf", 24 * 60 * 60 * 1000)
-	clusterAbundanceSpec := clusteringAnalysis.output("clusterAbundanceSpec", 24 * 60 * 60 * 1000)
-	mmseqs := clusteringAnalysis.output("mmseqs", 24 * 60 * 60 * 1000)
-	mmseqsOutput := clusteringAnalysis.output("mmseqsOutput", 24 * 60 * 60 * 1000)
-	isEmpty := clusteringAnalysis.output("isEmpty", 24 * 60 * 60 * 1000)
+	clustersPf := builtResults.output("clustersPf")
+	bubblePlotPf := builtResults.output("bubblePlotPf")
+	msaPf := builtResults.output("msaPf")
+	pf := builtResults.output("pf")
+	clusterAbundanceSpec := builtResults.output("clusterAbundanceSpec")
 
 	return {
 		outputs: {
@@ -146,6 +181,16 @@ wf.body(func(args) {
 			// NOTE: mmseqs2 produces different results for same input (different line order)
 			mmseqs: mmseqs,
 			mmseqsOutput: mmseqsOutput,
+			abundances: clusteringAnalysis.output("abundances"),
+			clusterToSeq: clusteringAnalysis.output("clusterToSeq"),
+			cloneToCluster: clusteringAnalysis.output("cloneToCluster"),
+			abundancesPerCluster: clusteringAnalysis.output("abundancesPerCluster"),
+			distanceToCentroid: clusteringAnalysis.output("distanceToCentroid"),
+			clusterRadius: clusteringAnalysis.output("clusterRadius"),
+			clusterToSeqTop: clusteringAnalysis.output("clusterToSeqTop"),
+			clusterRadiusTop: clusteringAnalysis.output("clusterRadiusTop"),
+			abundancesTop: clusteringAnalysis.output("abundancesTop"),
+			trimmedSequences: clusteringAnalysis.output("trimmedSequences"),
 			isEmpty: isEmpty
 		},
 		exports: {
