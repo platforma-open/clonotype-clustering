@@ -147,7 +147,8 @@ wf.body(func(args) {
 		sequencesRef: sequencesRef,
 		trimStart: args.trimStart,
 		trimEnd: args.trimEnd
-	}, {metaInputs: {
+	}, {
+		metaInputs: {
 			mem: args.mem,
 			cpu: args.cpu
 	}})
