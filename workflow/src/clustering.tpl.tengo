@@ -7,6 +7,7 @@ pframes := import("@platforma-sdk/workflow-tengo:pframes")
 prepareFastaSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:prepare-fasta")
 processResultsSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:process-results")
 mmseqsSw := assets.importSoftware("@platforma-open/soedinglab.software-mmseqs2:main")
+createEmptyFilesSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:create-empty-files")
 
 self.validateInputs({
 	"__options__,closed": "",
@@ -49,18 +50,45 @@ self.body(func(inputs) {
     perChainTrim := isSingleCell && len(sequencesRef) > 1
 
 	if string(inputs.emptyOrNot.getData()) == "empty" {
-		// If matrix is not full rank return empty objects
+		// Create empty files with proper column headers
+		numSequences := len(sequencesRef)
+		
+		emptyFilesBuilder := exec.builder().
+			software(createEmptyFilesSw).
+			mem("1GiB").
+			cpu(1).
+			arg("--num-sequences").arg(string(numSequences)).
+			arg("--trim-start").arg(string(trimStart)).
+			arg("--trim-end").arg(string(trimEnd))
+		
+		if isSingleCell {
+			emptyFilesBuilder = emptyFilesBuilder.arg("--is-single-cell")
+		}
+		
+		emptyFiles := emptyFilesBuilder.
+			saveFile("abundances.tsv").
+			saveFile("cluster-to-seq.tsv").
+			saveFile("clone-to-cluster.tsv").
+			saveFile("abundances-per-cluster.tsv").
+			saveFile("distance_to_centroid.tsv").
+			saveFile("cluster-radius.tsv").
+			saveFile("cluster-to-seq-top.tsv").
+			saveFile("cluster-radius-top.tsv").
+			saveFile("abundances-top.tsv").
+			saveFile("trimmed-sequences.tsv").
+			run()
+		
 		return {
-			abundances: {},
-			clusterToSeq: {},
-			cloneToCluster: {},
-			abundancesPerCluster: {},
-			distanceToCentroid: {},
-			clusterRadius: {},
-			clusterToSeqTop: {},
-			clusterRadiusTop: {},
-			abundancesTop: {},
-			trimmedSequences: {},
+			abundances: emptyFiles.getFile("abundances.tsv"),
+			clusterToSeq: emptyFiles.getFile("cluster-to-seq.tsv"),
+			cloneToCluster: emptyFiles.getFile("clone-to-cluster.tsv"),
+			abundancesPerCluster: emptyFiles.getFile("abundances-per-cluster.tsv"),
+			distanceToCentroid: emptyFiles.getFile("distance_to_centroid.tsv"),
+			clusterRadius: emptyFiles.getFile("cluster-radius.tsv"),
+			clusterToSeqTop: emptyFiles.getFile("cluster-to-seq-top.tsv"),
+			clusterRadiusTop: emptyFiles.getFile("cluster-radius-top.tsv"),
+			abundancesTop: emptyFiles.getFile("abundances-top.tsv"),
+			trimmedSequences: emptyFiles.getFile("trimmed-sequences.tsv"),
             mmseqs: mmseqs,
             mmseqsOutput: mmseqsOutput,
 			isEmpty: true
