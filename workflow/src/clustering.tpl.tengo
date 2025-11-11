@@ -12,9 +12,8 @@ self.validateInputs({
 	"__options__,closed": "",
     emptyOrNot: "any",
     seqTable: "any",
-    columns: "any",
-    datasetSpec: "any",
-    abundanceSpec: "any",
+    cloneTable: "any",
+    isSingleCell: "boolean",
     identity: "number",
     similarityType: "string",
     coverageThreshold: "number",
@@ -22,14 +21,11 @@ self.validateInputs({
     sequencesRef: "any",
     "trimStart,?": "number",
     "trimEnd,?": "number",
-    metaInputs: {
-        "__options__,closed": "",
-        "mem,?": "number",
-        "cpu,?": "number"
-    }
+    "mem,?": "number",
+    "cpu,?": "number"
 })
 
-self.defineOutputs("abundances", "clusterToSeq", "cloneToCluster", "abundancesPerCluster", "distanceToCentroid", "clusterRadius", "clusterToSeqTop", "clusterRadiusTop", "abundancesTop", "trimmedSequences", "result", "mmseqs", "mmseqsOutput", "isEmpty")
+self.defineOutputs("abundances", "clusterToSeq", "cloneToCluster", "abundancesPerCluster", "distanceToCentroid", "clusterRadius", "clusterToSeqTop", "clusterRadiusTop", "abundancesTop", "trimmedSequences", "mmseqs", "mmseqsOutput", "isEmpty")
 
 self.body(func(inputs) {
     result := {}
@@ -38,9 +34,7 @@ self.body(func(inputs) {
 	isEmpty := false
 
     seqTable := inputs.seqTable
-    columns := inputs.columns
-    datasetSpec := inputs.datasetSpec
-    abundanceSpec := inputs.abundanceSpec
+    cloneTable := inputs.cloneTable
     identity := inputs.identity
     similarityType := inputs.similarityType
     coverageThreshold := inputs.coverageThreshold
@@ -51,7 +45,7 @@ self.body(func(inputs) {
     trimEnd := is_undefined(inputs.trimEnd) ? 0 : inputs.trimEnd
 
     // Determine if single-cell and likely two chains selected
-    isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
+    isSingleCell := inputs.isSingleCell
     perChainTrim := isSingleCell && len(sequencesRef) > 1
 
 	if string(inputs.emptyOrNot.getData()) == "empty" {
@@ -67,7 +61,6 @@ self.body(func(inputs) {
 			clusterRadiusTop: {},
 			abundancesTop: {},
 			trimmedSequences: {},
-			result: result,
             mmseqs: mmseqs,
             mmseqsOutput: mmseqsOutput,
 			isEmpty: true
@@ -98,11 +91,11 @@ self.body(func(inputs) {
         mem := "32GiB" // @TODO: set based on the size of the input
 	    cpu := 16
 
-        if !is_undefined(inputs.metaInputs.mem) {
-            mem = string(inputs.metaInputs.mem) + "GiB"
+        if !is_undefined(inputs.mem) {
+            mem = string(inputs.mem) + "GiB"
         }
-        if !is_undefined(inputs.metaInputs.cpu) {
-            cpu = inputs.metaInputs.cpu
+        if !is_undefined(inputs.cpu) {
+            cpu = inputs.cpu
         }
 
         // run mmseqs2
@@ -132,30 +125,7 @@ self.body(func(inputs) {
         mmseqsOutput := mmseqs.getStdoutStream()
 
         /******* Step 2: aggregate all data and generate results *******/
-        cloneTableBuilder := pframes.tsvFileBuilder()
-        cloneTableBuilder.add(columns.getColumn("abundance"), {header: "abundance"})
-
-        for nr, seq in sequencesRef {
-            cloneTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
-        }
-
-        // Get the array of label columns using the correct method
-	    clonotypeKeyLabelsArray := columns.getColumns("clonotypeKeyLabels")
-
-        // Check if we have any label columns and use the first one
-        if len(clonotypeKeyLabelsArray) > 0 {
-            cloneTableBuilder.add(clonotypeKeyLabelsArray[0], {header: "clonotypeKeyLabel"})
-        } else {
-            // Handle case where no label columns found
-            ll.panic("No clonotype key label columns found")
-        }
-        // cloneTable.add("VGene", {header: "VGene"})
-        // cloneTable.add("JGene", {header: "JGene"})
-        cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[0].name, "sampleId")
-        cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[1].name, "clonotypeKey")
-        cloneTableBuilder.mem("32GiB") // @TODO: set based on the size of the input
-	    cloneTableBuilder.cpu(4) // @TODO: set based on the size of the input
-        cloneTable := cloneTableBuilder.build()
+        
 
 
         resultBuilder := exec.builder().
@@ -196,9 +166,6 @@ self.body(func(inputs) {
 			clusterRadiusTop: result.getFile("cluster-radius-top.tsv"),
 			abundancesTop: result.getFile("abundances-top.tsv"),
 			trimmedSequences: result.getFile("trimmed-sequences.tsv"),
-			// Return execution result object to enable deduplication
-			// The result object itself deduplicates based on execution inputs
-			result: result,
 			// save mmseqs2 result in the output to enable deduplication of mmseqs2 run
 			// NOTE: mmseqs2 produces different results for same input (different line order)
 			mmseqs: clusters,

@@ -7,12 +7,25 @@ pframes := import("@platforma-sdk/workflow-tengo:pframes")
 maps := import("@platforma-sdk/workflow-tengo:maps")
 slices := import("@platforma-sdk/workflow-tengo:slices")
 render := import("@platforma-sdk/workflow-tengo:render")
+pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
+ll := import("@platforma-sdk/workflow-tengo:ll")
+
+text := import("text")
+
 clusteringTpl := assets.importTemplate(":clustering")
 emptyCheckTpl := assets.importTemplate(":empty-check")
-buildResults := assets.importTemplate(":build-results")
 
-// Write query function
-doQuery := func(wf, args) {
+setTableProps := func(spec, label, visibility, orderPriority) {
+	return maps.deepMerge(spec, {
+		annotations: {
+			"pl7.app/label": label,
+			"pl7.app/table/visibility": visibility ? "default" : "optional",
+			"pl7.app/table/orderPriority": orderPriority
+		}
+	})
+}
+
+wf.prepare(func(args) {
 	bundleBuilder := wf.createPBundleBuilder()
 	bundleBuilder.ignoreMissingDomains() // to make query work for both bulk and single cell data
 	bundleBuilder.addAnchor("main", args.datasetRef)
@@ -56,15 +69,10 @@ doQuery := func(wf, args) {
 			axes: [{ anchor: "main", idx: 1 }],
 			name: "pl7.app/label"
 		}, "clonotypeKeyLabels")
-
-	return bundleBuilder.build()
-}
-
-wf.prepare(func(args) {
-
+			
 	return {
-		columns: doQuery(wf, args)
-		}
+		columns: bundleBuilder.build()
+	}
 })
 
 wf.body(func(args) {
@@ -76,6 +84,10 @@ wf.body(func(args) {
 	columns := args.columns
 	datasetSpec := columns.getSpec(args.datasetRef)
 	abundanceSpec := columns.getSpec("abundance")
+
+	isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
+	defaultConvMem := "16GiB"
+	defaultConvCpu := 1
 
 	// sType := args.sequenceType == "aminoacid" ? "aa" : "nt"
 
@@ -98,26 +110,47 @@ wf.body(func(args) {
 	// get check content to be resolved in sub-templateAdd commentMore actions
 	emptyOrNot := emptyCheckAnalysis.output("emptyResult")
 
+	// clone table
+	cloneTableBuilder := pframes.tsvFileBuilder()
+	cloneTableBuilder.add(columns.getColumn("abundance"), {header: "abundance"})
+	for nr, seq in sequencesRef {
+		cloneTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
+	}
+	// Get the array of label columns using the correct method
+	clonotypeKeyLabelsArray := columns.getColumns("clonotypeKeyLabels")
+	// Check if we have any label columns and use the first one
+	if len(clonotypeKeyLabelsArray) > 0 {
+		cloneTableBuilder.add(clonotypeKeyLabelsArray[0], {header: "clonotypeKeyLabel"})
+	} else {
+		// Handle case where no label columns found
+		ll.panic("No clonotype key label columns found")
+	}
+	// cloneTable.add("VGene", {header: "VGene"})
+	// cloneTable.add("JGene", {header: "JGene"})
+	cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[0].name, "sampleId")
+	cloneTableBuilder.setAxisHeader(abundanceSpec.axesSpec[1].name, "clonotypeKey")
+	cloneTableBuilder.mem("32GiB") // @TODO: set based on the size of the input
+	cloneTableBuilder.cpu(4) // @TODO: set based on the size of the input
+	cloneTable := cloneTableBuilder.build()
+
 	/////////// Run clustering template ///////////
 	// Analysis will only run if result from emptyOrNot is "notEmpty"
 	clusteringAnalysis := render.create(clusteringTpl, {
 		emptyOrNot: emptyOrNot,
 		seqTable: seqTable,
-		columns: doQuery(wf, args),
-		datasetSpec: datasetSpec,
-		abundanceSpec: abundanceSpec,
+		cloneTable: cloneTable,
+		isSingleCell: isSingleCell,
 		identity: args.identity,
 		similarityType: args.similarityType,
 		coverageThreshold: args.coverageThreshold,
 		coverageMode: args.coverageMode,
 		sequencesRef: sequencesRef,
 		trimStart: args.trimStart,
-		trimEnd: args.trimEnd,
-		metaInputs: {
+		trimEnd: args.trimEnd
+	}, {metaInputs: {
 			mem: args.mem,
 			cpu: args.cpu
-		}
-	})
+	}})
 
 	// Gather raw results from clusteringAnalysis template
 	mmseqs := clusteringAnalysis.output("mmseqs")
@@ -125,55 +158,435 @@ wf.body(func(args) {
 	isEmpty := clusteringAnalysis.output("isEmpty")
 
 	// Build pFrames using the library
-	defaultConvMem := "16GiB"
-	defaultConvCpu := 1
 	trimStart := is_undefined(args.trimStart) ? 0 : args.trimStart
 	trimEnd := is_undefined(args.trimEnd) ? 0 : args.trimEnd
 
-	builtResults := render.create(buildResults, {
-		emptyOrNot: emptyOrNot,
-		abundances: clusteringAnalysis.output("abundances"),
-		clusterToSeq: clusteringAnalysis.output("clusterToSeq"),
-		cloneToCluster: clusteringAnalysis.output("cloneToCluster"),
-		abundancesPerCluster: clusteringAnalysis.output("abundancesPerCluster"),
-		distanceToCentroid: clusteringAnalysis.output("distanceToCentroid"),
-		clusterRadius: clusteringAnalysis.output("clusterRadius"),
-		clusterToSeqTop: clusteringAnalysis.output("clusterToSeqTop"),
-		clusterRadiusTop: clusteringAnalysis.output("clusterRadiusTop"),
-		abundancesTop: clusteringAnalysis.output("abundancesTop"),
-		trimmedSequences: clusteringAnalysis.output("trimmedSequences"),
-		datasetSpec: datasetSpec,
-		abundanceSpec: abundanceSpec,
-		columns: doQuery(wf, args),
-		sequencesRef: sequencesRef,
-		trimStart: trimStart,
-		trimEnd: trimEnd,
-		identity: args.identity,
-		similarityType: args.similarityType,
-		coverageThreshold: args.coverageThreshold,
-		defaultConvMem: defaultConvMem,
-		defaultConvCpu: defaultConvCpu,
-		metaInputs: {
-			blockId: blockId
-		}
-	})
+	// Get used sequences annotation labels
+	usedSequenceLabels := []
+	for nr, seq in sequencesRef {
+		usedSequenceLabels = append(usedSequenceLabels, columns.getSpec(seq).annotations["pl7.app/label"])
+	}
+	usedSequenceLabels = slices.quickSort(usedSequenceLabels)
 
-	clustersPf := builtResults.output("clustersPf")
-	bubblePlotPf := builtResults.output("bubblePlotPf")
-	msaPf := builtResults.output("msaPf")
-	pf := builtResults.output("pf")
-	clusterAbundanceSpec := builtResults.output("clusterAbundanceSpec")
+	clusterIdAxisSpec := {
+		name: "pl7.app/vdj/clusterId",
+		type: "String",
+		domain: maps.deepMerge(datasetSpec.axesSpec[1].domain,
+		{
+			"pl7.app/vdj/clustering/algorithm": "mmseqs2",
+			"pl7.app/vdj/clustering/blockId": blockId
+		}),
+		annotations: {
+			"pl7.app/label": "Cluster Id",
+			"pl7.app/table/visibility": "default",
+			"pl7.app/table/orderPriority": "990000"
+		}
+	}
+
+	ac := {
+		name: abundanceSpec.name,
+		valueType: abundanceSpec.valueType,
+		domain: abundanceSpec.domain,
+		annotations: abundanceSpec.annotations
+	}
+
+	abundanceLabel := abundanceSpec.annotations["pl7.app/label"]
+
+	abundancesPf := xsv.importFile(clusteringAnalysis.output("abundances"), "tsv", {
+		axes: [{
+			column: "sampleId",
+			spec: abundanceSpec.axesSpec[0]
+		}, {
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: [{
+			column: "abundance",
+			spec: setTableProps(ac, abundanceLabel + " in Cluster", false, undefined)
+		},
+		{
+			column: "abundance_normalized",
+			spec: setTableProps(maps.deepMerge(ac, {
+				valueType: "Float",
+				annotations: {
+					"pl7.app/abundance/normalized": "true"
+				}
+			}), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
+		}],
+		storageFormat: "Parquet",
+		partitionKeyLength: 1
+	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+	abundancesPerClusterPf := xsv.importFile(clusteringAnalysis.output("abundancesPerCluster"), "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: [{
+			column: "abundance_per_cluster",
+			spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", false, undefined)
+		}],
+		storageFormat: "Parquet",
+		partitionKeyLength: 0
+	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+	cloneToClusterPf := xsv.importFile(clusteringAnalysis.output("cloneToCluster"), "tsv", {
+		axes: [{
+			column: "clonotypeKey",
+			spec: datasetSpec.axesSpec[1]
+		}],
+		columns: [{
+			column: "clusterLabel",
+			spec: setTableProps({
+				name: "pl7.app/vdj/clusterId",
+				valueType: "String",
+				domain: clusterIdAxisSpec.domain,
+				annotations: clusterIdAxisSpec.annotations
+			}, "Cluster Id", false, undefined)
+		}],
+		storageFormat: "Parquet",
+		partitionKeyLength: 0
+	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+	cloneToClusterLinkPf := xsv.importFile(clusteringAnalysis.output("cloneToCluster"), "tsv", {
+		axes: [{
+			column: "clonotypeKey",
+			spec: datasetSpec.axesSpec[1]
+		}, {
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: [{
+			column: "link",
+			spec: setTableProps({
+				name: "pl7.app/vdj/link",
+				valueType: "Int",
+				annotations: {
+					"pl7.app/isLinkerColumn": "true"
+				}
+			}, "Clone to cluster link", false, undefined)
+		}],
+		storageFormat: "Parquet",
+		partitionKeyLength: 0
+	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+	seqColumns := [
+	{
+		column: "size",
+		spec: {
+			name: "pl7.app/vdj/clustering/clusterSize",
+			valueType: "Int",
+			annotations: {
+				"pl7.app/label": "Cluster Size"
+			}
+		}
+	}, {
+		column: "clusterLabel",
+		spec: {
+			name: "pl7.app/label",
+			valueType: "String",
+			annotations: {
+				"pl7.app/label": "Cluster Id"
+			}
+		}
+	}]
+
+	// Add sequence columns
+	for nr, seq in sequencesRef {
+		spec := maps.clone(columns.getSpec(seq))
+		spec.annotations["pl7.app/label"] = "Centroid " + spec.annotations["pl7.app/label"]
+
+		delete(spec.annotations, "pl7.app/vdj/imputed")
+		delete(spec.annotations, "pl7.app/vdj/isAssemblingFeature")
+		delete(spec.annotations, "pl7.app/vdj/isMainSequence")
+
+		seqColumns = append(seqColumns, {
+			column: "sequence_" + string(nr),
+			spec: setTableProps({
+				name: spec.name,
+				valueType: spec.valueType,
+				domain: spec.domain,
+				annotations: spec.annotations
+			}, spec.annotations["pl7.app/label"], true, "10")
+		})
+	}
+
+	// For single cell, add per-chain trimmed columns when trimming is enabled; for bulk add one trimmed
+	if (trimStart > 0) || (trimEnd > 0) {
+		isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
+		if isSingleCell {
+			for nr, seq in sequencesRef {
+				baseSpec := maps.clone(columns.getSpec(seq))
+				delete(baseSpec.annotations, "pl7.app/vdj/imputed")
+				delete(baseSpec.annotations, "pl7.app/vdj/isAssemblingFeature")
+				delete(baseSpec.annotations, "pl7.app/vdj/isMainSequence")
+				baseSpec.annotations["pl7.app/label"] = "Centroid trimmed " + baseSpec.annotations["pl7.app/label"]
+				seqColumns = append(seqColumns, {
+					column: "trim_" + ("sequence_" + string(nr)),
+					spec: setTableProps({
+						name: baseSpec.name,
+						valueType: baseSpec.valueType,
+						domain: baseSpec.domain,
+						annotations: baseSpec.annotations
+					}, baseSpec.annotations["pl7.app/label"], true, "11")
+				})
+			}
+		} else if len(sequencesRef) > 0 {
+			baseSpec := maps.clone(columns.getSpec(sequencesRef[0]))
+			delete(baseSpec.annotations, "pl7.app/vdj/imputed")
+			delete(baseSpec.annotations, "pl7.app/vdj/isAssemblingFeature")
+			delete(baseSpec.annotations, "pl7.app/vdj/isMainSequence")
+			// Derive label parts
+			feature := baseSpec.domain["pl7.app/vdj/feature"]
+			alphabet := baseSpec.domain["pl7.app/alphabet"]
+			alphaSuffix := (alphabet == "aminoacid" ? " aa" : (alphabet == "nucleotide" ? " nt" : ""))
+			baseSpec.annotations["pl7.app/label"] = "Centroid trimmed " + string(feature) + alphaSuffix
+			seqColumns = append(seqColumns, {
+				column: "trimmed_fullSequence",
+				spec: setTableProps({
+					name: baseSpec.name,
+					valueType: baseSpec.valueType,
+					domain: baseSpec.domain,
+					annotations: baseSpec.annotations
+				}, baseSpec.annotations["pl7.app/label"], true, "11")
+			})
+		}
+	}
+
+	clusterToSeqPf := xsv.importFile(clusteringAnalysis.output("clusterToSeq"), "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: seqColumns,
+		storageFormat: "Parquet",
+		partitionKeyLength: 0
+	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+	distancesPf := xsv.importFile(clusteringAnalysis.output("distanceToCentroid"), "tsv", {
+		axes: [{
+			column: "clonotypeKey",
+			spec: datasetSpec.axesSpec[1]
+		}],
+		columns: [{
+			column: "distanceToCentroid",
+			spec: setTableProps({
+				name: "pl7.app/vdj/distanceToCentroid",
+				valueType: "Float",
+				annotations: {
+					"pl7.app/min": "0",
+					"pl7.app/max": "1",
+					"pl7.app/rankingOrder": "decreasing",
+					"pl7.app/format": ".2f"
+				}
+			}, "Distance to centroid", false, undefined)
+		}],
+		storageFormat: "Parquet",
+		partitionKeyLength: 0
+	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+	clusterRadiusPf := xsv.importFile(clusteringAnalysis.output("clusterRadius"), "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: [{
+			column: "clusterRadius",
+			spec: setTableProps({
+				name: "pl7.app/vdj/clustering/clusterRadius",
+				valueType: "Float",
+				annotations: {
+					"pl7.app/rankingOrder": "decreasing",
+					"pl7.app/min": "0",
+					"pl7.app/max": "1",
+					"pl7.app/format": ".2f"
+				}
+			}, "Cluster radius", true, undefined)
+		}],
+		storageFormat: "Parquet",
+		partitionKeyLength: 0
+	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+	// building outputs & exports
+
+	// Create informative label with relevant clustering parameters
+	identityStr := string(args.identity)
+	coverageStr := string(args.coverageThreshold)
+	similarityTypeStr := args.similarityType == "sequence-identity" ? "Exact Match" : "BLOSUM"
+	
+	traceLabel := "Clustering (sim:" + similarityTypeStr + ", ident:" + identityStr + ", cov:" + coverageStr + ")"
+	
+	trace := pSpec.makeTrace(abundanceSpec,
+		{
+			type: "milaboratories.clonotype-clustering.sequences",
+			importance: 35,
+			label: text.join(usedSequenceLabels, " - ")
+		},
+		{
+			type: "milaboratories.clonotype-clustering.clustering",
+			importance: 30,
+			label: traceLabel
+		})
+
+	// Build output pFrame for block table
+	opf := pframes.pFrameBuilder()
+	for pf in [clusterToSeqPf, clusterRadiusPf] {
+		for k, v in pf {
+			if k == "clusterLabel" {
+				continue  // avoid putting label into the outputs as it will be already in exports
+			}
+			opf.add(k, trace.inject(v.spec), v.data)
+		}
+	}
+	opf = opf.build()
+
+	// Generate pFrames for bubble plot with top clusters
+	abundancesTopPf := xsv.importFile(clusteringAnalysis.output("abundancesTop"), "tsv", {
+			axes: [{
+				column: "sampleId",
+				spec: abundanceSpec.axesSpec[0]
+			}, {
+				column: "clusterId",
+				spec: clusterIdAxisSpec
+			}],
+			columns: [{
+				column: "abundance",
+				spec: setTableProps(ac, abundanceLabel + " in Cluster", false, undefined)
+			},
+			{
+				column: "abundance_normalized",
+				spec: setTableProps(maps.deepMerge(ac, {
+					valueType: "Float",
+					annotations: {
+						"pl7.app/abundance/normalized": "true"
+					}
+				}), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
+			}],
+			storageFormat: "Parquet",
+			partitionKeyLength: 1
+		}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+	clusterToSeqTopPf := xsv.importFile(clusteringAnalysis.output("clusterToSeqTop"), "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: seqColumns,
+		storageFormat: "Parquet",
+		partitionKeyLength: 0
+	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+	clusterRadiusTopPf := xsv.importFile(clusteringAnalysis.output("clusterRadiusTop"), "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}],
+		columns: [{
+			column: "clusterRadius",
+			spec: setTableProps({
+				name: "pl7.app/vdj/clustering/clusterRadius",
+				valueType: "Float",
+				annotations: {
+					"pl7.app/rankingOrder": "decreasing",
+					"pl7.app/min": "0",
+					"pl7.app/max": "1",
+					"pl7.app/format": ".2f"
+				}
+			}, "Cluster radius", true, undefined)
+		}],
+		storageFormat: "Parquet",
+		partitionKeyLength: 0
+	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+	bubblePlotPfBuilder := pframes.pFrameBuilder()
+	for pf in [abundancesTopPf, clusterToSeqTopPf, clusterRadiusTopPf] {
+		for k, v in pf {
+			bubblePlotPfBuilder.add(k, trace.inject(v.spec), v.data)
+		}
+	}
+	bubblePlotPf := bubblePlotPfBuilder.build()
+
+	// Generate pFrames with sequences for MSA
+	// Prefer trimmed sequences for MSA if present
+	// Build labels for each selected sequence and append " (trimmed)" only
+	trimmedLabels := []
+	for nr, seq in sequencesRef {
+		baseSpecForTrim := maps.clone(columns.getSpec(seq))
+		baseLabelForTrim := baseSpecForTrim.annotations["pl7.app/label"]
+		if !is_undefined(baseLabelForTrim) {
+			trimmedLabels = append(trimmedLabels, baseLabelForTrim + " (trimmed)")
+		} else {
+			trimmedLabels = append(trimmedLabels, "Sequence " + string(nr) + " (trimmed)")
+		}
+	}
+	trimmedSeqPf := xsv.importFile(clusteringAnalysis.output("trimmedSequences"), "tsv", {
+		axes: [{
+			column: "clonotypeKey",
+			spec: datasetSpec.axesSpec[1]
+		}],
+		columns: func() {
+			cols := []
+			// If per-chain trimmed columns are present, include them with per-chain labels
+			// We expect columns named like trim_sequence_0, trim_sequence_1, ...
+			// Try to detect up to the number of selected sequences
+			for nr, seq in sequencesRef {
+				cname := "trim_sequence_" + string(nr)
+				baseSpecForTrim := maps.clone(columns.getSpec(seq))
+				chain := baseSpecForTrim.domain["pl7.app/vdj/scClonotypeChain"]
+				chainIndex := baseSpecForTrim.domain["pl7.app/vdj/scClonotypeChain/index"]
+				cols = append(cols, {
+					column: cname,
+					spec: setTableProps({
+						name: "pl7.app/vdj/sequence",
+						valueType: "String",
+						domain: maps.deepMerge(datasetSpec.axesSpec[1].domain, {
+							"pl7.app/vdj/scClonotypeChain": chain,
+							"pl7.app/vdj/scClonotypeChain/index": chainIndex
+						}),
+						annotations: {
+							"pl7.app/sequence/trimmed": "true"
+						}
+					}, trimmedLabels[nr], true, "10")
+				})
+			}
+			return cols
+		}(),
+		storageFormat: "Parquet",
+		partitionKeyLength: 0
+	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+	msaPf := pframes.pFrameBuilder()
+	i := 0
+	for pf in [trimmedSeqPf, cloneToClusterLinkPf, distancesPf] {
+		for k, v in pf {
+			msaPf.add(k + string(i), trace.inject(v.spec), v.data)
+			i = i + 1
+		}
+	}
+	msaPf = msaPf.build()
+
+	epf := pframes.pFrameBuilder() 
+	i = 0
+	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf, distancesPf, clusterRadiusPf] {
+		for k, v in pf {
+			epf.add(k + string(i), trace.inject(v.spec), v.data) // label, specs, data
+			i = i + 1
+		}
+	}
+	epf = epf.build()
+
+	clusterAbundanceSpec := trace.inject(abundancesPf["abundance"].spec)
 
 	return {
 		outputs: {
 			// for table
-			clustersPf: pframes.exportFrame(clustersPf),
+			clustersPf: pframes.exportFrame(opf),
 			// for bubble plot
 			bubblePlotPf: pframes.exportFrame(bubblePlotPf),
 			// for MSA
 			msaPf: pframes.exportFrame(msaPf),
 			// pf for plots
-			pf: pframes.exportFrame(pf),
+			pf: pframes.exportFrame(epf),
 			// specs to outputs for visualization purposes
 			clusterAbundanceSpec: clusterAbundanceSpec,
 
@@ -194,7 +607,7 @@ wf.body(func(args) {
 			isEmpty: isEmpty
 		},
 		exports: {
-			pf: pf
+			pf: epf
 		}
 	}
 })
