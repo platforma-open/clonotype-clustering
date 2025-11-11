@@ -119,6 +119,7 @@ self.body(func(inputs) {
             arg("--similarity-type").arg(similarityType == "sequence-identity" ? "2" : "1").
             addFile("input.fasta", fasta.getFile("output.fasta")).
             saveFile("result_cluster.tsv").
+            saveStdoutStream().
             run()
 
         clusters := mmseqs.getFile("result_cluster.tsv")
