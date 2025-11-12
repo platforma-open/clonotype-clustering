@@ -158,12 +158,12 @@ const clusterAxis = computed<AxisId>(() => {
       </PlBtnGhost>
     </template>
     <PlAgDataTableV2
-      v-if="app.model.outputs.inputState === false"
       v-model="app.model.ui.tableState"
       :settings="tableSettings"
       :loading-text="tableLoadingText"
       not-ready-text="Data is not computed"
       :show-cell-button-for-axis-id="clusterAxis"
+      no-rows-text="No data available"
       @cell-button-clicked="onRowDoubleClicked"
     />
     <PlSlideModal v-model="settingsOpen" :close-on-outside-click="true">

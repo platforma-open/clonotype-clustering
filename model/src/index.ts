@@ -55,7 +55,7 @@ export const model = BlockModel.create()
     title: 'Clonotype Clustering',
     tableState: createPlDataTableStateV2(),
     graphStateBubble: {
-      title: 'Top Clusters Plot',
+      title: 'Most abundant clusters',
       template: 'bubble',
       currentTab: null,
       layersSettings: {
@@ -298,7 +298,7 @@ export const model = BlockModel.create()
 
   .sections((_ctx) => [
     { type: 'link', href: '/', label: 'Main' },
-    { type: 'link', href: '/bubble', label: 'Top Clusters Plot' },
+    { type: 'link', href: '/bubble', label: 'Most abundant clusters' },
     { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
   ])
 
