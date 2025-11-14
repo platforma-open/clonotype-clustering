@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.5.11
+
+### Patch Changes
+
+- 8af1a18: Block metadata updated.
+
 ## 2.5.10
 
 ### Patch Changes
