@@ -101,8 +101,6 @@ wf.body(func(args) {
 			arg("--input-separator").arg("\t").
 			saveFileContent("isFileEmpty.txt").
 			printErrStreamToStdout().
-			saveStdoutContent().
-			cache(24 * 60 * 60 * 1000).
 			run()
 
 	// get check content to be resolved in sub-templateAdd commentMore actions
