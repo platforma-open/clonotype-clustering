@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.22.3
+
+### Patch Changes
+
+- ef7d568: Fix StdoutStream
+
 ## 3.22.2
 
 ### Patch Changes

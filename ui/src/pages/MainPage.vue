@@ -14,12 +14,12 @@ import {
   PlDropdownRef,
   PlLogView,
   PlMaskIcon24,
-  PlMultiSequenceAlignment,
   PlNumberField,
   PlSectionSeparator,
   PlSlideModal,
   usePlDataTableSettingsV2,
 } from '@platforma-sdk/ui-vue';
+import { PlMultiSequenceAlignment } from '@milaboratories/multi-sequence-alignment';
 import { computed, reactive, ref, watch } from 'vue';
 import { useApp } from '../app';
 

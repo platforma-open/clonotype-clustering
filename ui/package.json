@@ -1,6 +1,6 @@
 {
   "name": "@platforma-open/milaboratories.clonotype-clustering.ui",
-  "version": "3.11.6",
+  "version": "3.11.7",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,7 @@
     "@platforma-sdk/ui-vue": "catalog:",
     "@platforma-sdk/model": "catalog:",
     "@milaboratories/graph-maker": "catalog:",
+    "@milaboratories/multi-sequence-alignment": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 {
   "name": "@platforma-open/milaboratories.clonotype-clustering",
-  "version": "2.5.8",
+  "version": "2.5.11",
   "scripts": {
     "pretty": "prettier --write \"./**/*.{js,jsx,mjs,cjs,ts,tsx,json,vue}\"",
     "build": "rm -rf ./block-pack && block-tools pack",
@@ -26,9 +26,9 @@
       "title": "Clonotype clustering",
       "logo": "file:../logos/block-logo.png",
       "url": "https://github.com/platforma-open/clonotype-clustering",
-      "docs": "https://github.com/platforma-open/clonotype-clustering/docs",
+      "docs": "https://docs.platforma.bio/guides/antibody-discovery/antibody-clustering/",
       "support": "mailto:support@milaboratories.com",
-      "description": "Fast, sequence-based clonotype clustering.",
+      "description": "Groups similar clonotypes into clusters based on sequence similarity using MMseqs2.",
       "longDescription": "file:../docs/description.md",
       "changelog": "file:../CHANGELOG.md",
       "tags": [
