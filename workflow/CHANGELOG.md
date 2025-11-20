@@ -1,5 +1,17 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.22.4
+
+### Patch Changes
+
+- 96aa1ed: refactor for deduplication
+- ff8ac39: refactor for deduplication
+- 938e2f0: Refactor code for deduplication
+- Updated dependencies [96aa1ed]
+- Updated dependencies [ff8ac39]
+- Updated dependencies [938e2f0]
+  - @platforma-open/milaboratories.clonotype-clustering.software@3.9.8
+
 ## 3.22.3
 
 ### Patch Changes

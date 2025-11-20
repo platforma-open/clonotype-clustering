@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.13.6
+
+### Patch Changes
+
+- ff8ac39: refactor for deduplication
+
 ## 2.13.5
 
 ### Patch Changes

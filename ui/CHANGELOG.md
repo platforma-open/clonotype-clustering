@@ -1,5 +1,14 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.11.8
+
+### Patch Changes
+
+- ff8ac39: refactor for deduplication
+- 938e2f0: Refactor code for deduplication
+- Updated dependencies [ff8ac39]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.13.6
+
 ## 3.11.7
 
 ### Patch Changes
