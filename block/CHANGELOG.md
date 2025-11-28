@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.5.13
+
+### Patch Changes
+
+- e652be3: Update SDK
+
 ## 2.5.12
 
 ### Patch Changes
