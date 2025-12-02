@@ -226,6 +226,42 @@ wf.body(func(args) {
 		columns: [{
 			column: "abundance_per_cluster",
 			spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", false, undefined)
+		},
+		{
+			column: "abundance_fraction_per_cluster",
+			spec: func() {
+				// Determine fraction name and unit based on abundance type
+				fractionName := "pl7.app/vdj/readFraction"
+				abundanceUnit := "reads"
+				if text.contains(ac.name, "uniqueMoleculeCount") {
+					fractionName = "pl7.app/vdj/uniqueMoleculeFraction"
+					abundanceUnit = "molecules"
+				} else if text.contains(ac.name, "readCount") {
+					fractionName = "pl7.app/vdj/readFraction"
+					abundanceUnit = "reads"
+				}
+				
+				abundanceFractionSpec := maps.deepMerge(ac, {
+					name: fractionName,
+					valueType: "Float",
+					annotations: {
+						"pl7.app/abundance/isPrimary": "true",
+						"pl7.app/abundance/normalized": "true",
+						"pl7.app/abundance/unit": abundanceUnit,
+						"pl7.app/format": ".2p",
+						"pl7.app/isAbundance": "true",
+						"pl7.app/max": "1",
+						"pl7.app/min": "0",
+						"pl7.app/isAnchor": undefined
+					}
+				})
+				resultSpec := setTableProps(abundanceFractionSpec, text.re_replace("Number of ", abundanceLabel, "") + " Fraction per Cluster", false, undefined)
+				// Filter out isAnchor annotation
+				resultSpec.annotations = maps.filter(resultSpec.annotations, func(k, v) {
+					return k != "pl7.app/isAnchor"
+				})
+				return resultSpec
+			}()
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 0
