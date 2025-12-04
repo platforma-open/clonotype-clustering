@@ -225,7 +225,7 @@ wf.body(func(args) {
 		}],
 		columns: [{
 			column: "abundance_per_cluster",
-			spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", false, undefined)
+			spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", true, "2")
 		},
 		{
 			column: "abundance_fraction_per_cluster",
@@ -255,7 +255,7 @@ wf.body(func(args) {
 						"pl7.app/isAnchor": undefined
 					}
 				})
-				resultSpec := setTableProps(abundanceFractionSpec, text.re_replace("Number of ", abundanceLabel, "") + " Fraction per Cluster", false, undefined)
+				resultSpec := setTableProps(abundanceFractionSpec, "Total " + text.re_replace("Number of ", abundanceLabel, "") + " Fraction in Cluster", true, "1")
 				// Filter out isAnchor annotation
 				resultSpec.annotations = maps.filter(resultSpec.annotations, func(k, v) {
 					return k != "pl7.app/isAnchor"
@@ -467,7 +467,7 @@ wf.body(func(args) {
 
 	// Build output pFrame for block table
 	opf := pframes.pFrameBuilder()
-	for pf in [clusterToSeqPf, clusterRadiusPf] {
+	for pf in [clusterToSeqPf, clusterRadiusPf, abundancesPerClusterPf] {
 		for k, v in pf {
 			if k == "clusterLabel" {
 				continue  // avoid putting label into the outputs as it will be already in exports
