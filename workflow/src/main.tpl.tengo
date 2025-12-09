@@ -259,13 +259,15 @@ wf.body(func(args) {
 		}],
 		columns: [{
 			column: "link",
-			spec: setTableProps({
+			spec: {
 				name: "pl7.app/vdj/link",
 				valueType: "Int",
 				annotations: {
-					"pl7.app/isLinkerColumn": "true"
+					"pl7.app/isLinkerColumn": "true",
+					"pl7.app/label": "Clone to cluster link",
+					"pl7.app/table/visibility": "hidden"
 				}
-			}, "Clone to cluster link", false, undefined)
+			}
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 0
