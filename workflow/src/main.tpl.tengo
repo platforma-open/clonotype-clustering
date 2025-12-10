@@ -225,7 +225,7 @@ wf.body(func(args) {
 		}],
 		columns: [{
 			column: "abundance_per_cluster",
-			spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", true, "2")
+			spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", true, "2000")
 		},
 		{
 			column: "abundance_fraction_per_cluster",
@@ -310,13 +310,13 @@ wf.body(func(args) {
 	seqColumns := [
 	{
 		column: "size",
-		spec: {
+		spec: setTableProps({
 			name: "pl7.app/vdj/clustering/clusterSize",
 			valueType: "Int",
 			annotations: {
 				"pl7.app/label": "Cluster Size"
 			}
-		}
+		}, "Cluster Size", true, "3000")
 	}, {
 		column: "clusterLabel",
 		spec: {
@@ -344,7 +344,7 @@ wf.body(func(args) {
 				valueType: spec.valueType,
 				domain: spec.domain,
 				annotations: spec.annotations
-			}, spec.annotations["pl7.app/label"], true, "10")
+			}, spec.annotations["pl7.app/label"], true, "4000")
 		})
 	}
 
@@ -438,7 +438,7 @@ wf.body(func(args) {
 					"pl7.app/max": "1",
 					"pl7.app/format": ".2f"
 				}
-			}, "Cluster radius", true, undefined)
+			}, "Cluster radius", true, "2900")
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 0
