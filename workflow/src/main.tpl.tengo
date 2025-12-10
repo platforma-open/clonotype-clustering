@@ -16,10 +16,16 @@ clusteringTpl := assets.importTemplate(":clustering")
 emptyCheckTpl := assets.importTemplate(":empty-check")
 
 setTableProps := func(spec, label, visibility, orderPriority) {
+	visibilityValue := ""
+	if visibility == true || visibility == false {
+		visibilityValue = visibility ? "default" : "optional"
+	} else {
+		visibilityValue = visibility
+	}
 	return maps.deepMerge(spec, {
 		annotations: {
 			"pl7.app/label": label,
-			"pl7.app/table/visibility": visibility ? "default" : "optional",
+			"pl7.app/table/visibility": visibilityValue,
 			"pl7.app/table/orderPriority": orderPriority
 		}
 	})
@@ -243,7 +249,7 @@ wf.body(func(args) {
 				valueType: "String",
 				domain: clusterIdAxisSpec.domain,
 				annotations: clusterIdAxisSpec.annotations
-			}, "Cluster Id", false, undefined)
+			}, "Cluster Id", "hidden", undefined)
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 0
