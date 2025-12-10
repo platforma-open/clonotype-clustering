@@ -255,7 +255,7 @@ wf.body(func(args) {
 						"pl7.app/isAnchor": undefined
 					}
 				})
-				resultSpec := setTableProps(abundanceFractionSpec, "Total " + text.re_replace("Number of ", abundanceLabel, "") + " Fraction in Cluster", true, "1")
+				resultSpec := setTableProps(abundanceFractionSpec, "Total " + text.title(text.re_replace("number of ", text.to_lower(abundanceLabel), "")) + " Fraction in Cluster", true, "1")
 				// Filter out isAnchor annotation
 				resultSpec.annotations = maps.filter(resultSpec.annotations, func(k, v) {
 					return k != "pl7.app/isAnchor"
