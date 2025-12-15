@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.22.5
+
+### Patch Changes
+
+- 9835e4a: Update linker and label visibility
+
 ## 3.22.4
 
 ### Patch Changes
