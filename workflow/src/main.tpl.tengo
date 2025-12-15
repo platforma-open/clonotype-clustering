@@ -410,6 +410,10 @@ wf.body(func(args) {
 			spec: setTableProps({
 				name: "pl7.app/vdj/distanceToCentroid",
 				valueType: "Float",
+				domain:  {
+					"pl7.app/vdj/clustering/algorithm": "mmseqs2",
+					"pl7.app/vdj/clustering/blockId": blockId
+				},
 				annotations: {
 					"pl7.app/min": "0",
 					"pl7.app/max": "1",
@@ -450,8 +454,27 @@ wf.body(func(args) {
 	identityStr := string(args.identity)
 	coverageStr := string(args.coverageThreshold)
 	similarityTypeStr := args.similarityType == "sequence-identity" ? "Exact Match" : "BLOSUM"
+
 	
-	traceLabel := "Clustering (sim:" + similarityTypeStr + ", ident:" + identityStr + ", cov:" + coverageStr + ")"
+	uniqueSeqFeaturesMap := {}
+	for _, seq in sequencesRef {
+		seqSpec := columns.getSpec(seq)
+		feature := seqSpec.domain["pl7.app/vdj/feature"]
+		featureStr := is_undefined(feature) ? "unknown" : string(feature)
+		uniqueSeqFeaturesMap[featureStr] = featureStr
+	}
+	seqFeatures := []
+	for _, v in uniqueSeqFeaturesMap {
+		seqFeatures = append(seqFeatures, v)
+	}
+	seqFeatures = slices.quickSort(seqFeatures)
+	seqFeaturesStr := text.join(seqFeatures, " - ")
+
+	traceLabel := "Clustering (seq:" + seqFeaturesStr + ", sim:" + similarityTypeStr + ", ident:" + identityStr + ", cov:" + coverageStr
+	if (trimStart > 0) || (trimEnd > 0) {
+		traceLabel += ", trimStart:" + string(trimStart) + ", trimEnd:" + string(trimEnd)
+	}
+	traceLabel += ")"
 	
 	trace := pSpec.makeTrace(abundanceSpec,
 		{
