@@ -231,7 +231,46 @@ wf.body(func(args) {
 		}],
 		columns: [{
 			column: "abundance_per_cluster",
-			spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", false, undefined)
+			spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", true, "2000")
+		},
+		{
+			column: "abundance_fraction_per_cluster",
+			spec: func() {
+				// Determine fraction name and unit based on abundance type
+				fractionName := "pl7.app/vdj/readFraction"
+				abundanceUnit := "reads"
+				if text.contains(ac.name, "uniqueMoleculeCount") {
+					fractionName = "pl7.app/vdj/uniqueMoleculeFraction"
+					abundanceUnit = "molecules"
+				} else if text.contains(ac.name, "readCount") {
+					fractionName = "pl7.app/vdj/readFraction"
+					abundanceUnit = "reads"
+				}
+				
+				abundanceFractionSpec := maps.deepMerge(ac, {
+					name: fractionName,
+					valueType: "Float",
+					annotations: {
+						"pl7.app/abundance/isPrimary": "true",
+						"pl7.app/abundance/normalized": "true",
+						"pl7.app/abundance/unit": abundanceUnit,
+						"pl7.app/format": ".2p",
+						"pl7.app/isAbundance": "true",
+						"pl7.app/max": "1",
+						"pl7.app/min": "0",
+						"pl7.app/isAnchor": undefined
+					}
+				})
+				fractionLabel := text.title(text.re_replace("number of ", text.to_lower(abundanceLabel), ""))
+				// Preserve common acronyms after title-casing.
+				fractionLabel = text.re_replace("Umis", fractionLabel, "UMIs")
+				resultSpec := setTableProps(abundanceFractionSpec, "Total " + fractionLabel + " Fraction in Cluster", true, "1")
+				// Filter out isAnchor annotation
+				resultSpec.annotations = maps.filter(resultSpec.annotations, func(k, v) {
+					return k != "pl7.app/isAnchor"
+				})
+				return resultSpec
+			}()
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 0
@@ -280,13 +319,13 @@ wf.body(func(args) {
 	seqColumns := [
 	{
 		column: "size",
-		spec: {
+		spec: setTableProps({
 			name: "pl7.app/vdj/clustering/clusterSize",
 			valueType: "Int",
 			annotations: {
 				"pl7.app/label": "Cluster Size"
 			}
-		}
+		}, "Cluster Size", true, "3000")
 	}, {
 		column: "clusterLabel",
 		spec: {
@@ -314,7 +353,7 @@ wf.body(func(args) {
 				valueType: spec.valueType,
 				domain: spec.domain,
 				annotations: spec.annotations
-			}, spec.annotations["pl7.app/label"], true, "10")
+			}, spec.annotations["pl7.app/label"], true, "4000")
 		})
 	}
 
@@ -380,6 +419,10 @@ wf.body(func(args) {
 			spec: setTableProps({
 				name: "pl7.app/vdj/distanceToCentroid",
 				valueType: "Float",
+				domain:  {
+					"pl7.app/vdj/clustering/algorithm": "mmseqs2",
+					"pl7.app/vdj/clustering/blockId": blockId
+				},
 				annotations: {
 					"pl7.app/min": "0",
 					"pl7.app/max": "1",
@@ -408,7 +451,7 @@ wf.body(func(args) {
 					"pl7.app/max": "1",
 					"pl7.app/format": ".2f"
 				}
-			}, "Cluster radius", true, undefined)
+			}, "Cluster radius", true, "2900")
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 0
@@ -420,8 +463,27 @@ wf.body(func(args) {
 	identityStr := string(args.identity)
 	coverageStr := string(args.coverageThreshold)
 	similarityTypeStr := args.similarityType == "sequence-identity" ? "Exact Match" : "BLOSUM"
+
 	
-	traceLabel := "Clustering (sim:" + similarityTypeStr + ", ident:" + identityStr + ", cov:" + coverageStr + ")"
+	uniqueSeqFeaturesMap := {}
+	for _, seq in sequencesRef {
+		seqSpec := columns.getSpec(seq)
+		feature := seqSpec.domain["pl7.app/vdj/feature"]
+		featureStr := is_undefined(feature) ? "unknown" : string(feature)
+		uniqueSeqFeaturesMap[featureStr] = featureStr
+	}
+	seqFeatures := []
+	for _, v in uniqueSeqFeaturesMap {
+		seqFeatures = append(seqFeatures, v)
+	}
+	seqFeatures = slices.quickSort(seqFeatures)
+	seqFeaturesStr := text.join(seqFeatures, " - ")
+
+	traceLabel := "Clustering (seq:" + seqFeaturesStr + ", sim:" + similarityTypeStr + ", ident:" + identityStr + ", cov:" + coverageStr
+	if (trimStart > 0) || (trimEnd > 0) {
+		traceLabel += ", trimStart:" + string(trimStart) + ", trimEnd:" + string(trimEnd)
+	}
+	traceLabel += ")"
 	
 	trace := pSpec.makeTrace(abundanceSpec,
 		{
@@ -437,7 +499,7 @@ wf.body(func(args) {
 
 	// Build output pFrame for block table
 	opf := pframes.pFrameBuilder()
-	for pf in [clusterToSeqPf, clusterRadiusPf] {
+	for pf in [clusterToSeqPf, clusterRadiusPf, abundancesPerClusterPf] {
 		for k, v in pf {
 			if k == "clusterLabel" {
 				continue  // avoid putting label into the outputs as it will be already in exports

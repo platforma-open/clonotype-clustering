@@ -196,6 +196,15 @@ cluster_abundances.write_csv(abundancesTsv, separator="\t")
 abundances_per_cluster = cluster_abundances.group_by(
     'clusterId').agg(pl.sum('abundance').alias('abundance_per_cluster'))
 
+# Calculate abundance fraction per cluster (fraction of total abundance across all clusters)
+total_abundance = abundances_per_cluster.select(pl.sum('abundance_per_cluster')).item()
+abundances_per_cluster = abundances_per_cluster.with_columns(
+    pl.when(pl.lit(total_abundance) > 0)
+      .then(pl.col('abundance_per_cluster') / pl.lit(total_abundance))
+      .otherwise(pl.lit(0.0, dtype=pl.Float64))
+      .alias('abundance_fraction_per_cluster')
+)
+
 abundances_per_cluster.write_csv(abundancesPerClusterTsv, separator="\t")
 
 # --- Get top clusters for bubble plot ---

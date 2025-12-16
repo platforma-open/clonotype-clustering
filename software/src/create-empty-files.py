@@ -51,8 +51,8 @@ def main():
         "clone-to-cluster.tsv", sep="\t", index=False
     )
 
-    # 4. abundances-per-cluster.tsv: clusterId, abundance_per_cluster
-    pd.DataFrame(columns=["clusterId", "abundance_per_cluster"]).to_csv(
+    # 4. abundances-per-cluster.tsv: clusterId, abundance_per_cluster, abundance_fraction_per_cluster
+    pd.DataFrame(columns=["clusterId", "abundance_per_cluster", "abundance_fraction_per_cluster"]).to_csv(
         "abundances-per-cluster.tsv", sep="\t", index=False
     )
 
