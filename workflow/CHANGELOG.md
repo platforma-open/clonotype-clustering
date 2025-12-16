@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.23.0
+
+### Minor Changes
+
+- b6a187e: Abundance fraction per cluster column added
+
+### Patch Changes
+
+- Updated dependencies [b6a187e]
+  - @platforma-open/milaboratories.clonotype-clustering.software@3.10.0
+
 ## 3.22.5
 
 ### Patch Changes

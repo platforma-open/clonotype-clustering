@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.software
 
+## 3.10.0
+
+### Minor Changes
+
+- b6a187e: Abundance fraction per cluster column added
+
 ## 3.9.8
 
 ### Patch Changes
