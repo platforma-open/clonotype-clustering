@@ -6,6 +6,14 @@
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "sources": "./src/index.ts",
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./dist/*": "./dist/*"
+  },
   "scripts": {
     "build": "ts-builder build --target block-model && block-tools build-model",
     "watch": "ts-builder build --target block-model --watch",
