@@ -8,15 +8,15 @@ packages:
 
 catalog:
   '@platforma-sdk/model': ^1.48.4
-  '@platforma-sdk/ui-vue': ^1.48.4
-  '@platforma-sdk/workflow-tengo': ^5.7.0
+  '@platforma-sdk/ui-vue': ^1.48.8
+  '@platforma-sdk/workflow-tengo': ^5.7.3
   '@platforma-sdk/block-tools': ^2.6.27
-  '@platforma-sdk/test': ^1.48.4
+  '@platforma-sdk/test': ^1.48.9
   '@platforma-sdk/tengo-builder': ^2.4.2
   '@platforma-sdk/package-builder': ^3.10.7
-  '@platforma-sdk/eslint-config': ^1.1.0
+  '@platforma-sdk/eslint-config': ^1.2.0
   '@milaboratories/graph-maker': ^1.1.196
-  '@milaboratories/multi-sequence-alignment': '^1.45.6'
+  '@milaboratories/multi-sequence-alignment': '^1.45.7'
   '@platforma-sdk/blocks-deps-updater': ^2.0.0
 
   '@milaboratories/software-pframes-conv': ^2.2.9
