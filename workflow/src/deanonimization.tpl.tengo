@@ -1,11 +1,7 @@
 self := import("@platforma-sdk/workflow-tengo:tpl")
 smart := import("@platforma-sdk/workflow-tengo:smart")
-ll := import("@platforma-sdk/workflow-tengo:ll")
-json := import("json")
 pt := import("@platforma-sdk/workflow-tengo:pt")
-file := import("@platforma-sdk/workflow-tengo:file")
 maps := import("@platforma-sdk/workflow-tengo:maps")
-pConstants := import("@platforma-sdk/workflow-tengo:pframes.constants")
 
 self.defineOutputs("deanonimizedTsv")
 
@@ -15,7 +11,7 @@ self.awaitState("mapping", "ResourceReady")
 /**
  * Builds a when/then/otherwise expression to replace values in a column based on a mapping.
  * @param colExpr - pt column expression
- * @param mapping - map from old values to new values
+ * @param mapping - map from anonymized values (oldVal) to original values (newVal)
  * @returns pt expression with value replacements
  */
 buildReplaceExpression := func(colExpr, mapping) {
