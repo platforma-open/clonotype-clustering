@@ -1,0 +1,80 @@
+self := import("@platforma-sdk/workflow-tengo:tpl")
+smart := import("@platforma-sdk/workflow-tengo:smart")
+ll := import("@platforma-sdk/workflow-tengo:ll")
+json := import("json")
+pt := import("@platforma-sdk/workflow-tengo:pt")
+file := import("@platforma-sdk/workflow-tengo:file")
+maps := import("@platforma-sdk/workflow-tengo:maps")
+pConstants := import("@platforma-sdk/workflow-tengo:pframes.constants")
+
+self.defineOutputs("deanonimizedTsv")
+
+self.awaitState("clusteringResult", "ResourceReady")
+self.awaitState("mapping", "ResourceReady")
+
+/**
+ * Builds a when/then/otherwise expression to replace values in a column based on a mapping.
+ * @param colExpr - pt column expression
+ * @param mapping - map from old values to new values
+ * @returns pt expression with value replacements
+ */
+buildReplaceExpression := func(colExpr, mapping) {
+	if len(mapping) == 0 {
+		return colExpr
+	}
+	
+	whenExpr := undefined
+	firstKey := undefined
+	maps.forEach(mapping, func(oldVal, newVal) {
+		if is_undefined(firstKey) {
+			firstKey = oldVal
+			whenExpr = pt.when(colExpr.eq(pt.lit(oldVal))).then(pt.lit(newVal))
+		} else {
+			whenExpr = whenExpr.when(colExpr.eq(pt.lit(oldVal))).then(pt.lit(newVal))
+		}
+	})
+	
+	return whenExpr.otherwise(colExpr)
+}
+
+self.body(func(args) {
+	// Get mapping JSON
+	mappingJson := undefined
+	if smart.isResource(args.mapping) {
+		mappingJson = args.mapping.getDataAsJson()
+	} else if is_map(args.mapping) {
+		// Already JSON data (map)
+		mappingJson = args.mapping
+	} else {
+		// Resource reference - convert to resource then get JSON
+		mappingResource := smart.resource(args.mapping)
+		mappingJson = mappingResource.getDataAsJson()
+	}
+	
+	// Process TSV file if clusteringResult is provided
+	processedTsv := args.clusteringResult
+	deanonimizedTsv := processedTsv
+	if !is_undefined(processedTsv) {
+		// Process TSV file using pt
+		wf := pt.workflow().mem("8GiB").cpu(2)
+		
+		df := wf.frame(processedTsv, {
+			xsvType: "tsv",
+			inferSchema: false
+		})
+		
+		// Replace values in sampleId column based on mapping
+		df = df.withColumns(
+			buildReplaceExpression(pt.col("sampleId"), mappingJson).alias("sampleId")
+		)
+		
+		df.save("result.tsv")
+		ptResult := wf.run()
+		deanonimizedTsv = ptResult.getFile("result.tsv")
+	}
+	
+	return {
+		deanonimizedTsv: deanonimizedTsv
+	}
+})
+
