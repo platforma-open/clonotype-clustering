@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.test
 
+## 1.2.0
+
+### Minor Changes
+
+- 836e038: Deduplication and migration to latest layout
+
 ## 1.1.7
 
 ### Patch Changes

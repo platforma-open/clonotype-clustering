@@ -1,5 +1,18 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.6.0
+
+### Minor Changes
+
+- 836e038: Deduplication and migration to latest layout
+
+### Patch Changes
+
+- Updated dependencies [836e038]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@3.24.0
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.14.0
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.12.0
+
 ## 2.5.15
 
 ### Patch Changes

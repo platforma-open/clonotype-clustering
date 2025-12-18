@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.24.0
+
+### Minor Changes
+
+- 836e038: Deduplication and migration to latest layout
+
+### Patch Changes
+
+- Updated dependencies [836e038]
+  - @platforma-open/milaboratories.clonotype-clustering.software@3.11.0
+
 ## 3.23.0
 
 ### Minor Changes
