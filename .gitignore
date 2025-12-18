@@ -1,11 +1,13 @@
-.test_auth.json
 node_modules/
 dist/
 block-pack/
 dev/
 work/
 log/
+*.tgz
+.test_auth.json
+test-dry-run.json
 .turbo
 vite.config.*.timestamp-*
-software/**/*.sw.json
-software/*.tgz
+.DS_Store
+/.idea

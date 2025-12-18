@@ -14,6 +14,8 @@ text := import("text")
 
 clusteringTpl := assets.importTemplate(":clustering")
 emptyCheckTpl := assets.importTemplate(":empty-check")
+deanonimizationTpl := assets.importTemplate(":deanonimization")
+anonymizationTpl := assets.importTemplate(":anonymization")
 
 setTableProps := func(spec, label, visibility, orderPriority) {
 	visibilityValue := ""
@@ -113,12 +115,21 @@ wf.body(func(args) {
 		seqTable: seqTable
 	})
 	
-	// get check content to be resolved in sub-templateAdd commentMore actions
+	// get check content to be resolved in sub-template
 	emptyOrNot := emptyCheckAnalysis.output("emptyResult")
+
+	// Anonymize sampleId axis (index 0) via dedicated template
+	abundanceColumn := columns.getColumn("abundance")
+	anonymizationResult := render.create(anonymizationTpl, {
+		data: abundanceColumn.data,
+		pKeyIndices: [0]
+	})
+	anonymizedAbundanceData := anonymizationResult.output("anonymizedData")
+	mappingRef := anonymizationResult.output("mapping")
 
 	// clone table
 	cloneTableBuilder := pframes.tsvFileBuilder()
-	cloneTableBuilder.add(columns.getColumn("abundance"), {header: "abundance"})
+	cloneTableBuilder.add({ spec: abundanceColumn.spec, data: anonymizedAbundanceData }, {header: "abundance"})
 	for nr, seq in sequencesRef {
 		cloneTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
 	}
@@ -199,7 +210,19 @@ wf.body(func(args) {
 
 	abundanceLabel := abundanceSpec.annotations["pl7.app/label"]
 
-	abundancesPf := xsv.importFile(clusteringAnalysis.output("abundances"), "tsv", {
+	// De-anonymize TSV files that contain sampleId
+	// Run deanonymization as ephemeral to avoid cross-project deduplication while keeping
+	// clustering computation cached. This ensures mapping is applied per project.
+	abundancesDeanonimization := render.createEphemeral(
+		deanonimizationTpl,
+		{
+			mapping: mappingRef,
+			clusteringResult: clusteringAnalysis.output("abundances")
+		}
+	)
+	deanonimizedAbundancesTsv := abundancesDeanonimization.output("deanonimizedTsv")
+
+	abundancesPf := xsv.importFile(deanonimizedAbundancesTsv, "tsv", {
 		axes: [{
 			column: "sampleId",
 			spec: abundanceSpec.axesSpec[0]
@@ -510,7 +533,17 @@ wf.body(func(args) {
 	opf = opf.build()
 
 	// Generate pFrames for bubble plot with top clusters
-	abundancesTopPf := xsv.importFile(clusteringAnalysis.output("abundancesTop"), "tsv", {
+	// De-anonymize abundances-top.tsv
+	abundancesTopDeanonimization := render.createEphemeral(
+		deanonimizationTpl,
+		{
+			mapping: mappingRef,
+			clusteringResult: clusteringAnalysis.output("abundancesTop")
+		}
+	)
+	deanonimizedAbundancesTopTsv := abundancesTopDeanonimization.output("deanonimizedTsv")
+
+	abundancesTopPf := xsv.importFile(deanonimizedAbundancesTopTsv, "tsv", {
 			axes: [{
 				column: "sampleId",
 				spec: abundanceSpec.axesSpec[0]
