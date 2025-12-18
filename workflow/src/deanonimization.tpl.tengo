@@ -20,13 +20,12 @@ buildReplaceExpression := func(colExpr, mapping) {
 	}
 	
 	whenExpr := undefined
-	firstKey := undefined
 	maps.forEach(mapping, func(oldVal, newVal) {
-		if is_undefined(firstKey) {
-			firstKey = oldVal
-			whenExpr = pt.when(colExpr.eq(pt.lit(oldVal))).then(pt.lit(newVal))
+		condition := colExpr.eq(pt.lit(oldVal))
+		if is_undefined(whenExpr) {
+			whenExpr = pt.when(condition).then(pt.lit(newVal))
 		} else {
-			whenExpr = whenExpr.when(colExpr.eq(pt.lit(oldVal))).then(pt.lit(newVal))
+			whenExpr = whenExpr.when(condition).then(pt.lit(newVal))
 		}
 	})
 	
@@ -48,13 +47,12 @@ self.body(func(args) {
 	}
 	
 	// Process TSV file if clusteringResult is provided
-	processedTsv := args.clusteringResult
-	deanonimizedTsv := processedTsv
-	if !is_undefined(processedTsv) {
+	deanonimizedTsv := args.clusteringResult
+	if !is_undefined(deanonimizedTsv) {
 		// Process TSV file using pt
 		wf := pt.workflow().mem("8GiB").cpu(2)
 		
-		df := wf.frame(processedTsv, {
+		df := wf.frame(deanonimizedTsv, {
 			xsvType: "tsv",
 			inferSchema: false
 		})
