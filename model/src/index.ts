@@ -1,6 +1,5 @@
 import type { GraphMakerState } from '@milaboratories/graph-maker';
 import type {
-  InferOutputsType,
   PColumnIdAndSpec,
   PColumnSpec,
   PFrameHandle,
@@ -16,6 +15,8 @@ import {
 } from '@platforma-sdk/model';
 
 export type BlockArgs = {
+  defaultBlockLabel: string;
+  customBlockLabel: string;
   datasetRef?: PlRef;
   sequencesRef: SUniversalPColumnId[];
   // Added sequenceType here for future use in algorithm selection in workflow
@@ -31,7 +32,6 @@ export type BlockArgs = {
 };
 
 export type UiState = {
-  title?: string;
   tableState: PlDataTableStateV2;
   graphStateBubble: GraphMakerState;
   alignmentModel: PlMultiSequenceAlignmentModel;
@@ -41,6 +41,8 @@ export type UiState = {
 export const model = BlockModel.create()
 
   .withArgs<BlockArgs>({
+    defaultBlockLabel: '',
+    customBlockLabel: '',
     identity: 0.8,
     sequenceType: 'aminoacid',
     sequencesRef: [],
@@ -52,7 +54,6 @@ export const model = BlockModel.create()
   })
 
   .withUiState<UiState>({
-    title: 'Clonotype Clustering',
     tableState: createPlDataTableStateV2(),
     graphStateBubble: {
       title: 'Most abundant clusters',
@@ -185,7 +186,7 @@ export const model = BlockModel.create()
     return undefined;
   })
 
-  .output('clustersTable', (ctx) => {
+  .outputWithStatus('clustersTable', (ctx) => {
     const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
     if (pCols === undefined) return undefined;
     return createPlDataTableV2(ctx, pCols, ctx.uiState.tableState);
@@ -243,7 +244,7 @@ export const model = BlockModel.create()
     return anchorSpec;
   })
 
-  .output('clustersPf', (ctx): PFrameHandle | undefined => {
+  .outputWithStatus('clustersPf', (ctx): PFrameHandle | undefined => {
     const pCols = ctx.outputs?.resolve('pf')?.getPColumns();
     if (pCols === undefined) {
       return undefined;
@@ -252,7 +253,7 @@ export const model = BlockModel.create()
     return createPFrameForGraphs(ctx, pCols);
   })
 
-  .output('bubblePlotPf', (ctx): PFrameHandle | undefined => {
+  .outputWithStatus('bubblePlotPf', (ctx): PFrameHandle | undefined => {
     const pCols = ctx.outputs?.resolve('bubblePlotPf')?.getPColumns();
     if (pCols === undefined) {
       return undefined;
@@ -294,7 +295,9 @@ export const model = BlockModel.create()
 
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 
-  .title((ctx) => ctx.uiState?.title ?? 'Clonotype Clustering')
+  .title(() => 'Clonotype Clustering')
+
+  .subtitle((ctx) => ctx.args.customBlockLabel || ctx.args.defaultBlockLabel)
 
   .sections((_ctx) => [
     { type: 'link', href: '/', label: 'Main' },
@@ -303,5 +306,3 @@ export const model = BlockModel.create()
   ])
 
   .done(2);
-
-export type BlockOutputs = InferOutputsType<typeof model>;
