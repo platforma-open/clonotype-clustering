@@ -1,6 +1,5 @@
 // "hello world"
 wf := import("@platforma-sdk/workflow-tengo:workflow")
-exec := import("@platforma-sdk/workflow-tengo:exec")
 assets:= import("@platforma-sdk/workflow-tengo:assets")
 xsv := import("@platforma-sdk/workflow-tengo:pframes.xsv")
 pframes := import("@platforma-sdk/workflow-tengo:pframes")
@@ -481,34 +480,12 @@ wf.body(func(args) {
 	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
 	// building outputs & exports
-
-	// Create informative label with relevant clustering parameters
-	identityStr := string(args.identity)
-	coverageStr := string(args.coverageThreshold)
-	similarityTypeStr := args.similarityType == "sequence-identity" ? "Exact Match" : "BLOSUM"
-
-	
-	uniqueSeqFeaturesMap := {}
-	for _, seq in sequencesRef {
-		seqSpec := columns.getSpec(seq)
-		feature := seqSpec.domain["pl7.app/vdj/feature"]
-		featureStr := is_undefined(feature) ? "unknown" : string(feature)
-		uniqueSeqFeaturesMap[featureStr] = featureStr
+	traceLabel := args.customBlockLabel
+	if traceLabel == "" {
+		traceLabel = args.defaultBlockLabel
 	}
-	seqFeatures := []
-	for _, v in uniqueSeqFeaturesMap {
-		seqFeatures = append(seqFeatures, v)
-	}
-	seqFeatures = slices.quickSort(seqFeatures)
-	seqFeaturesStr := text.join(seqFeatures, " - ")
-
-	traceLabel := "Clustering (seq:" + seqFeaturesStr + ", sim:" + similarityTypeStr + ", ident:" + identityStr + ", cov:" + coverageStr
-	if (trimStart > 0) || (trimEnd > 0) {
-		traceLabel += ", trimStart:" + string(trimStart) + ", trimEnd:" + string(trimEnd)
-	}
-	traceLabel += ")"
-	
-	trace := pSpec.makeTrace(abundanceSpec,
+	trace := pSpec.makeTrace(
+		abundanceSpec,
 		{
 			type: "milaboratories.clonotype-clustering.sequences",
 			importance: 35,
@@ -518,7 +495,8 @@ wf.body(func(args) {
 			type: "milaboratories.clonotype-clustering.clustering",
 			importance: 30,
 			label: traceLabel
-		})
+		}
+	)
 
 	// Build output pFrame for block table
 	opf := pframes.pFrameBuilder()
