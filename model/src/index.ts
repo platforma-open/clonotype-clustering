@@ -44,7 +44,7 @@ export const model = BlockModel.create()
     identity: 0.8,
     sequenceType: 'aminoacid',
     sequencesRef: [],
-    similarityType: 'sequence-identity',
+    similarityType: 'alignment-score',
     coverageThreshold: 0.8, // default value matching MMseqs2 default
     coverageMode: 0, // default to coverage of query and target
     trimStart: 0, // default to no trimming from start
