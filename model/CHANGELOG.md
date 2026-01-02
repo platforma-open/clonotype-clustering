@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.14.1
+
+### Patch Changes
+
+- fdec994: Use BLOSUM Alignment score by default
+
 ## 2.14.0
 
 ### Minor Changes
