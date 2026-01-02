@@ -3,4 +3,4 @@
 "@platforma-open/milaboratories.clonotype-clustering.model": patch
 ---
 
-Use BLOSUM Alignement score by default
+Use BLOSUM Alignment score by default
