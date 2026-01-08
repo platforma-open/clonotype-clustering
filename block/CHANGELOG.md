@@ -1,5 +1,14 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.6.2
+
+### Patch Changes
+
+- 28a4098: fix incorrect table headers
+- Updated dependencies [28a4098]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.14.2
+  - @platforma-open/milaboratories.clonotype-clustering.ui@3.12.2
+
 ## 2.6.1
 
 ### Patch Changes
