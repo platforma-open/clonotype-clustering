@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { PlMultiSequenceAlignment } from '@milaboratories/multi-sequence-alignment';
 import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey } from '@platforma-sdk/model';
-import { plRefsEqual } from '@platforma-sdk/model';
 import {
   listToOptions,
   PlAccordionSection,
@@ -19,8 +19,7 @@ import {
   PlSlideModal,
   usePlDataTableSettingsV2,
 } from '@platforma-sdk/ui-vue';
-import { PlMultiSequenceAlignment } from '@milaboratories/multi-sequence-alignment';
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch, watchEffect } from 'vue';
 import { useApp } from '../app';
 
 const app = useApp();
@@ -56,22 +55,10 @@ const onRowDoubleClicked = reactive((key?: PTableKey) => {
 
 function setInput(inputRef?: PlRef) {
   app.model.args.datasetRef = inputRef;
-  if (inputRef) {
-    const datasetLabel = app.model.outputs.datasetOptions?.find((o) => plRefsEqual(o.ref, inputRef))?.label;
-    if (datasetLabel)
-      app.model.ui.title = 'Clonotype Clustering - ' + datasetLabel;
-  }
 }
 
 const tableSettings = usePlDataTableSettingsV2({
   model: () => app.model.outputs.clustersTable,
-});
-
-const tableLoadingText = computed(() => {
-  if (app.model.outputs.isRunning) {
-    return 'Running';
-  }
-  return 'Loading';
 });
 
 const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
@@ -136,13 +123,42 @@ const clusterAxis = computed<AxisId>(() => {
   }
 });
 
+// updating defaultBlockLabel
+watchEffect(() => {
+  const parts: string[] = [];
+  parts.push(
+    app.model.args.sequencesRef
+      .map((r) =>
+        app.model.outputs.sequenceOptions
+          ?.find((o) => o.value === r)
+          ?.label
+          .replace('InFrame', ''),
+      )
+      .join(' - '),
+  );
+  parts.push(
+    similarityTypeOptions
+      .find((o) => o.value === app.model.args.similarityType)
+      ?.label ?? '',
+  );
+  parts.push(`ident:${app.model.args.identity}`);
+  parts.push(`cov:${app.model.args.coverageThreshold}`);
+  if (app.model.args.trimStart ?? 0 > 0) {
+    parts.push(`trimStart: ${app.model.args.trimStart}`);
+  }
+  if (app.model.args.trimEnd ?? 0 > 0) {
+    parts.push(`trimEnd: ${app.model.args.trimEnd}`);
+  }
+  app.model.args.defaultBlockLabel = parts.filter(Boolean).join(', ');
+});
 </script>
 
 <template>
-  <PlBlockPage>
-    <template #title>
-      {{ app.model.ui.title }}
-    </template>
+  <PlBlockPage
+    v-model:subtitle="app.model.args.customBlockLabel"
+    :subtitle-placeholder="app.model.args.defaultBlockLabel"
+    title="Clonotype Clustering"
+  >
     <template #append>
       <PlBtnGhost @click.stop="() => (mmseqsLogOpen = true)">
         Logs
@@ -160,32 +176,31 @@ const clusterAxis = computed<AxisId>(() => {
     <PlAgDataTableV2
       v-model="app.model.ui.tableState"
       :settings="tableSettings"
-      :loading-text="tableLoadingText"
       not-ready-text="Data is not computed"
-      :show-cell-button-for-axis-id="clusterAxis"
       no-rows-text="No data available"
+      :show-cell-button-for-axis-id="clusterAxis"
       @cell-button-clicked="onRowDoubleClicked"
     />
-    <PlSlideModal v-model="settingsOpen" :close-on-outside-click="true">
+    <PlSlideModal v-model="settingsOpen" :close-on-outside-click="true" shadow>
       <template #title>Settings</template>
       <PlDropdownRef
         v-model="app.model.args.datasetRef"
         :options="app.model.outputs.datasetOptions"
-        label="Select dataset"
+        label="Dataset"
         clearable
         required
         @update:model-value="setInput"
       />
       <PlBtnGroup
         v-model="app.model.args.sequenceType"
-        label="Sequence type"
+        label="Sequence Type"
         :options="sequenceType"
         :compact="true"
       />
       <PlDropdownMulti
         v-model="app.model.args.sequencesRef"
         :options="app.model.outputs.sequenceOptions"
-        label="Select sequence column/s to cluster"
+        label="Sequence Columns to Cluster"
         required
       />
 
@@ -201,7 +216,10 @@ const clusterAxis = computed<AxisId>(() => {
 
       <PlNumberField
         v-model="app.model.args.identity"
-        label="Minimal identity" :minValue="0.1" :step="0.1" :maxValue="1.0"
+        label="Minimal Identity"
+        :minValue="0.1"
+        :step="0.1"
+        :maxValue="1.0"
       >
         <template #tooltip>
           Sets the lowest percentage of identical residues required for clonotypes to be considered for the same cluster.
@@ -219,9 +237,11 @@ const clusterAxis = computed<AxisId>(() => {
           Sets the lowest percentage of sequence length that must be covered for clonotypes to be considered for the same cluster.
         </template>
       </PlNumberField>
-      <PlAlert v-if="app.model.outputs.inputState" type="warn" style="margin-top: 1rem;">
-        {{ "Error: The input dataset you have selected is empty. \
-        Please choose a different dataset." }}
+      <PlAlert v-if="app.model.outputs.inputState" type="warn" style="margin-top: 1rem">
+        {{
+          'Error: The input dataset you have selected is empty. \
+          Please choose a different dataset.'
+        }}
       </PlAlert>
 
       <PlAccordionSection label="Advanced Settings">
@@ -297,6 +317,6 @@ const clusterAxis = computed<AxisId>(() => {
   <!-- Slide window with MMseqs2 log -->
   <PlSlideModal v-model="mmseqsLogOpen" width="80%">
     <template #title>MMseqs2 Log</template>
-    <PlLogView :log-handle="app.model.outputs.mmseqsOutput"/>
+    <PlLogView :log-handle="app.model.outputs.mmseqsOutput" />
   </PlSlideModal>
 </template>
