@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.13.0
+
+### Minor Changes
+
+- c56955f: Added support for running state and labels
+
+### Patch Changes
+
+- Updated dependencies [c56955f]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.15.0
+
 ## 3.12.2
 
 ### Patch Changes

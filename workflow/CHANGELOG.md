@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.25.0
+
+### Minor Changes
+
+- c56955f: Added support for running state and labels
+
 ## 3.24.0
 
 ### Minor Changes
