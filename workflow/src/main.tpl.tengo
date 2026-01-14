@@ -488,7 +488,7 @@ wf.body(func(args) {
 		abundanceSpec,
 		{
 			type: "milaboratories.clonotype-clustering.sequences",
-			importance: 35,
+			importance: 10,
 			label: text.join(usedSequenceLabels, " - ")
 		},
 		{
