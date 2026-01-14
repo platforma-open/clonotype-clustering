@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.7.1
+
+### Patch Changes
+
+- 0c16288: Adjust trace priority
+
 ## 2.7.0
 
 ### Minor Changes
