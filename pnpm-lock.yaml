@@ -10,11 +10,11 @@ catalogs:
       specifier: ^2.29.8
       version: 2.29.8
     '@milaboratories/graph-maker':
-      specifier: ^1.1.203
-      version: 1.1.203
+      specifier: ^1.1.206
+      version: 1.1.206
     '@milaboratories/multi-sequence-alignment':
-      specifier: ^1.45.7
-      version: 1.45.7
+      specifier: ^1.45.8
+      version: 1.45.8
     '@milaboratories/ts-builder':
       specifier: 1.2.1
       version: 1.2.1
@@ -34,8 +34,8 @@ catalogs:
       specifier: 1.2.0
       version: 1.2.0
     '@platforma-sdk/model':
-      specifier: 1.51.2
-      version: 1.51.2
+      specifier: 1.51.5
+      version: 1.51.5
     '@platforma-sdk/package-builder':
       specifier: 3.10.7
       version: 3.10.7
@@ -43,11 +43,11 @@ catalogs:
       specifier: 2.4.8
       version: 2.4.8
     '@platforma-sdk/test':
-      specifier: 1.51.3
-      version: 1.51.3
+      specifier: 1.51.5
+      version: 1.51.5
     '@platforma-sdk/ui-vue':
-      specifier: 1.51.4
-      version: 1.51.4
+      specifier: 1.51.5
+      version: 1.51.5
     '@platforma-sdk/workflow-tengo':
       specifier: 5.8.0
       version: 5.8.0
@@ -104,10 +104,10 @@ importers:
     dependencies:
       '@milaboratories/graph-maker':
         specifier: 'catalog:'
-        version: 1.1.203(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(sortablejs@1.15.6)(typescript@5.6.3)
+        version: 1.1.206(@milaboratories/pl-model-common@1.23.0)(@platforma-sdk/model@1.51.5)(@platforma-sdk/ui-vue@1.51.5(sortablejs@1.15.6)(typescript@5.6.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@5.6.3)
       '@platforma-sdk/model':
         specifier: 'catalog:'
-        version: 1.51.2
+        version: 1.51.5
     devDependencies:
       '@milaboratories/ts-builder':
         specifier: 'catalog:'
@@ -157,7 +157,7 @@ importers:
         version: 1.2.0(@eslint/js@9.39.2)(@stylistic/eslint-plugin@2.13.0(eslint@9.39.2)(typescript@5.6.3))(eslint-plugin-n@17.15.1(eslint@9.39.2))(eslint-plugin-vue@9.32.0(eslint@9.39.2))(eslint@9.39.2)(globals@15.14.0)(typescript-eslint@8.24.0(eslint@9.39.2)(typescript@5.6.3))(typescript@5.6.3)
       '@platforma-sdk/test':
         specifier: 'catalog:'
-        version: 1.51.3(@eslint/js@9.39.2)(@stylistic/eslint-plugin@2.13.0(eslint@9.39.2)(typescript@5.6.3))(@types/node@24.5.2)(eslint-plugin-n@17.15.1(eslint@9.39.2))(eslint-plugin-vue@9.32.0(eslint@9.39.2))(globals@15.14.0)(typescript-eslint@8.24.0(eslint@9.39.2)(typescript@5.6.3))(typescript@5.6.3)(yaml@2.8.1)
+        version: 1.51.5(@eslint/js@9.39.2)(@stylistic/eslint-plugin@2.13.0(eslint@9.39.2)(typescript@5.6.3))(@types/node@24.5.2)(eslint-plugin-n@17.15.1(eslint@9.39.2))(eslint-plugin-vue@9.32.0(eslint@9.39.2))(globals@15.14.0)(typescript-eslint@8.24.0(eslint@9.39.2)(typescript@5.6.3))(typescript@5.6.3)(yaml@2.8.1)
       eslint:
         specifier: 'catalog:'
         version: 9.39.2
@@ -172,19 +172,19 @@ importers:
     dependencies:
       '@milaboratories/graph-maker':
         specifier: 'catalog:'
-        version: 1.1.203(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(sortablejs@1.15.6)(typescript@5.6.3)
+        version: 1.1.206(@milaboratories/pl-model-common@1.23.0)(@platforma-sdk/model@1.51.5)(@platforma-sdk/ui-vue@1.51.5(sortablejs@1.15.6)(typescript@5.6.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@5.6.3)
       '@milaboratories/multi-sequence-alignment':
         specifier: 'catalog:'
-        version: 1.45.7(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(sortablejs@1.15.6)(typescript@5.6.3)
+        version: 1.45.8(@platforma-sdk/model@1.51.5)(@platforma-sdk/ui-vue@1.51.5(sortablejs@1.15.6)(typescript@5.6.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@5.6.3)
       '@platforma-open/milaboratories.clonotype-clustering.model':
         specifier: workspace:*
         version: link:../model
       '@platforma-sdk/model':
         specifier: 'catalog:'
-        version: 1.51.2
+        version: 1.51.5
       '@platforma-sdk/ui-vue':
         specifier: 'catalog:'
-        version: 1.51.4(sortablejs@1.15.6)(typescript@5.6.3)
+        version: 1.51.5(sortablejs@1.15.6)(typescript@5.6.3)
       vue:
         specifier: 'catalog:'
         version: 3.5.25(typescript@5.6.3)
@@ -1047,8 +1047,11 @@ packages:
       typescript: ~5.6.3
       typescript-eslint: ^8.17.0
 
-  '@milaboratories/graph-maker@1.1.203':
-    resolution: {integrity: sha512-6UqF/tEZyUxbqcAL2EOpbs7DK7j49/SqUr4N0BplvSWwPhfDPgcJIcpQWck3baTPaWLm+CnXNPFKHSzBJT0ZTg==}
+  '@milaboratories/graph-maker@1.1.206':
+    resolution: {integrity: sha512-/f1ZPvNhFEYopy9Yco4+he3aG7tpAMfIJ9Igtq90WK53JTtYuvraNsoZGdTltEjmNXG0iNPlTg3Dw5qzESPKrQ==}
+    peerDependencies:
+      '@platforma-sdk/model': ^1.51.5
+      '@platforma-sdk/ui-vue': ^1.51.5
 
   '@milaboratories/helpers@1.12.0':
     resolution: {integrity: sha512-Eg3AQMJbVClYhdvhogdlW3Ys9EdLLl8ZTqG675iLwoO64ZJcQOAnIPjXwl4zJ/bZWx4nEhRF9AvwxRdc08fikQ==}
@@ -1058,18 +1061,24 @@ packages:
     resolution: {integrity: sha512-gsrH9uXQZ6eXM3E3fJZWIS5E5UMEQyohtyjzVXG69aQoecTctC88XUxBv0CgNoA+IAuiB2hE+whZmWU7ifq8wA==}
     engines: {node: '>=22'}
 
-  '@milaboratories/miplots4@1.0.163':
-    resolution: {integrity: sha512-VZBOPV0oRfr5br70AH6rbf65OHoo63Cc6psJwXX6gHbHjpBO0nupBl+56/JchrAuIYZ7R+2GiuflZiT5JqAjKA==}
+  '@milaboratories/miplots4@1.0.164':
+    resolution: {integrity: sha512-YXS/pPZHODuh0TRDmNp/Rqi+MPktvJgoqdsPSZeBioALhloq2UTJd2YZoF9zSlhScpGU5Ks/x6U8AvietrAq2Q==}
 
-  '@milaboratories/multi-sequence-alignment@1.45.7':
-    resolution: {integrity: sha512-IsECa5fQE3sYSMji4uv/3DBrRi+HqcP6FoyKcXeO0IIrIXcVBRBGYDzsD2lCjsq5zopS4nSgGIrWvsdu6r0k6Q==}
+  '@milaboratories/multi-sequence-alignment@1.45.8':
+    resolution: {integrity: sha512-6Tm3fWJkrP1ObxstpucKAiFfsp1SesEkMcrhQmjcfuOSB6g/fRwvJID4Qe8Fp4GCpIZiOYRIgoXDKyno3IDkwg==}
+    peerDependencies:
+      '@platforma-sdk/model': ^1.51.5
+      '@platforma-sdk/ui-vue': ^1.51.5
 
-  '@milaboratories/pf-driver@1.0.20':
-    resolution: {integrity: sha512-OwHqrYGF6DKWQnoKqk/SVfj17vgUWMgp3LUHdngWW1yetrsIamX71Yjc6Bu5fTnC+LHf49aroq1FcDCXa+n2Mw==}
+  '@milaboratories/pf-driver@1.0.21':
+    resolution: {integrity: sha512-8sCb1IUyiWPnNjZ4WL+zlvj+hl6EM3fDWIYLv6NI4fsRaKCajLUosCQMcpGEagBd5pu65WtGGyd2zvjOkyA0/g==}
     engines: {node: '>=22.19.0'}
 
-  '@milaboratories/pf-plots@1.1.55':
-    resolution: {integrity: sha512-+0ORjDp3bMumk9PYgtvFqUxrgtX6+Pi7eQdaPs4epY6mxZy7gainR1KWKpcgneDLx+z1xEO/mkdcaOCkh7vJxQ==}
+  '@milaboratories/pf-plots@1.1.56':
+    resolution: {integrity: sha512-MGKK8XFGaZhUUnUs4HgfjvMieP9v2UOK1NUwWBhgBRP9zOKYkF6Q6usx2hl8T4WXbHgChcKZMfjChMxPiK7oxw==}
+    peerDependencies:
+      '@milaboratories/pl-model-common': ^1.23.0
+      '@platforma-sdk/model': ^1.51.5
 
   '@milaboratories/pframes-rs-node@1.0.109':
     resolution: {integrity: sha512-3eqK+/rqx3fyN21bnbMgY+8XgwWTaIjOiySrE5IgUVbCD9rr2OzSnEiLGkGjx/1O0PX6UEZ05St3oYxCsrq6Jw==}
@@ -1102,8 +1111,8 @@ packages:
   '@milaboratories/pl-http@1.2.0':
     resolution: {integrity: sha512-5iRxug4TjE88+XoMU5LVcXe1PEmXYfZI3WxJGrayzYQFM/9GiKuwcUsQ0kDlFmw+s6UlEAzgC9+MsJFKvU7C5Q==}
 
-  '@milaboratories/pl-middle-layer@1.45.2':
-    resolution: {integrity: sha512-OY3m29zpjxXGyZxCuxyCGr3rFj80Uuc68VeVNFF2bm2LyBPOCo8ryUedVUPSsk6mBVS1HT20E3Cva0zLvlQRag==}
+  '@milaboratories/pl-middle-layer@1.45.3':
+    resolution: {integrity: sha512-DQjb7fhMcxMMesRmRBrfqt7DBUFo0HTf0tMdof9AZj6yG3LgTRBfXqUiGInwPQJLqYPbOiDPhjmQml6FfvXmmw==}
     engines: {node: '>=22.19.0'}
 
   '@milaboratories/pl-model-backend@1.1.37':
@@ -1153,8 +1162,8 @@ packages:
     resolution: {integrity: sha512-Inpyk9sYn1e+59KwgAQW9uFBIR6hmMozDgTfOmz7sx38a2ZftBkYQtSCHwzztbV5tg8covugxbFEbpDKfDDF6A==}
     engines: {node: '>=22.19.0'}
 
-  '@milaboratories/uikit@2.10.0':
-    resolution: {integrity: sha512-xPRHG4ktC4U8YmqV/9U4g1eqhEyvZTJ0XhZfr9OjKUja2tz4lGKQhd087HD+7mnJiRMpxYv0vsS9Buh9gzZ7Yw==}
+  '@milaboratories/uikit@2.10.1':
+    resolution: {integrity: sha512-a+REp08ngYd4PP4EL6X0lpC4MzzErENEYEkan5E/OvWh5pId2fzs6YTBhj0rBuraNmc436x2a3rDMaj/mgphSw==}
 
   '@mstssk/cleandir@2.0.0':
     resolution: {integrity: sha512-CidYeaV4VQLIMbZlYqs0SJaZe/DyI0E4nsbFmPtCa2koKzMjZj/BThTCb+bvzcGhzp2A4Js1c4jDg6lqaqapyQ==}
@@ -1272,8 +1281,8 @@ packages:
       typescript: ~5.6.3
       typescript-eslint: ^8.17.0
 
-  '@platforma-sdk/model@1.51.2':
-    resolution: {integrity: sha512-AFCQus1HYOW/TwrYYSKetgqW39S2XUCGI856H0dxjArJiTHzroUpGtUv+8CkklBCTH5KhWjd7+8BMMRx/MOZpQ==}
+  '@platforma-sdk/model@1.51.5':
+    resolution: {integrity: sha512-uDUsTZpEK1yX3NHjosfd+Zz/kBlSt0E3AUxXqtxdvDAHvnHuQA3ZUmebmRAmTC+wdng2gsdLJ0faa+rl5BiUdA==}
 
   '@platforma-sdk/package-builder@3.10.7':
     resolution: {integrity: sha512-3qWieTD0GTCNQ65lVV1/LAcwNlTFh7BuswS6qrK8acRtREFEZm/QvywbE6fQu7gEEF697y7/6/ktR8Sd1EzP/A==}
@@ -1284,11 +1293,11 @@ packages:
     engines: {node: '>=22'}
     hasBin: true
 
-  '@platforma-sdk/test@1.51.3':
-    resolution: {integrity: sha512-15dNPejkxEq7VGvQ9ggGNrhpKtfFWmBttWoKEC1c3gTHddiwV1wq95MHgSpCdthIdFTqRKSwSj2KMdrOafY4/A==}
+  '@platforma-sdk/test@1.51.5':
+    resolution: {integrity: sha512-p1WGJCpbv2sROSZJC8f1uL7BlcmAXJQK37WDVdWEY2a+Jna8i8bQZGCXiFXPoz+KjXf9cycxNizFM+Q4ju8Dbw==}
 
-  '@platforma-sdk/ui-vue@1.51.4':
-    resolution: {integrity: sha512-ZetneFB21RztciXs7LpMzgFVBXNgUwZScexKbAOIhiR5QjeshJjBH8axsQK7ALe/+DiKOUDI+vI6XQSPEWNdig==}
+  '@platforma-sdk/ui-vue@1.51.5':
+    resolution: {integrity: sha512-lwvGXZVGeYIsCRI0WiZFgaIKfRdzcU6KE10zon/+HQzLYhK3qkgggzeBtELvwBH8NZa/SL8WRrM56akzgBJs0w==}
 
   '@platforma-sdk/workflow-tengo@5.8.0':
     resolution: {integrity: sha512-OJnnjBXt1VcS1QNMC90PlkXrWJoKQ/Nl3/NeTqzTmq1j5gT3cZXoIQYu1c31KZXBungUo8TphymBcs+qDGpVgA==}
@@ -7010,14 +7019,14 @@ snapshots:
       typescript: 5.6.3
       typescript-eslint: 8.24.0(eslint@9.39.2)(typescript@5.6.3)
 
-  '@milaboratories/graph-maker@1.1.203(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(sortablejs@1.15.6)(typescript@5.6.3)':
+  '@milaboratories/graph-maker@1.1.206(@milaboratories/pl-model-common@1.23.0)(@platforma-sdk/model@1.51.5)(@platforma-sdk/ui-vue@1.51.5(sortablejs@1.15.6)(typescript@5.6.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@5.6.3)':
     dependencies:
       '@ag-grid-community/core': 32.3.5
       '@milaboratories/helpers': 1.13.0
-      '@milaboratories/miplots4': 1.0.163(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)
-      '@milaboratories/pf-plots': 1.1.55
-      '@platforma-sdk/model': 1.51.2
-      '@platforma-sdk/ui-vue': 1.51.4(sortablejs@1.15.6)(typescript@5.6.3)
+      '@milaboratories/miplots4': 1.0.164(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)
+      '@milaboratories/pf-plots': 1.1.56(@milaboratories/pl-model-common@1.23.0)(@platforma-sdk/model@1.51.5)
+      '@platforma-sdk/model': 1.51.5
+      '@platforma-sdk/ui-vue': 1.51.5(sortablejs@1.15.6)(typescript@5.6.3)
       '@types/d3-hierarchy': 3.1.7
       '@types/d3-scale': 4.0.9
       '@vueuse/core': 13.4.0(vue@3.5.25(typescript@5.6.3))
@@ -7027,29 +7036,18 @@ snapshots:
       d3-scale: 4.0.2
       vue: 3.5.25(typescript@5.6.3)
     transitivePeerDependencies:
-      - async-validator
-      - axios
-      - change-case
+      - '@milaboratories/pl-model-common'
       - d3-dispatch
       - d3-path
       - d3-scale-chromatic
-      - drauu
-      - focus-trap
-      - fuse.js
-      - idb-keyval
-      - jwt-decode
-      - nprogress
-      - qrcode
-      - sortablejs
       - supports-color
       - typescript
-      - universal-cookie
 
   '@milaboratories/helpers@1.12.0': {}
 
   '@milaboratories/helpers@1.13.0': {}
 
-  '@milaboratories/miplots4@1.0.163(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)':
+  '@milaboratories/miplots4@1.0.164(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)':
     dependencies:
       '@d3fc/d3fc-chart': 5.1.9(d3-array@3.2.4)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(d3-scale@4.0.2)(d3-selection@3.0.0)(d3-shape@3.2.0)
       '@d3fc/d3fc-pointer': 3.0.3(d3-dispatch@3.0.1)(d3-selection@3.0.0)
@@ -7085,49 +7083,36 @@ snapshots:
       - d3-scale-chromatic
       - supports-color
 
-  '@milaboratories/multi-sequence-alignment@1.45.7(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(sortablejs@1.15.6)(typescript@5.6.3)':
+  '@milaboratories/multi-sequence-alignment@1.45.8(@platforma-sdk/model@1.51.5)(@platforma-sdk/ui-vue@1.51.5(sortablejs@1.15.6)(typescript@5.6.3))(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)(typescript@5.6.3)':
     dependencies:
       '@milaboratories/biowasm-tools': 2.0.0
-      '@milaboratories/miplots4': 1.0.163(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)
-      '@milaboratories/uikit': 2.10.0(typescript@5.6.3)
-      '@platforma-sdk/model': 1.51.2
-      '@platforma-sdk/ui-vue': 1.51.4(sortablejs@1.15.6)(typescript@5.6.3)
+      '@milaboratories/miplots4': 1.0.164(d3-dispatch@3.0.1)(d3-path@3.1.0)(d3-scale-chromatic@3.1.0)
+      '@platforma-sdk/model': 1.51.5
+      '@platforma-sdk/ui-vue': 1.51.5(sortablejs@1.15.6)(typescript@5.6.3)
       vue: 3.5.25(typescript@5.6.3)
     transitivePeerDependencies:
-      - async-validator
-      - axios
-      - change-case
       - d3-dispatch
       - d3-path
       - d3-scale-chromatic
-      - drauu
-      - focus-trap
-      - fuse.js
-      - idb-keyval
-      - jwt-decode
-      - nprogress
-      - qrcode
-      - sortablejs
       - supports-color
       - typescript
-      - universal-cookie
 
-  '@milaboratories/pf-driver@1.0.20':
+  '@milaboratories/pf-driver@1.0.21':
     dependencies:
       '@milaboratories/pframes-rs-node': 1.0.109
       '@milaboratories/pl-model-middle-layer': 1.9.1
       '@milaboratories/ts-helpers': 1.5.4
-      '@platforma-sdk/model': 1.51.2
+      '@platforma-sdk/model': 1.51.5
       es-toolkit: 1.39.10
       lru-cache: 11.2.2
     transitivePeerDependencies:
       - encoding
       - supports-color
 
-  '@milaboratories/pf-plots@1.1.55':
+  '@milaboratories/pf-plots@1.1.56(@milaboratories/pl-model-common@1.23.0)(@platforma-sdk/model@1.51.5)':
     dependencies:
       '@milaboratories/pl-model-common': 1.23.0
-      '@platforma-sdk/model': 1.51.2
+      '@platforma-sdk/model': 1.51.5
       canonicalize: 2.1.0
       lodash: 4.17.21
 
@@ -7240,10 +7225,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@milaboratories/pl-middle-layer@1.45.2':
+  '@milaboratories/pl-middle-layer@1.45.3':
     dependencies:
       '@milaboratories/computable': 2.8.0
-      '@milaboratories/pf-driver': 1.0.20
+      '@milaboratories/pf-driver': 1.0.21
       '@milaboratories/pframes-rs-node': 1.0.109
       '@milaboratories/pl-client': 2.16.20
       '@milaboratories/pl-config': 1.7.9
@@ -7258,7 +7243,7 @@ snapshots:
       '@milaboratories/resolve-helper': 1.1.1
       '@milaboratories/ts-helpers': 1.5.4
       '@platforma-sdk/block-tools': 2.6.29
-      '@platforma-sdk/model': 1.51.2
+      '@platforma-sdk/model': 1.51.5
       '@platforma-sdk/workflow-tengo': 5.8.0
       canonicalize: 2.1.0
       denque: 2.1.0
@@ -7371,10 +7356,10 @@ snapshots:
       canonicalize: 2.1.0
       denque: 2.1.0
 
-  '@milaboratories/uikit@2.10.0(typescript@5.6.3)':
+  '@milaboratories/uikit@2.10.1(typescript@5.6.3)':
     dependencies:
       '@milaboratories/helpers': 1.13.0
-      '@platforma-sdk/model': 1.51.2
+      '@platforma-sdk/model': 1.51.5
       '@types/d3-array': 3.2.1
       '@types/d3-axis': 3.0.6
       '@types/d3-scale': 4.0.9
@@ -7550,7 +7535,7 @@ snapshots:
       typescript: 5.6.3
       typescript-eslint: 8.24.0(eslint@9.39.2)(typescript@5.6.3)
 
-  '@platforma-sdk/model@1.51.2':
+  '@platforma-sdk/model@1.51.5':
     dependencies:
       '@milaboratories/pl-error-like': 1.12.5
       '@milaboratories/pl-model-common': 1.23.0
@@ -7590,15 +7575,15 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@platforma-sdk/test@1.51.3(@eslint/js@9.39.2)(@stylistic/eslint-plugin@2.13.0(eslint@9.39.2)(typescript@5.6.3))(@types/node@24.5.2)(eslint-plugin-n@17.15.1(eslint@9.39.2))(eslint-plugin-vue@9.32.0(eslint@9.39.2))(globals@15.14.0)(typescript-eslint@8.24.0(eslint@9.39.2)(typescript@5.6.3))(typescript@5.6.3)(yaml@2.8.1)':
+  '@platforma-sdk/test@1.51.5(@eslint/js@9.39.2)(@stylistic/eslint-plugin@2.13.0(eslint@9.39.2)(typescript@5.6.3))(@types/node@24.5.2)(eslint-plugin-n@17.15.1(eslint@9.39.2))(eslint-plugin-vue@9.32.0(eslint@9.39.2))(globals@15.14.0)(typescript-eslint@8.24.0(eslint@9.39.2)(typescript@5.6.3))(typescript@5.6.3)(yaml@2.8.1)':
     dependencies:
       '@milaboratories/computable': 2.8.0
       '@milaboratories/eslint-config': 1.0.5(@eslint/js@9.39.2)(@stylistic/eslint-plugin@2.13.0(eslint@9.39.2)(typescript@5.6.3))(eslint-plugin-n@17.15.1(eslint@9.39.2))(eslint-plugin-vue@9.32.0(eslint@9.39.2))(eslint@9.39.2)(globals@15.14.0)(typescript-eslint@8.24.0(eslint@9.39.2)(typescript@5.6.3))(typescript@5.6.3)
       '@milaboratories/pl-client': 2.16.20
-      '@milaboratories/pl-middle-layer': 1.45.2
+      '@milaboratories/pl-middle-layer': 1.45.3
       '@milaboratories/pl-tree': 1.8.28
       '@milaboratories/ts-helpers': 1.5.4
-      '@platforma-sdk/model': 1.51.2
+      '@platforma-sdk/model': 1.51.5
       '@vitest/coverage-istanbul': 4.0.16(vitest@4.0.16(@types/node@24.5.2)(yaml@2.8.1))
       eslint: 9.39.2
       vitest: 4.0.16(@types/node@24.5.2)(yaml@2.8.1)
@@ -7634,12 +7619,12 @@ snapshots:
       - typescript-eslint
       - yaml
 
-  '@platforma-sdk/ui-vue@1.51.4(sortablejs@1.15.6)(typescript@5.6.3)':
+  '@platforma-sdk/ui-vue@1.51.5(sortablejs@1.15.6)(typescript@5.6.3)':
     dependencies:
       '@milaboratories/biowasm-tools': 2.0.0
       '@milaboratories/ptabler-expression-js': 1.1.9
-      '@milaboratories/uikit': 2.10.0(typescript@5.6.3)
-      '@platforma-sdk/model': 1.51.2
+      '@milaboratories/uikit': 2.10.1(typescript@5.6.3)
+      '@platforma-sdk/model': 1.51.5
       '@types/d3-format': 3.0.4
       '@types/node': 24.5.2
       '@types/semver': 7.7.0
