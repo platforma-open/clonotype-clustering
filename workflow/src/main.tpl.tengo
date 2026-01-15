@@ -487,11 +487,6 @@ wf.body(func(args) {
 	trace := pSpec.makeTrace(
 		abundanceSpec,
 		{
-			type: "milaboratories.clonotype-clustering.sequences",
-			importance: 10,
-			label: text.join(usedSequenceLabels, " - ")
-		},
-		{
 			type: "milaboratories.clonotype-clustering.clustering",
 			importance: 30,
 			label: traceLabel
