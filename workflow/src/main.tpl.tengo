@@ -178,13 +178,6 @@ wf.body(func(args) {
 	trimStart := is_undefined(args.trimStart) ? 0 : args.trimStart
 	trimEnd := is_undefined(args.trimEnd) ? 0 : args.trimEnd
 
-	// Get used sequences annotation labels
-	usedSequenceLabels := []
-	for nr, seq in sequencesRef {
-		usedSequenceLabels = append(usedSequenceLabels, columns.getSpec(seq).annotations["pl7.app/label"])
-	}
-	usedSequenceLabels = slices.quickSort(usedSequenceLabels)
-
 	clusterIdAxisSpec := {
 		name: "pl7.app/vdj/clusterId",
 		type: "String",
