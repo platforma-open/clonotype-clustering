@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 2.7.2
+
+### Patch Changes
+
+- 09a440a: Remove sequence trace
+
 ## 2.7.1
 
 ### Patch Changes
