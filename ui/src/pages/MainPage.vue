@@ -202,6 +202,7 @@ watchEffect(() => {
         :options="app.model.outputs.sequenceOptions"
         label="Sequence Columns to Cluster"
         required
+        :disabled="app.model.args.datasetRef === undefined"
       />
 
       <PlDropdown

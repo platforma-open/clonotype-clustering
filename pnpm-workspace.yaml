@@ -12,7 +12,7 @@ catalog:
   '@milaboratories/ts-configs': 1.2.0
   '@platforma-sdk/workflow-tengo': 5.8.0
   '@platforma-sdk/model': 1.51.6
-  '@platforma-sdk/ui-vue': 1.51.7
+  '@platforma-sdk/ui-vue': 1.51.8
   '@platforma-sdk/tengo-builder': 2.4.8
   '@platforma-sdk/package-builder': 3.11.0
   '@platforma-sdk/block-tools': 2.6.29
@@ -21,8 +21,8 @@ catalog:
   '@milaboratories/helpers': 1.13.0
 
   # Block-specific dependencies
-  '@milaboratories/graph-maker': ^1.1.210
-  '@milaboratories/multi-sequence-alignment': '^1.45.9'
+  '@milaboratories/graph-maker': ^1.1.211
+  '@milaboratories/multi-sequence-alignment': '^1.45.10'
   '@milaboratories/software-pframes-conv': ^2.2.9
   '@platforma-open/milaboratories.runenv-python-3': ^1.7.3
   '@platforma-open/soedinglab.software-mmseqs2': 1.17.1
