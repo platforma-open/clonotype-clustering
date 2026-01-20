@@ -301,7 +301,7 @@ export const model = BlockModel.create()
 
   .sections((_ctx) => [
     { type: 'link', href: '/', label: 'Main' },
-    { type: 'link', href: '/bubble', label: 'Most abundant clusters' },
+    { type: 'link', href: '/bubble', label: 'Most Abundant Clusters' },
     { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
   ])
 
