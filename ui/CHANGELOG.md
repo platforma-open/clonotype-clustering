@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.13.1
+
+### Patch Changes
+
+- 10c8e0f: Labels migration
+
 ## 3.13.0
 
 ### Minor Changes
