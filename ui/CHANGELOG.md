@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.13.2
+
+### Patch Changes
+
+- 8811443: Remove unnecessary loading spinner from "Sequence Columns to Cluster" field
+
 ## 3.13.1
 
 ### Patch Changes
