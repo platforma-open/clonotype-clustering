@@ -13,6 +13,7 @@ import {
   createPlDataTableStateV2,
   createPlDataTableV2,
 } from '@platforma-sdk/model';
+import strings from '@milaboratories/strings';
 
 export type BlockArgs = {
   defaultBlockLabel: string;
@@ -38,20 +39,67 @@ export type UiState = {
   graphStateHistogram: GraphMakerState;
 };
 
-export const model = BlockModel.create()
+/** Map user-facing similarity type to mmseqs2 similarity type */
+export const similarityTypeOptions = [
+  { label: 'Exact Match', value: 'sequence-identity' },
+  { label: 'BLOSUM', value: 'alignment-score' },
+] as const;
 
-  .withArgs<BlockArgs>({
-    defaultBlockLabel: '',
+function getDefaultBlockArgs(): BlockArgs {
+  const defaultSimilarityType = similarityTypeOptions[1];
+  const defaults = {
     customBlockLabel: '',
     identity: 0.8,
     sequenceType: 'aminoacid',
     sequencesRef: [],
-    similarityType: 'alignment-score',
+    similarityType: defaultSimilarityType.value,
     coverageThreshold: 0.8, // default value matching MMseqs2 default
     coverageMode: 0, // default to coverage of query and target
     trimStart: 0, // default to no trimming from start
     trimEnd: 0, // default to no trimming from end
-  })
+  } satisfies Partial<BlockArgs>;
+  return {
+    defaultBlockLabel: getDefaultBlockLabel({
+      sequenceLabels: [],
+      similarityType: defaults.similarityType,
+      identity: defaults.identity,
+      coverageThreshold: defaults.coverageThreshold,
+      trimStart: defaults.trimStart,
+      trimEnd: defaults.trimEnd,
+    }),
+    ...defaults,
+  };
+}
+
+export function getDefaultBlockLabel(data: {
+  sequenceLabels: string[];
+  similarityType: BlockArgs['similarityType'];
+  identity: number;
+  coverageThreshold: number;
+  trimStart: number;
+  trimEnd: number;
+}) {
+  const parts: string[] = [];
+  parts.push(data.sequenceLabels.join(' - '));
+  parts.push(
+    similarityTypeOptions
+      .find((o) => o.value === data.similarityType)
+      ?.label ?? '',
+  );
+  parts.push(`ident:${data.identity}`);
+  parts.push(`cov:${data.coverageThreshold}`);
+  if (data.trimStart > 0) {
+    parts.push(`trimStart: ${data.trimStart}`);
+  }
+  if (data.trimEnd > 0) {
+    parts.push(`trimEnd: ${data.trimEnd}`);
+  }
+  return parts.filter(Boolean).join(', ');
+}
+
+export const model = BlockModel.create()
+
+  .withArgs<BlockArgs>(getDefaultBlockArgs())
 
   .withUiState<UiState>({
     tableState: createPlDataTableStateV2(),
@@ -67,7 +115,7 @@ export const model = BlockModel.create()
     },
     alignmentModel: {},
     graphStateHistogram: {
-      title: 'Histogram',
+      title: strings.titles.histogram,
       template: 'bins',
       currentTab: null,
       layersSettings: {
@@ -300,7 +348,7 @@ export const model = BlockModel.create()
   .subtitle((ctx) => ctx.args.customBlockLabel || ctx.args.defaultBlockLabel)
 
   .sections((_ctx) => [
-    { type: 'link', href: '/', label: 'Main' },
+    { type: 'link', href: '/', label: strings.titles.main },
     { type: 'link', href: '/bubble', label: 'Most Abundant Clusters' },
     { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
   ])

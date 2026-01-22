@@ -17,6 +17,7 @@
     "@platforma-sdk/model": "catalog:",
     "@milaboratories/graph-maker": "catalog:",
     "@milaboratories/multi-sequence-alignment": "catalog:",
+    "@milaboratories/strings": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {
