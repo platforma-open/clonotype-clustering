@@ -177,7 +177,7 @@ watchEffect(() => {
     <PlAgDataTableV2
       v-model="app.model.ui.tableState"
       :settings="tableSettings"
-      :not-ready-text="STATUS_MESSAGES.NOT_READY"
+      :not-ready-text="STATUS_MESSAGES.NO_DATA"
       no-rows-text="No data available"
       :show-cell-button-for-axis-id="clusterAxis"
       @cell-button-clicked="onRowDoubleClicked"

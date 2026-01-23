@@ -54,7 +54,7 @@ const defaultOptions = computed((): PredefinedGraphOption<'histogram'>[] | undef
       :data-state-key="app.model.outputs.clustersPf"
       :p-frame="app.model.outputs.clustersPf"
       :default-options="defaultOptions"
-      :status-text="{ noPframe: { title: STATUS_MESSAGES.NOT_READY } }"
+      :status-text="{ noPframe: { title: STATUS_MESSAGES.NO_DATA } }"
     />
   </PlBlockPage>
 </template>
