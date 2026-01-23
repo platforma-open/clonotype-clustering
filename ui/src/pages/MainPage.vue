@@ -21,6 +21,7 @@ import {
 } from '@platforma-sdk/ui-vue';
 import { computed, reactive, ref, watch, watchEffect } from 'vue';
 import { useApp } from '../app';
+import { STATUS_MESSAGES } from '../constants';
 
 const app = useApp();
 const multipleSequenceAlignmentOpen = ref(false);
@@ -176,7 +177,7 @@ watchEffect(() => {
     <PlAgDataTableV2
       v-model="app.model.ui.tableState"
       :settings="tableSettings"
-      not-ready-text="Data is not computed"
+      :not-ready-text="STATUS_MESSAGES.NOT_READY"
       no-rows-text="No data available"
       :show-cell-button-for-axis-id="clusterAxis"
       @cell-button-clicked="onRowDoubleClicked"

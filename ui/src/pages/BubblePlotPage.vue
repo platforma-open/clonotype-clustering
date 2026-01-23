@@ -2,6 +2,7 @@
 import '@milaboratories/graph-maker/styles';
 import { PlBlockPage } from '@platforma-sdk/ui-vue';
 import { useApp } from '../app';
+import { STATUS_MESSAGES } from '../constants';
 
 import type { PredefinedGraphOption } from '@milaboratories/graph-maker';
 import { GraphMaker } from '@milaboratories/graph-maker';
@@ -61,6 +62,7 @@ const defaultOptions = computed((): PredefinedGraphOption<'bubble'>[] | undefine
       :data-state-key="app.model.outputs.bubblePlotPf"
       :p-frame="app.model.outputs.bubblePlotPf"
       :default-options="defaultOptions"
+      :status-text="{ noPframe: { title: STATUS_MESSAGES.NOT_READY } }"
     />
   </PlBlockPage>
 </template>
