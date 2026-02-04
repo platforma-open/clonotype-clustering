@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { PlMultiSequenceAlignment } from '@milaboratories/multi-sequence-alignment';
+import strings from '@milaboratories/strings';
+import { similarityTypeOptions } from '@platforma-open/milaboratories.clonotype-clustering.model';
 import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey } from '@platforma-sdk/model';
 import {
   listToOptions,
@@ -19,7 +21,7 @@ import {
   PlSlideModal,
   usePlDataTableSettingsV2,
 } from '@platforma-sdk/ui-vue';
-import { computed, reactive, ref, watch, watchEffect } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useApp } from '../app';
 
 const app = useApp();
@@ -62,12 +64,6 @@ const tableSettings = usePlDataTableSettingsV2({
 });
 
 const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
-
-// Map user-facing similarity type to mmseqs2 similarity type
-const similarityTypeOptions = [
-  { label: 'Exact Match', value: 'sequence-identity' },
-  { label: 'BLOSUM', value: 'alignment-score' },
-];
 
 // No longer available to user
 /* const coverageModeOptions = [
@@ -122,35 +118,6 @@ const clusterAxis = computed<AxisId>(() => {
     };
   }
 });
-
-// updating defaultBlockLabel
-watchEffect(() => {
-  const parts: string[] = [];
-  parts.push(
-    app.model.args.sequencesRef
-      .map((r) =>
-        app.model.outputs.sequenceOptions
-          ?.find((o) => o.value === r)
-          ?.label
-          .replace('InFrame', ''),
-      )
-      .join(' - '),
-  );
-  parts.push(
-    similarityTypeOptions
-      .find((o) => o.value === app.model.args.similarityType)
-      ?.label ?? '',
-  );
-  parts.push(`ident:${app.model.args.identity}`);
-  parts.push(`cov:${app.model.args.coverageThreshold}`);
-  if (app.model.args.trimStart ?? 0 > 0) {
-    parts.push(`trimStart: ${app.model.args.trimStart}`);
-  }
-  if (app.model.args.trimEnd ?? 0 > 0) {
-    parts.push(`trimEnd: ${app.model.args.trimEnd}`);
-  }
-  app.model.args.defaultBlockLabel = parts.filter(Boolean).join(', ');
-});
 </script>
 
 <template>
@@ -161,13 +128,13 @@ watchEffect(() => {
   >
     <template #append>
       <PlBtnGhost @click.stop="() => (mmseqsLogOpen = true)">
-        Logs
+        {{ strings.titles.logs }}
         <template #append>
           <PlMaskIcon24 name="file-logs" />
         </template>
       </PlBtnGhost>
       <PlBtnGhost @click.stop="() => (settingsOpen = true)">
-        Settings
+        {{ strings.titles.settings }}
         <template #append>
           <PlMaskIcon24 name="settings" />
         </template>
@@ -176,17 +143,17 @@ watchEffect(() => {
     <PlAgDataTableV2
       v-model="app.model.ui.tableState"
       :settings="tableSettings"
-      not-ready-text="Data is not computed"
-      no-rows-text="No data available"
+      :not-ready-text="strings.callToActions.configureSettingsAndRun"
+      :no-rows-text="strings.states.noDataAvailable"
       :show-cell-button-for-axis-id="clusterAxis"
       @cell-button-clicked="onRowDoubleClicked"
     />
-    <PlSlideModal v-model="settingsOpen" :close-on-outside-click="true" shadow>
-      <template #title>Settings</template>
+    <PlSlideModal v-model="settingsOpen" close-on-outside-click shadow>
+      <template #title>{{ strings.titles.settings }}</template>
       <PlDropdownRef
         v-model="app.model.args.datasetRef"
         :options="app.model.outputs.datasetOptions"
-        label="Dataset"
+        :label="strings.titles.dataset"
         clearable
         required
         @update:model-value="setInput"
@@ -195,7 +162,7 @@ watchEffect(() => {
         v-model="app.model.args.sequenceType"
         label="Sequence Type"
         :options="sequenceType"
-        :compact="true"
+        compact
       />
       <PlDropdownMulti
         v-model="app.model.args.sequencesRef"
@@ -245,7 +212,7 @@ watchEffect(() => {
         }}
       </PlAlert>
 
-      <PlAccordionSection label="Advanced Settings">
+      <PlAccordionSection :label="strings.titles.advancedSettings">
         <template v-if="hasCDR3Sequences">
           <PlSectionSeparator>Trimming options</PlSectionSeparator>
           <PlNumberField
@@ -306,7 +273,7 @@ watchEffect(() => {
     width="100%"
     :close-on-outside-click="false"
   >
-    <template #title>Multiple Sequence Alignment</template>
+    <template #title>{{ strings.titles.multipleSequenceAlignment }}</template>
     <PlMultiSequenceAlignment
       v-if="app.model.outputs.inputState === false"
       v-model="app.model.ui.alignmentModel"

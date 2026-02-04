@@ -19,10 +19,11 @@ catalog:
   '@platforma-sdk/eslint-config': 1.2.0
   '@platforma-sdk/test': 1.53.4
   '@milaboratories/helpers': 1.13.0
+  '@milaboratories/strings': 0.1.0
 
   # Block-specific dependencies
-  '@milaboratories/graph-maker': ^1.1.218
-  '@milaboratories/multi-sequence-alignment': '^1.46.3'
+  '@milaboratories/graph-maker': ^1.1.220
+  '@milaboratories/multi-sequence-alignment': '^1.46.5'
   '@milaboratories/software-pframes-conv': ^2.2.9
   '@platforma-open/milaboratories.runenv-python-3': ^1.7.3
   '@platforma-open/soedinglab.software-mmseqs2': 1.17.1
