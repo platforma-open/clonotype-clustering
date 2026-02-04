@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.15.1
+
+### Patch Changes
+
+- dd451d1: Default block label derivation improvements
+
 ## 2.15.0
 
 ### Minor Changes
