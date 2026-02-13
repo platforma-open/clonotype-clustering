@@ -25,6 +25,12 @@ import { computed, reactive, ref, watch } from 'vue';
 import { useApp } from '../app';
 
 const app = useApp();
+
+// Migrate legacy 'alignment-score' → 'blosum62'
+if ((app.model.args.similarityType as string) === 'alignment-score') {
+  app.model.args.similarityType = 'blosum62';
+}
+
 const multipleSequenceAlignmentOpen = ref(false);
 const mmseqsLogOpen = ref(false);
 const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequencesRef === undefined);
@@ -100,6 +106,25 @@ const hasCDR3Sequences = computed(() => {
     const columnName = option.label?.toLowerCase() || '';
     return columnName.includes('cdr3') || columnName.includes('cdr-3');
   });
+});
+
+// Auto-default BLOSUM matrix based on selected sequences
+watch(() => app.model.args.sequencesRef, (sequencesRef) => {
+  // Only auto-update when current value is a BLOSUM option (don't override Exact Match)
+  const current = app.model.args.similarityType as string;
+  if (current === 'sequence-identity') return;
+
+  const sequenceOptions = app.model.outputs.sequenceOptions;
+  if (!sequencesRef?.length || !sequenceOptions) return;
+
+  const allFramework = sequencesRef.every((selectedId) => {
+    const option = sequenceOptions.find((opt) => opt.value === selectedId);
+    if (!option) return false;
+    const label = option.label?.toLowerCase() || '';
+    return label.includes('fr') && !label.includes('cdr');
+  });
+
+  app.model.args.similarityType = allFramework ? 'blosum80' : 'blosum62';
 });
 
 // Set instructions to track cluster axis
@@ -178,7 +203,7 @@ const clusterAxis = computed<AxisId>(() => {
         label="Alignment Score"
       >
         <template #tooltip>
-          Select the similarity metric used for clustering thresholds. BLOSUM considers biochemical similarity while Exact Match counts only identical residues.
+          Select the similarity metric used for clustering. BLOSUM matrices score biochemical similarity between amino acids — lower numbers (e.g. BLOSUM40) are suited for more divergent sequences, higher numbers (e.g. BLOSUM80) for more conserved regions like framework sequences. BLOSUM62 is a good default for CDR sequences. Exact Match counts only identical residues.
         </template>
       </PlDropdown>
 
