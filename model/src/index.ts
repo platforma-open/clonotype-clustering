@@ -23,7 +23,7 @@ export type BlockArgs = {
   // Added sequenceType here for future use in algorithm selection in workflow
   sequenceType: 'aminoacid' | 'nucleotide';
   identity: number;
-  similarityType: 'alignment-score' | 'sequence-identity';
+  similarityType: 'sequence-identity' | 'blosum40' | 'blosum50' | 'blosum62' | 'blosum80' | 'blosum90';
   coverageThreshold: number; // fraction of aligned residues required
   coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
   highPrecision: boolean; // use high-precision mmseqs2 settings (suitable for short sequences like CDR3)
@@ -43,11 +43,15 @@ export type UiState = {
 /** Map user-facing similarity type to mmseqs2 similarity type */
 export const similarityTypeOptions = [
   { label: 'Exact Match', value: 'sequence-identity' },
-  { label: 'BLOSUM', value: 'alignment-score' },
+  { label: 'BLOSUM40', value: 'blosum40' },
+  { label: 'BLOSUM50', value: 'blosum50' },
+  { label: 'BLOSUM62', value: 'blosum62' },
+  { label: 'BLOSUM80', value: 'blosum80' },
+  { label: 'BLOSUM90', value: 'blosum90' },
 ] as const;
 
 function getDefaultBlockArgs(): BlockArgs {
-  const defaultSimilarityType = similarityTypeOptions[1];
+  const defaultSimilarityType = similarityTypeOptions[3];
   const defaults = {
     customBlockLabel: '',
     identity: 0.8,
@@ -86,7 +90,7 @@ export function getDefaultBlockLabel(data: {
   parts.push(
     similarityTypeOptions
       .find((o) => o.value === data.similarityType)
-      ?.label ?? '',
+      ?.label ?? 'BLOSUM62',
   );
   parts.push(`ident:${data.identity}`);
   parts.push(`cov:${data.coverageThreshold}`);
