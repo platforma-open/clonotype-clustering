@@ -14,6 +14,7 @@ per_chain_trim = args.per_chain_trim
 
 clustersTsv = "clusters.tsv"
 cloneTableTsv = "cloneTable.tsv"
+dedupMappingTsv = "dedup_mapping.tsv"
 clusterToSeqTsv = "cluster-to-seq.tsv"
 cloneToClusterTsv = "clone-to-cluster.tsv"
 abundancesTsv = "abundances.tsv"
@@ -78,7 +79,7 @@ cloneTable = cloneTable.with_columns(
     pl.col('clonotypeKeyLabel').str.replace('C-', 'CL-', n=1).alias('clusterLabel')
 )
 
-# clusterId, clonotypeKey
+# clusterId, clonotypeKey (both are representative keys from de-duplicated FASTA)
 clusters = pl.read_csv(clustersTsv, separator="\t", has_header=False,
                        new_columns=["clusterId", "clonotypeKey"])
 
@@ -90,60 +91,20 @@ clusters = clusters.with_columns(
     pl.col("clonotypeKey").str.strip_prefix("s-")
 )
 
-# --- Diagnostic: detect identical sequences split across multiple clusters ---
-if sequence_cols:
-    merged_check = cloneTable.select(['clonotypeKey', 'fullSequence']).unique('clonotypeKey').join(
-        clusters.select(['clonotypeKey', 'clusterId']).unique('clonotypeKey'),
-        on='clonotypeKey', how='inner'
-    )
-    seq_cluster_counts = merged_check.group_by('fullSequence').agg(
-        pl.col('clusterId').n_unique().alias('n_clusters'),
-        pl.count().alias('n_members')
-    )
-    split_seqs = seq_cluster_counts.filter(pl.col('n_clusters') > 1)
-    if split_seqs.height > 0:
-        print(f"\nWARNING: {split_seqs.height} unique sequences split across multiple clusters!")
-        for row in split_seqs.sort('n_members', descending=True).head(10).iter_rows(named=True):
-            seq = row['fullSequence']
-            print(f"  Sequence '{seq}' (len={len(seq)}): in {row['n_clusters']} clusters, {row['n_members']} total members")
-            affected = merged_check.filter(pl.col('fullSequence') == seq)
-            for cluster_row in affected.group_by('clusterId').count().iter_rows(named=True):
-                print(f"    cluster {cluster_row['clusterId']}: {cluster_row['count']} members")
-        # --- Fix: merge clusters that share identical sequences ---
-        # For each split sequence, pick the cluster with the most members and
-        # reassign all other members to it.
-        seq_to_clonotype = cloneTable.select(['clonotypeKey', 'fullSequence']).unique('clonotypeKey')
-        cluster_with_seq = clusters.select(['clonotypeKey', 'clusterId']).join(
-            seq_to_clonotype, on='clonotypeKey', how='inner'
-        )
-        # For each (fullSequence, clusterId) pair, count members
-        cluster_seq_sizes = cluster_with_seq.group_by(['fullSequence', 'clusterId']).agg(
-            pl.count().alias('cnt')
-        )
-        # For each sequence, find the cluster with the most members (canonical cluster)
-        canonical = cluster_seq_sizes.sort('cnt', descending=True).group_by('fullSequence').first()
-        canonical = canonical.select(
-            pl.col('fullSequence'),
-            pl.col('clusterId').alias('canonicalClusterId')
-        )
-        # Build a mapping: clonotypeKey -> canonicalClusterId for affected keys
-        reassign = cluster_with_seq.join(canonical, on='fullSequence', how='inner').filter(
-            pl.col('clusterId') != pl.col('canonicalClusterId')
-        )
-        if reassign.height > 0:
-            reassign_map = reassign.select(['clonotypeKey', 'canonicalClusterId'])
-            clusters = clusters.join(reassign_map, on='clonotypeKey', how='left')
-            clusters = clusters.with_columns(
-                pl.when(pl.col('canonicalClusterId').is_not_null())
-                  .then(pl.col('canonicalClusterId'))
-                  .otherwise(pl.col('clusterId'))
-                  .alias('clusterId')
-            ).drop('canonicalClusterId')
-            print(f"Fixed: reassigned {reassign.height} clonotypes to canonical clusters")
-        else:
-            print("No reassignment needed")
-    else:
-        print("OK: No identical sequences found in different clusters (based on cloneTable sequences)")
+# --- Expand de-duplicated clusters back to all original clonotypeKeys ---
+# The FASTA contained only unique sequences (one representative per group of
+# identical sequences). MMseqs2 clustered those representatives. Now we expand
+# each representative back to all original clonotypeKeys that share its sequence.
+dedup_mapping = pl.read_csv(dedupMappingTsv, separator="\t")
+# dedup_mapping has columns: representativeKey, clonotypeKey
+
+num_representatives = clusters.select(pl.col("clonotypeKey").n_unique()).item()
+clusters = clusters.rename({"clonotypeKey": "representativeKey"}).join(
+    dedup_mapping,
+    on="representativeKey",
+    how="inner"
+).drop("representativeKey")
+print(f"Expanded clusters: {num_representatives} representatives -> {clusters.height} total clonotype-cluster assignments")
 
 # --- Calculate cluster sizes directly in the clusters dataframe ---
 clusters = clusters.with_columns(
