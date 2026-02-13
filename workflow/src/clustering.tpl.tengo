@@ -111,6 +111,7 @@ self.body(func(inputs) {
 
         fasta := fastaBuilder.
             saveFile("output.fasta").
+            saveFile("dedup_mapping.tsv").
             run()
 
         // get split memory limit based on real system ram
@@ -143,6 +144,16 @@ self.body(func(inputs) {
             arg("--min-seq-id").arg(string(identity)).
             arg("-c").arg(string(coverageThreshold)).
             arg("--cov-mode").arg(string(coverageMode)).
+            arg("-s").arg("7.5").
+            arg("--min-ungapped-score").arg("0").
+            arg("--max-seqs").arg("5000").
+            arg("--cluster-mode").arg("1").
+            arg("--max-iterations").arg("1").
+            arg("-k").arg("5").
+            arg("--single-step-clustering").
+            arg("--spaced-kmer-mode").arg("0").
+            arg("--exact-kmer-matching").arg("1").
+            arg("-e").arg("inf").
             //  --similarity-type INT            Type of score used for clustering. 1: alignment score 2: sequence identity [2]
             arg("--similarity-type").arg(similarityType == "sequence-identity" ? "2" : "1").
             addFile("input.fasta", fasta.getFile("output.fasta")).
@@ -163,6 +174,7 @@ self.body(func(inputs) {
             cpu(8). // @TODO: set based on the size of the input
             addFile("clusters.tsv", clusters).
             addFile("cloneTable.tsv", cloneTable).
+            addFile("dedup_mapping.tsv", fasta.getFile("dedup_mapping.tsv")).
             arg("--trim-start").arg(string(trimStart)).
             arg("--trim-end").arg(string(trimEnd))
 

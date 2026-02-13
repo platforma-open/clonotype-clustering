@@ -8,21 +8,21 @@ packages:
 
 catalog:
   # SDK packages - EXACT VERSIONS (no ^ or ~)
-  '@milaboratories/ts-builder': 1.2.4
-  '@milaboratories/ts-configs': 1.2.0
-  '@platforma-sdk/workflow-tengo': 5.8.1
-  '@platforma-sdk/model': 1.53.4
-  '@platforma-sdk/ui-vue': 1.53.4
-  '@platforma-sdk/tengo-builder': 2.4.13
-  '@platforma-sdk/package-builder': 3.11.0
-  '@platforma-sdk/block-tools': 2.6.37
+  '@milaboratories/ts-builder': 1.2.9
+  '@milaboratories/ts-configs': 1.2.1
+  '@platforma-sdk/workflow-tengo': 5.8.2
+  '@platforma-sdk/model': 1.53.15
+  '@platforma-sdk/ui-vue': 1.54.1
+  '@platforma-sdk/tengo-builder': 2.4.17
+  '@platforma-sdk/package-builder': 3.11.4
+  '@platforma-sdk/block-tools': 2.6.48
   '@platforma-sdk/eslint-config': 1.2.0
-  '@platforma-sdk/test': 1.53.4
-  '@milaboratories/helpers': 1.13.0
-  '@milaboratories/strings': 0.1.0
+  '@platforma-sdk/test': 1.54.3
+  '@milaboratories/helpers': 1.13.3
+  '@milaboratories/strings': 0.1.1
 
   # Block-specific dependencies
-  '@milaboratories/graph-maker': ^1.1.220
+  '@milaboratories/graph-maker': ^1.1.224
   '@milaboratories/multi-sequence-alignment': '^1.46.5'
   '@milaboratories/software-pframes-conv': ^2.2.9
   '@platforma-open/milaboratories.runenv-python-3': ^1.7.3

@@ -59,12 +59,33 @@ def main():
                 lambda seq: trim_sequence(seq, args.trim_start, args.trim_end)
             )
 
-    # Reformat and store table in fasta format, adding a fixed "s-" prefix.
-    df['clonotypeKey'] = '>s-' + df['clonotypeKey'].astype(str)
-    df[['clonotypeKey', 'sequence']].to_csv(output_file,
-                                            sep='\n',
-                                            index=False,
-                                            header=False)
+    # De-duplicate: pick one representative clonotypeKey per unique sequence.
+    # This reduces MMseqs2 input size dramatically (e.g. 243K -> 29K) and
+    # eliminates the problem of identical sequences landing in different clusters.
+    representatives = df.drop_duplicates(subset='sequence', keep='first')
+
+    print(f"\n=== FASTA Diagnostics ===")
+    print(f"Total clonotypes: {len(df)}")
+    print(f"Unique sequences (written to FASTA): {len(representatives)}")
+    seq_lens = representatives['sequence'].str.len()
+    print(f"Sequence lengths: min={seq_lens.min()}, max={seq_lens.max()}, mean={seq_lens.mean():.1f}")
+    print(f"Empty sequences: {(seq_lens == 0).sum()}")
+    print(f"Sequences < 6 aa: {(seq_lens < 6).sum()}")
+
+    # Write dedup mapping: representativeKey -> clonotypeKey (one row per original key)
+    mapping = df[['clonotypeKey', 'sequence']].merge(
+        representatives[['clonotypeKey', 'sequence']].rename(columns={'clonotypeKey': 'representativeKey'}),
+        on='sequence',
+        how='inner'
+    )[['representativeKey', 'clonotypeKey']]
+    mapping.to_csv("dedup_mapping.tsv", sep="\t", index=False)
+    print(f"Dedup mapping: {len(mapping)} total keys -> {len(representatives)} representatives")
+
+    # Write FASTA with only representative sequences, adding a fixed "s-" prefix.
+    fasta_df = representatives[['clonotypeKey', 'sequence']].copy()
+    fasta_df['clonotypeKey'] = '>s-' + fasta_df['clonotypeKey'].astype(str)
+    fasta_df.to_csv(output_file, sep='\n', index=False, header=False)
+
     print(f"Fasta file created: {output_file}")
     if args.trim_start > 0 or args.trim_end > 0:
         mode = 'per-chain' if args.per_chain_trim else 'global'

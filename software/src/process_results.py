@@ -14,6 +14,7 @@ per_chain_trim = args.per_chain_trim
 
 clustersTsv = "clusters.tsv"
 cloneTableTsv = "cloneTable.tsv"
+dedupMappingTsv = "dedup_mapping.tsv"
 clusterToSeqTsv = "cluster-to-seq.tsv"
 cloneToClusterTsv = "clone-to-cluster.tsv"
 abundancesTsv = "abundances.tsv"
@@ -78,7 +79,7 @@ cloneTable = cloneTable.with_columns(
     pl.col('clonotypeKeyLabel').str.replace('C-', 'CL-', n=1).alias('clusterLabel')
 )
 
-# clusterId, clonotypeKey
+# clusterId, clonotypeKey (both are representative keys from de-duplicated FASTA)
 clusters = pl.read_csv(clustersTsv, separator="\t", has_header=False,
                        new_columns=["clusterId", "clonotypeKey"])
 
@@ -89,6 +90,21 @@ clusters = clusters.with_columns(
     pl.col("clusterId").str.strip_prefix("s-"),
     pl.col("clonotypeKey").str.strip_prefix("s-")
 )
+
+# --- Expand de-duplicated clusters back to all original clonotypeKeys ---
+# The FASTA contained only unique sequences (one representative per group of
+# identical sequences). MMseqs2 clustered those representatives. Now we expand
+# each representative back to all original clonotypeKeys that share its sequence.
+dedup_mapping = pl.read_csv(dedupMappingTsv, separator="\t")
+# dedup_mapping has columns: representativeKey, clonotypeKey
+
+num_representatives = clusters.select(pl.col("clonotypeKey").n_unique()).item()
+clusters = clusters.rename({"clonotypeKey": "representativeKey"}).join(
+    dedup_mapping,
+    on="representativeKey",
+    how="inner"
+).drop("representativeKey")
+print(f"Expanded clusters: {num_representatives} representatives -> {clusters.height} total clonotype-cluster assignments")
 
 # --- Calculate cluster sizes directly in the clusters dataframe ---
 clusters = clusters.with_columns(

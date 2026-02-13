@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import '@milaboratories/graph-maker/styles';
+import strings from '@milaboratories/strings';
 import { PlBlockPage } from '@platforma-sdk/ui-vue';
 import { useApp } from '../app';
 
@@ -61,6 +62,7 @@ const defaultOptions = computed((): PredefinedGraphOption<'bubble'>[] | undefine
       :data-state-key="app.model.outputs.bubblePlotPf"
       :p-frame="app.model.outputs.bubblePlotPf"
       :default-options="defaultOptions"
+      :status-text="{ noPframe: { title: strings.callToActions.configureSettingsAndRun } }"
     />
   </PlBlockPage>
 </template>
