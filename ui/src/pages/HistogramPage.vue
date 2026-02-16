@@ -5,6 +5,7 @@ import { PlBlockPage } from '@platforma-sdk/ui-vue';
 import { useApp } from '../app';
 import type { PColumnIdAndSpec } from '@platforma-sdk/model';
 import { computed } from 'vue';
+import strings from '@milaboratories/strings';
 
 const app = useApp();
 
@@ -53,6 +54,7 @@ const defaultOptions = computed((): PredefinedGraphOption<'histogram'>[] | undef
       :data-state-key="app.model.outputs.clustersPf"
       :p-frame="app.model.outputs.clustersPf"
       :default-options="defaultOptions"
+      :status-text="{ noPframe: { title: strings.callToActions.configureSettingsAndRun } }"
     />
   </PlBlockPage>
 </template>
