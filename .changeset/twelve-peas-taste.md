@@ -5,4 +5,4 @@
 "@platforma-open/milaboratories.clonotype-clustering.ui": patch
 ---
 
-Improve clustering heuristics by forcing clonotypes with the same sequence into single cluster.
+Improve clustering heuristics by adjusting mmseq parameters and adding post processing step to reassign singleton sequences

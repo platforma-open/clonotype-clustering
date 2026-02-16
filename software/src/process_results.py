@@ -171,12 +171,14 @@ if seq_col_for_reassign and min_seq_id < 1.0:
                 .group_by("member_key").first()
             )
 
-            # Log each reassignment
-            for row in best_matches.iter_rows(named=True):
+            # Log reassignments (first 10)
+            for row in best_matches.head(10).iter_rows(named=True):
                 print(f"  reassign {row['member_key']} -> centroid {row['clusterId']} "
                       f"(dist={row['distance']}, norm_dist={row['norm_dist']:.4f}, "
                       f"seq='{row['member_seq']}', centroid_seq='{row['centroid_seq']}', "
                       f"cluster_size={row['rep_size']})")
+            if best_matches.height > 10:
+                print(f"  ... and {best_matches.height - 10} more reassignments")
 
             # Apply reassignments to clusters DataFrame
             reassign_df = best_matches.select(
