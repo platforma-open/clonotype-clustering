@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.13.5
+
+### Patch Changes
+
+- 21bb46a: Improve clustering heuristics by adjusting mmseq parameters and adding post processing step to reassign singleton sequences
+- Updated dependencies [21bb46a]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.15.2
+
 ## 3.13.4
 
 ### Patch Changes
