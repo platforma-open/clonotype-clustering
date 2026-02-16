@@ -6,11 +6,13 @@ parser = argparse.ArgumentParser(description='Process clustering results and com
 parser.add_argument('--trim-start', type=int, default=0, help='Number of amino acids to remove from start')
 parser.add_argument('--trim-end', type=int, default=0, help='Number of amino acids to remove from end')
 parser.add_argument('--per-chain-trim', action='store_true', help='Apply trimming to each chain before computing distances and summaries')
+parser.add_argument('--min-seq-id', type=float, default=1.0, help='Minimum sequence identity threshold (0-1) used by mmseqs2. Used for singleton reassignment post-processing.')
 args = parser.parse_args()
 
 trim_start = args.trim_start
 trim_end = args.trim_end
 per_chain_trim = args.per_chain_trim
+min_seq_id = args.min_seq_id
 
 clustersTsv = "clusters.tsv"
 cloneTableTsv = "cloneTable.tsv"
@@ -90,6 +92,115 @@ clusters = clusters.with_columns(
     pl.col("clusterId").str.strip_prefix("s-"),
     pl.col("clonotypeKey").str.strip_prefix("s-")
 )
+
+# --- Reassign singleton representatives to nearby non-singleton clusters ---
+# MMseqs2 kmer prefilter (k=5) can miss valid matches for short sequences (5-7 aa),
+# leaving them as incorrect singletons. This step checks each singleton representative
+# against all non-singleton centroids using bounded Levenshtein distance.
+seq_col_for_reassign = 'trimmed_fullSequence' if 'trimmed_fullSequence' in cloneTable.columns else (
+    'fullSequence' if 'fullSequence' in cloneTable.columns else None)
+
+if seq_col_for_reassign and min_seq_id < 1.0:
+    # Count representatives per cluster (before dedup expansion)
+    rep_sizes = clusters.group_by("clusterId").agg(pl.len().alias("rep_size"))
+    singleton_ids = rep_sizes.filter(pl.col("rep_size") == 1)["clusterId"]
+    non_singleton_centroids = rep_sizes.filter(pl.col("rep_size") > 1)
+
+    if singleton_ids.len() > 0 and non_singleton_centroids.height > 0:
+        # Sequence lookup from cloneTable (keyed by clonotypeKey)
+        seq_df = (
+            cloneTable.select(["clonotypeKey", seq_col_for_reassign])
+            .unique("clonotypeKey", keep="first")
+        )
+
+        # Singleton members with their sequences
+        singleton_df = (
+            clusters.filter(pl.col("clusterId").is_in(singleton_ids))
+            .select(pl.col("clonotypeKey").alias("member_key"))
+            .join(
+                seq_df.select(
+                    pl.col("clonotypeKey").alias("member_key"),
+                    pl.col(seq_col_for_reassign).alias("member_seq")
+                ),
+                on="member_key", how="inner"
+            )
+        )
+
+        # Non-singleton centroids with their sequences and sizes
+        centroid_df = (
+            non_singleton_centroids
+            .select(["clusterId", "rep_size"])
+            .join(
+                seq_df.select(
+                    pl.col("clonotypeKey").alias("clusterId"),
+                    pl.col(seq_col_for_reassign).alias("centroid_seq")
+                ),
+                on="clusterId", how="inner"
+            )
+        )
+
+        n_singletons = singleton_df.height
+        n_centroids = centroid_df.height
+        print(f"Singleton reassignment: checking {n_singletons} singletons against {n_centroids} centroids...")
+
+        # Cross-join all singletons with all centroids, compute Levenshtein in Rust via polars_ds
+        cross = singleton_df.join(centroid_df, how="cross")
+        cross = cross.with_columns(
+            pds.str_leven(pl.col("member_seq"), pl.col("centroid_seq"), return_sim=False).alias("distance"),
+            pl.max_horizontal(
+                pl.col("member_seq").str.len_chars(),
+                pl.col("centroid_seq").str.len_chars()
+            ).alias("max_len")
+        )
+
+        # Filter to matches within identity threshold: distance / max_len <= (1 - min_seq_id)
+        max_dist_frac = 1.0 - min_seq_id
+        matches = cross.filter(
+            (pl.col("max_len") > 0) &
+            (pl.col("distance").cast(pl.Float64) / pl.col("max_len").cast(pl.Float64) <= max_dist_frac)
+        )
+
+        if matches.height > 0:
+            # Pick best match per singleton: lowest normalized distance, then largest cluster
+            matches = matches.with_columns(
+                (pl.col("distance").cast(pl.Float64) / pl.col("max_len").cast(pl.Float64)).alias("norm_dist")
+            )
+            best_matches = (
+                matches
+                .sort(["norm_dist", "rep_size"], descending=[False, True])
+                .group_by("member_key").first()
+            )
+
+            # Log each reassignment
+            for row in best_matches.iter_rows(named=True):
+                print(f"  reassign {row['member_key']} -> centroid {row['clusterId']} "
+                      f"(dist={row['distance']}, norm_dist={row['norm_dist']:.4f}, "
+                      f"seq='{row['member_seq']}', centroid_seq='{row['centroid_seq']}', "
+                      f"cluster_size={row['rep_size']})")
+
+            # Apply reassignments to clusters DataFrame
+            reassign_df = best_matches.select(
+                pl.col("member_key").alias("r_key"),
+                pl.col("clusterId").alias("new_clusterId")
+            )
+            clusters = clusters.join(reassign_df, left_on="clonotypeKey", right_on="r_key", how="left")
+            clusters = clusters.with_columns(
+                pl.coalesce(pl.col("new_clusterId"), pl.col("clusterId")).alias("clusterId")
+            ).drop("new_clusterId")
+
+            print(f"Singleton reassignment: {best_matches.height} of {n_singletons} singletons "
+                  f"reassigned to existing clusters (min-seq-id={min_seq_id})")
+        else:
+            print(f"Singleton reassignment: 0 of {n_singletons} singletons matched "
+                  f"any non-singleton centroid (min-seq-id={min_seq_id})")
+    else:
+        print(f"Singleton reassignment: skipped "
+              f"({'no singletons' if singleton_ids.len() == 0 else 'no non-singleton clusters to reassign to'})")
+else:
+    if min_seq_id >= 1.0:
+        print("Singleton reassignment: skipped (min-seq-id=1.0, exact matching only)")
+    else:
+        print("Singleton reassignment: skipped (no sequence columns available)")
 
 # --- Expand de-duplicated clusters back to all original clonotypeKeys ---
 # The FASTA contained only unique sequences (one representative per group of

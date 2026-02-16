@@ -176,7 +176,8 @@ self.body(func(inputs) {
             addFile("cloneTable.tsv", cloneTable).
             addFile("dedup_mapping.tsv", fasta.getFile("dedup_mapping.tsv")).
             arg("--trim-start").arg(string(trimStart)).
-            arg("--trim-end").arg(string(trimEnd))
+            arg("--trim-end").arg(string(trimEnd)).
+            arg("--min-seq-id").arg(string(identity))
 
         if perChainTrim {
             resultBuilder = resultBuilder.arg("--per-chain-trim")
