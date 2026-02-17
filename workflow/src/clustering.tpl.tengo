@@ -130,20 +130,19 @@ self.body(func(inputs) {
         // run mmseqs2
         // NOTE: mmseqs2 produces different results for same input (different line order),
         // so we save the result in the output to prevent CID conflict by deduplication
-        mmseqs := exec.builder().
+        isAlignmentScore := similarityType != "sequence-identity"
+
+        mmseqsBuilder := exec.builder().
             software(mmseqsSw).
             mem(mem).
-	        cpu(cpu).
-            printErrStreamToStdout(). 
+            cpu(cpu).
+            printErrStreamToStdout().
             arg("easy-cluster").
             arg("input.fasta").
             arg("result").
             arg("tmp").
             arg("--split-memory-limit").argWithVar(memLimit).
             arg("--threads").argWithVar("{system.cpu}").
-            arg("--min-seq-id").arg(string(identity)).
-            arg("-c").arg(string(coverageThreshold)).
-            arg("--cov-mode").arg(string(coverageMode)).
             arg("-s").arg("7.5").
             arg("--min-ungapped-score").arg("0").
             arg("--max-seqs").arg("5000").
@@ -154,8 +153,27 @@ self.body(func(inputs) {
             arg("--spaced-kmer-mode").arg("0").
             arg("--exact-kmer-matching").arg("1").
             arg("-e").arg("inf").
-            //  --similarity-type INT            Type of score used for clustering. 1: alignment score 2: sequence identity [2]
-            arg("--similarity-type").arg(similarityType == "sequence-identity" ? "2" : "1").
+            arg("--min-seq-id").arg(string(identity)).
+            arg("-c").arg(string(coverageThreshold)).
+            arg("--cov-mode").arg(string(coverageMode)).
+            arg("--similarity-type").arg(isAlignmentScore ? "1" : "2")
+
+        // For non-default BLOSUM matrices, reference the .out file from the mmseqs2 package
+        // blosum62 is built into mmseqs2 binary, no --sub-mat needed
+        // "alignment-score" is legacy value equivalent to blosum62
+        nonDefaultBlosum := {
+            "blosum40": "blosum40.out",
+            "blosum50": "blosum50.out",
+            "blosum80": "blosum80.out",
+            "blosum90": "blosum90.out"
+        }
+        if !is_undefined(nonDefaultBlosum[similarityType]) {
+            matrixFile := nonDefaultBlosum[similarityType]
+            mmseqsBuilder = mmseqsBuilder.
+                arg("--sub-mat").argExpr("{pkg}/data/" + matrixFile)
+        }
+
+        mmseqs := mmseqsBuilder.
             addFile("input.fasta", fasta.getFile("output.fasta")).
             saveFile("result_cluster.tsv").
             saveStdoutStream().
