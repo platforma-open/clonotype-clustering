@@ -161,6 +161,7 @@ wf.body(func(args) {
 		coverageThreshold: args.coverageThreshold,
 		coverageMode: args.coverageMode,
 		sequencesRef: sequencesRef,
+		highPrecision: args.highPrecision,
 		trimStart: args.trimStart,
 		trimEnd: args.trimEnd
 	}, {

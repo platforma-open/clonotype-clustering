@@ -26,6 +26,7 @@ export type BlockArgs = {
   similarityType: 'alignment-score' | 'sequence-identity';
   coverageThreshold: number; // fraction of aligned residues required
   coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
+  highPrecision: boolean; // use high-precision mmseqs2 settings (suitable for short sequences like CDR3)
   trimStart?: number; // number of amino acids to remove from the beginning
   trimEnd?: number; // number of amino acids to remove from the end
   mem?: number;
@@ -55,6 +56,7 @@ function getDefaultBlockArgs(): BlockArgs {
     similarityType: defaultSimilarityType.value,
     coverageThreshold: 0.8, // default value matching MMseqs2 default
     coverageMode: 0, // default to coverage of query and target
+    highPrecision: false, // default to off, auto-set by UI when single CDR selected
     trimStart: 0, // default to no trimming from start
     trimEnd: 0, // default to no trimming from end
   } satisfies Partial<BlockArgs>;
