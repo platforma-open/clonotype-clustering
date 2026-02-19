@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.15.3
+
+### Patch Changes
+
+- 5242e98: Make high precision clustering optional depending on clustering sequence
+
 ## 2.15.2
 
 ### Patch Changes
