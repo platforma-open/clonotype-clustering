@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.25.3
+
+### Patch Changes
+
+- de2362d: Support different BLOSUM matrices
+
 ## 3.25.2
 
 ### Patch Changes

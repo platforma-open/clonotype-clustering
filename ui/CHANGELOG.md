@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.13.7
+
+### Patch Changes
+
+- de2362d: Support different BLOSUM matrices
+- Updated dependencies [de2362d]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.15.4
+
 ## 3.13.6
 
 ### Patch Changes
