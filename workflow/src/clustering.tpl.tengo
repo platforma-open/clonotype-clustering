@@ -149,7 +149,7 @@ self.body(func(inputs) {
             arg("--threads").argWithVar("{system.cpu}").
             arg("--min-seq-id").arg(string(identity)).
             arg("-c").arg(string(coverageThreshold)).
-            arg("--cov-mode").arg(string(coverageMode))
+            arg("--cov-mode").arg(string(coverageMode)).
             arg("--similarity-type").arg(isAlignmentScore ? "1" : "2")
 
         // High-precision settings optimized for short sequences (e.g. single CDR)
@@ -190,9 +190,6 @@ self.body(func(inputs) {
         mmseqsOutput := mmseqs.getStdoutStream()
 
         /******* Step 2: aggregate all data and generate results *******/
-        
-
-
         resultBuilder := exec.builder().
             software(processResultsSw).
             mem("32GiB"). // @TODO: set based on the size of the input
