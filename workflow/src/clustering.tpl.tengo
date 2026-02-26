@@ -163,7 +163,6 @@ self.body(func(inputs) {
                 arg("-k").arg("5").
                 arg("--single-step-clustering").
                 arg("--spaced-kmer-mode").arg("0").
-                arg("--exact-kmer-matching").arg("1").
                 arg("-e").arg("inf")
         }
         // For non-default BLOSUM matrices, reference the .out file from the mmseqs2 package
