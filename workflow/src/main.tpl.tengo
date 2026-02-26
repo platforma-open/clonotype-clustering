@@ -348,7 +348,7 @@ wf.body(func(args) {
 			name: "pl7.app/label",
 			valueType: "String",
 			annotations: {
-				"pl7.app/label": "Cluster label"
+				"pl7.app/label": "Cluster Id"
 			}
 		}
 	}]
