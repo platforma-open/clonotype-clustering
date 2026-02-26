@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.25.4
+
+### Patch Changes
+
+- 692ebdf: Adjust mmseq arguments to improve sensitivity
+
 ## 3.25.3
 
 ### Patch Changes
