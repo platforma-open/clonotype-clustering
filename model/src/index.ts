@@ -52,8 +52,8 @@ export const similarityTypeOptions = [
 ] as const;
 
 export const clusteringToolOptions = [
-  { label: 'easy-cluster', value: 'easy-cluster' },
-  { label: 'easy-linclust', value: 'easy-linclust' },
+  { label: 'Easy Cluster', value: 'easy-cluster' },
+  { label: 'Easy Linclust', value: 'easy-linclust' },
 ] as const;
 
 function getDefaultBlockArgs(): BlockArgs {

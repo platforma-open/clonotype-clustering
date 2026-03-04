@@ -272,8 +272,8 @@ const clusterAxis = computed<AxisId>(() => {
           label="Clustering Algorithm"
         >
           <template #tooltip>
-            <b>easy-cluster</b> — standard MMseqs2 cascaded clustering. Accurate for all dataset sizes.<br/>
-            <b>easy-linclust</b> — linear-time clustering algorithm. Much faster for large datasets but may produce less precise clusters.
+            <b>Easy Cluster</b> — standard MMseqs2 cascaded clustering. Accurate for all dataset sizes.<br/>
+            <b>Easy Linclust</b> — linear-time clustering algorithm. Much faster for large datasets but may produce less precise clusters.
           </template>
         </PlDropdown>
 
