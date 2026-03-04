@@ -29,6 +29,7 @@ export type BlockArgs = {
   highPrecision: boolean; // use high-precision mmseqs2 settings (suitable for short sequences like CDR3)
   trimStart?: number; // number of amino acids to remove from the beginning
   trimEnd?: number; // number of amino acids to remove from the end
+  clusteringTool: 'easy-cluster' | 'easy-linclust';
   mem?: number;
   cpu?: number;
 };
@@ -50,6 +51,11 @@ export const similarityTypeOptions = [
   { label: 'BLOSUM90', value: 'blosum90' },
 ] as const;
 
+export const clusteringToolOptions = [
+  { label: 'easy-cluster', value: 'easy-cluster' },
+  { label: 'easy-linclust', value: 'easy-linclust' },
+] as const;
+
 function getDefaultBlockArgs(): BlockArgs {
   const defaultSimilarityType = similarityTypeOptions[3];
   const defaults = {
@@ -63,6 +69,7 @@ function getDefaultBlockArgs(): BlockArgs {
     highPrecision: false, // default to off, auto-set by UI when single CDR selected
     trimStart: 0, // default to no trimming from start
     trimEnd: 0, // default to no trimming from end
+    clusteringTool: 'easy-cluster',
   } satisfies Partial<BlockArgs>;
   return {
     defaultBlockLabel: getDefaultBlockLabel({

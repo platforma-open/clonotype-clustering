@@ -23,6 +23,7 @@ self.validateInputs({
     "highPrecision,?": "boolean",
     "trimStart,?": "number",
     "trimEnd,?": "number",
+    "clusteringTool,?": "string",
     "mem,?": "number",
     "cpu,?": "number"
 })
@@ -46,8 +47,14 @@ self.body(func(inputs) {
     trimStart := is_undefined(inputs.trimStart) ? 0 : inputs.trimStart
     trimEnd := is_undefined(inputs.trimEnd) ? 0 : inputs.trimEnd
 
-    // High precision mode (suitable for short sequences like single CDR)
+    // Clustering tool: easy-cluster (default) or easy-linclust
+    clusteringTool := is_undefined(inputs.clusteringTool) ? "easy-cluster" : inputs.clusteringTool
+
+    // High precision mode (only applicable to easy-cluster)
     highPrecision := is_undefined(inputs.highPrecision) ? false : inputs.highPrecision
+    if clusteringTool != "easy-cluster" {
+        highPrecision = false
+    }
 
     // Determine if single-cell and likely two chains selected
     isSingleCell := inputs.isSingleCell
@@ -141,7 +148,7 @@ self.body(func(inputs) {
             mem(mem).
 	        cpu(cpu).
             printErrStreamToStdout().
-            arg("easy-cluster").
+            arg(clusteringTool).
             arg("input.fasta").
             arg("result").
             arg("tmp").

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { PlMultiSequenceAlignment } from '@milaboratories/multi-sequence-alignment';
 import strings from '@milaboratories/strings';
-import { similarityTypeOptions } from '@platforma-open/milaboratories.clonotype-clustering.model';
+import { similarityTypeOptions, clusteringToolOptions } from '@platforma-open/milaboratories.clonotype-clustering.model';
 import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey } from '@platforma-sdk/model';
 import {
   listToOptions,
@@ -109,7 +109,14 @@ const isSingleCdrSelected = computed(() => {
 
 // Auto-set highPrecision default when sequence selection changes
 watch(() => app.model.args.sequencesRef, () => {
-  app.model.args.highPrecision = isSingleCdrSelected.value;
+  app.model.args.highPrecision = isSingleCdrSelected.value && app.model.args.clusteringTool === 'easy-cluster';
+});
+
+// Reset highPrecision when switching to linclust
+watch(() => app.model.args.clusteringTool, (tool) => {
+  if (tool === 'easy-linclust') {
+    app.model.args.highPrecision = false;
+  }
 });
 
 // Check if any selected sequence is CDR3
@@ -259,10 +266,21 @@ const clusterAxis = computed<AxisId>(() => {
       </PlAlert>
 
       <PlAccordionSection :label="strings.titles.advancedSettings">
-        <PlCheckbox v-model="app.model.args.highPrecision">
+        <PlDropdown
+          v-model="app.model.args.clusteringTool"
+          :options="clusteringToolOptions"
+          label="Clustering Algorithm"
+        >
+          <template #tooltip>
+            <b>easy-cluster</b> — standard MMseqs2 cascaded clustering. Accurate for all dataset sizes.<br/>
+            <b>easy-linclust</b> — linear-time clustering algorithm. Much faster for large datasets but may produce less precise clusters.
+          </template>
+        </PlDropdown>
+
+        <PlCheckbox v-model="app.model.args.highPrecision" :disabled="app.model.args.clusteringTool === 'easy-linclust'">
           High precision mode
           <PlTooltip class="info" position="top">
-            <template #tooltip>Uses high-sensitivity MMseqs2 settings optimized for short sequences (e.g. single CDR). Disable for longer sequences (e.g. full VDJ region or multiple sequences) as it may significantly increase computation time.</template>
+            <template #tooltip>Uses high-sensitivity MMseqs2 settings optimized for short sequences (e.g. single CDR). Disable for longer sequences (e.g. full VDJ region or multiple sequences) as it may significantly increase computation time. Only available with easy-cluster.</template>
           </PlTooltip>
         </PlCheckbox>
 
