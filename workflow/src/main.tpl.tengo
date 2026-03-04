@@ -163,7 +163,8 @@ wf.body(func(args) {
 		sequencesRef: sequencesRef,
 		highPrecision: args.highPrecision,
 		trimStart: args.trimStart,
-		trimEnd: args.trimEnd
+		trimEnd: args.trimEnd,
+		clusteringTool: args.clusteringTool
 	}, {
 		metaInputs: {
 			mem: args.mem,
