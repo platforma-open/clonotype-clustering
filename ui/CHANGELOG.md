@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 3.14.0
+
+### Minor Changes
+
+- 1789fc2: Support easy-linclust for large datasets
+
+### Patch Changes
+
+- Updated dependencies [1789fc2]
+  - @platforma-open/milaboratories.clonotype-clustering.model@2.16.0
+
 ## 3.13.7
 
 ### Patch Changes
