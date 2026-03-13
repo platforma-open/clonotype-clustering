@@ -66,7 +66,7 @@ function getDefaultBlockArgs(): BlockArgs {
     similarityType: defaultSimilarityType.value,
     coverageThreshold: 0.8, // default value matching MMseqs2 default
     coverageMode: 0, // default to coverage of query and target
-    highPrecision: false, // default to off, auto-set by UI when single CDR selected
+    highPrecision: false, // default to off, can be enabled manually in advanced settings
     trimStart: 0, // default to no trimming from start
     trimEnd: 0, // default to no trimming from end
     clusteringTool: 'easy-cluster',

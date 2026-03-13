@@ -93,32 +93,6 @@ const isSequenceColumn = (column: PColumnIdAndSpec) => {
   return app.model.args.sequencesRef?.some((r) => r === column.columnId) ?? false;
 };
 
-// Check if only single CDR sequence is selected (cdr1, cdr2, or cdr3)
-const isSingleCdrSelected = computed(() => {
-  const refs = app.model.args.sequencesRef;
-  const options = app.model.outputs.sequenceOptions;
-  if (!refs || !options || refs.length !== 1) return false;
-
-  const option = options.find((opt) => opt.value === refs[0]);
-  if (!option) return false;
-
-  const label = option.label?.toLowerCase() || '';
-  return label.includes('cdr1') || label.includes('cdr2') || label.includes('cdr3')
-    || label.includes('cdr-1') || label.includes('cdr-2') || label.includes('cdr-3');
-});
-
-// Auto-set highPrecision default when sequence selection changes
-watch(() => app.model.args.sequencesRef, () => {
-  app.model.args.highPrecision = isSingleCdrSelected.value && app.model.args.clusteringTool === 'easy-cluster';
-});
-
-// Reset highPrecision when switching to linclust
-watch(() => app.model.args.clusteringTool, (tool) => {
-  if (tool === 'easy-linclust') {
-    app.model.args.highPrecision = false;
-  }
-});
-
 // Check if any selected sequence is CDR3
 const hasCDR3Sequences = computed(() => {
   if (!app.model.args.sequencesRef || !app.model.outputs.sequenceOptions) {
@@ -280,7 +254,7 @@ const clusterAxis = computed<AxisId>(() => {
         <PlCheckbox v-model="app.model.args.highPrecision" :disabled="app.model.args.clusteringTool === 'easy-linclust'">
           High precision mode
           <PlTooltip class="info" position="top">
-            <template #tooltip>Uses high-sensitivity MMseqs2 settings optimized for short sequences (e.g. single CDR). Disable for longer sequences (e.g. full VDJ region or multiple sequences) as it may significantly increase computation time. Only available with easy-cluster.</template>
+            <template #tooltip>Uses high-sensitivity MMseqs2 settings optimized for short sequences (e.g. single CDR). Disable for longer sequences (e.g. full VDJ region or multiple sequences) as it may significantly increase computation time and memory usage. Only available with easy-cluster.</template>
           </PlTooltip>
         </PlCheckbox>
 
