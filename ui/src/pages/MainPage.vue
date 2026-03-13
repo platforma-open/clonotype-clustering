@@ -93,6 +93,13 @@ const isSequenceColumn = (column: PColumnIdAndSpec) => {
   return app.model.args.sequencesRef?.some((r) => r === column.columnId) ?? false;
 };
 
+// Reset highPrecision when switching to linclust
+watch(() => app.model.args.clusteringTool, (tool) => {
+  if (tool === 'easy-linclust') {
+    app.model.args.highPrecision = false;
+  }
+});
+
 // Check if any selected sequence is CDR3
 const hasCDR3Sequences = computed(() => {
   if (!app.model.args.sequencesRef || !app.model.outputs.sequenceOptions) {
