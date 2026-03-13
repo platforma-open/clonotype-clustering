@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 2.16.1
+
+### Patch Changes
+
+- 0d34b13: Do not enable "high precision" mode by default
+
 ## 2.16.0
 
 ### Minor Changes
