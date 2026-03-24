@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import '@milaboratories/graph-maker/styles';
 import strings from '@milaboratories/strings';
 import { PlBlockPage } from '@platforma-sdk/ui-vue';
 import { useApp } from '../app';
