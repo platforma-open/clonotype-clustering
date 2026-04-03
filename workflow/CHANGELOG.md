@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.27.0
+
+### Minor Changes
+
+- 49dcfec: Improved performance on large datasets
+
 ## 3.26.0
 
 ### Minor Changes
