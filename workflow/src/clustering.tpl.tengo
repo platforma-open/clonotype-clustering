@@ -4,6 +4,8 @@ exec := import("@platforma-sdk/workflow-tengo:exec")
 assets:= import("@platforma-sdk/workflow-tengo:assets")
 pframes := import("@platforma-sdk/workflow-tengo:pframes")
 
+math := import("math")
+
 prepareFastaSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:prepare-fasta")
 processResultsSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:process-results")
 mmseqsSw := assets.importSoftware("@platforma-open/soedinglab.software-mmseqs2:main")
@@ -60,6 +62,11 @@ self.body(func(inputs) {
     isSingleCell := inputs.isSingleCell
     perChainTrim := isSingleCell && len(sequencesRef) > 1
 
+	baseMemGiB := 32
+	if !is_undefined(inputs.mem) {
+		baseMemGiB = inputs.mem
+	}
+
 	if string(inputs.emptyOrNot.getData()) == "empty" {
 		// Create empty files with proper column headers
 		numSequences := len(sequencesRef)
@@ -110,7 +117,7 @@ self.body(func(inputs) {
         // prepare fasta file
         fastaBuilder := exec.builder().
             software(prepareFastaSw).
-            mem("16GiB").
+            mem(string(int(math.max(16, baseMemGiB / 4))) + "GiB").
 	    cpu(1).
             addFile("input.tsv", seqTable).
             arg("--trim-start").arg(string(trimStart)).
@@ -128,12 +135,9 @@ self.body(func(inputs) {
         // get split memory limit based on real system ram
 	    memLimit := "{int(ceil(system.ram.gb * 0.8))}" + "G"
 
-        mem := "32GiB" // @TODO: set based on the size of the input
+        mem := string(baseMemGiB) + "GiB"
 	    cpu := 16
 
-        if !is_undefined(inputs.mem) {
-            mem = string(inputs.mem) + "GiB"
-        }
         if !is_undefined(inputs.cpu) {
             cpu = inputs.cpu
         }
@@ -198,8 +202,8 @@ self.body(func(inputs) {
         /******* Step 2: aggregate all data and generate results *******/
         resultBuilder := exec.builder().
             software(processResultsSw).
-            mem("32GiB"). // @TODO: set based on the size of the input
-            cpu(8). // @TODO: set based on the size of the input
+            mem(string(int(math.max(32, baseMemGiB / 2))) + "GiB").
+            cpu(8).
             addFile("clusters.tsv", clusters).
             addFile("cloneTable.tsv", cloneTable).
             addFile("dedup_mapping.tsv", fasta.getFile("dedup_mapping.tsv")).
