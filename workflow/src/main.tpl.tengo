@@ -320,9 +320,9 @@ wf.body(func(args) {
 	cloneToClusterLinkPf := xsv.importFile(clusteringAnalysis.output("cloneToCluster"), "tsv", {
 		axes: [
 		{
-        			column: "clusterId",
-        			spec: clusterIdAxisSpec
-        		},
+            column: "clusterId",
+        	spec: clusterIdAxisSpec
+        },
 		{
 			column: "clonotypeKey",
 			spec: datasetSpec.axesSpec[1]
