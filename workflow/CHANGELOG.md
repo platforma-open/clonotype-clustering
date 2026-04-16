@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 3.27.1
+
+### Patch Changes
+
+- 225bfce: Change linked axes order to match linker column spec
+
 ## 3.27.0
 
 ### Minor Changes
