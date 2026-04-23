@@ -2,7 +2,7 @@
 import { PlMultiSequenceAlignment } from '@milaboratories/multi-sequence-alignment';
 import strings from '@milaboratories/strings';
 import { similarityTypeOptions, clusteringToolOptions } from '@platforma-open/milaboratories.clonotype-clustering.model';
-import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey } from '@platforma-sdk/model';
+import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey, SUniversalPColumnId } from '@platforma-sdk/model';
 import {
   listToOptions,
   PlAccordionSection,
@@ -117,11 +117,17 @@ const hasCDR3Sequences = computed(() => {
   });
 });
 
-// Auto-default BLOSUM matrix based on selected sequences
-watch(() => app.model.args.sequencesRef, (sequencesRef) => {
-  // Only auto-update when current value is a BLOSUM option (don't override Exact Match)
-  const current = app.model.args.similarityType as string;
-  if (current === 'sequence-identity') return;
+// Auto-suggest BLOSUM matrix when the user changes selected sequences.
+// Wired to the dropdown's @update:model-value — must NOT be a `watch` on
+// args.sequencesRef, because the SDK replaces the entire `args` object on
+// external-author server patches (see createAppV2.ts updateAppModel), giving
+// every nested property a new reference. A watcher would fire on that
+// replacement and clobber the user's explicit BLOSUM choice on app reopen
+// or any concurrent write.
+function onSequencesRefChange(sequencesRef: SUniversalPColumnId[]) {
+  app.model.args.sequencesRef = sequencesRef;
+
+  if (app.model.args.similarityType === 'sequence-identity') return;
 
   const sequenceOptions = app.model.outputs.sequenceOptions;
   if (!sequencesRef?.length || !sequenceOptions) return;
@@ -134,7 +140,7 @@ watch(() => app.model.args.sequencesRef, (sequencesRef) => {
   });
 
   app.model.args.similarityType = allFramework ? 'blosum80' : 'blosum62';
-});
+}
 
 // Set instructions to track cluster axis
 const clusterAxis = computed<AxisId>(() => {
@@ -199,11 +205,12 @@ const clusterAxis = computed<AxisId>(() => {
         compact
       />
       <PlDropdownMulti
-        v-model="app.model.args.sequencesRef"
+        :model-value="app.model.args.sequencesRef"
         :options="app.model.outputs.sequenceOptions"
         label="Sequence Columns to Cluster"
         required
         :disabled="app.model.args.datasetRef === undefined"
+        @update:model-value="onSequencesRefChange"
       />
 
       <PlDropdown
