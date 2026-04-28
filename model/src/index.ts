@@ -14,6 +14,7 @@ import {
   createPlDataTableStateV2,
   createPlDataTableV2,
 } from '@platforma-sdk/model';
+export type * from '@milaboratories/helpers';
 
 export type BlockArgs = {
   defaultBlockLabel: string;
