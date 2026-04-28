@@ -187,12 +187,12 @@ wf.body(func(args) {
 	trimEnd := is_undefined(args.trimEnd) ? 0 : args.trimEnd
 
 	clusterIdAxisSpec := {
-		name: "pl7.app/vdj/clusterId",
+		name: "pl7.app/clusterId",
 		type: "String",
 		domain: maps.deepMerge(datasetSpec.axesSpec[1].domain,
 		{
-			"pl7.app/vdj/clustering/algorithm": "mmseqs2",
-			"pl7.app/vdj/clustering/blockId": blockId
+			"pl7.app/clustering/algorithm": "mmseqs2",
+			"pl7.app/blockId": blockId
 		}),
 		annotations: {
 			"pl7.app/label": "Cluster Id",
@@ -260,13 +260,13 @@ wf.body(func(args) {
 			column: "abundance_fraction_per_cluster",
 			spec: func() {
 				// Determine fraction name and unit based on abundance type
-				fractionName := "pl7.app/vdj/readFraction"
+				fractionName := "pl7.app/readFraction"
 				abundanceUnit := "reads"
 				if text.contains(ac.name, "uniqueMoleculeCount") {
-					fractionName = "pl7.app/vdj/uniqueMoleculeFraction"
+					fractionName = "pl7.app/uniqueMoleculeFraction"
 					abundanceUnit = "molecules"
 				} else if text.contains(ac.name, "readCount") {
-					fractionName = "pl7.app/vdj/readFraction"
+					fractionName = "pl7.app/readFraction"
 					abundanceUnit = "reads"
 				}
 				
@@ -307,7 +307,7 @@ wf.body(func(args) {
 		columns: [{
 			column: "clusterLabel",
 			spec: setTableProps({
-				name: "pl7.app/vdj/clusterId",
+				name: "pl7.app/clusterId",
 				valueType: "String",
 				domain: clusterIdAxisSpec.domain,
 				annotations: clusterIdAxisSpec.annotations
@@ -330,7 +330,7 @@ wf.body(func(args) {
 		columns: [{
 			column: "link",
 			spec: setTableProps({
-				name: "pl7.app/vdj/link",
+				name: "pl7.app/link",
 				valueType: "Int",
 				annotations: {
 					"pl7.app/isLinkerColumn": "true"
@@ -345,7 +345,7 @@ wf.body(func(args) {
 	{
 		column: "size",
 		spec: setTableProps({
-			name: "pl7.app/vdj/clustering/clusterSize",
+			name: "pl7.app/clustering/clusterSize",
 			valueType: "Int",
 			annotations: {
 				"pl7.app/label": "Cluster Size"
@@ -367,9 +367,13 @@ wf.body(func(args) {
 		spec := maps.clone(columns.getSpec(seq))
 		spec.annotations["pl7.app/label"] = "Centroid " + spec.annotations["pl7.app/label"]
 
+		// VDJ-specific annotations
 		delete(spec.annotations, "pl7.app/vdj/imputed")
 		delete(spec.annotations, "pl7.app/vdj/isAssemblingFeature")
 		delete(spec.annotations, "pl7.app/vdj/isMainSequence")
+		// peptide-specific annotations
+		delete(spec.annotations, "pl7.app/isAssemblingFeature")
+		delete(spec.annotations, "pl7.app/isMainSequence")
 
 		seqColumns = append(seqColumns, {
 			column: "sequence_" + string(nr),
@@ -388,9 +392,13 @@ wf.body(func(args) {
 		if isSingleCell {
 			for nr, seq in sequencesRef {
 				baseSpec := maps.clone(columns.getSpec(seq))
+				// VDJ-specific annotations
 				delete(baseSpec.annotations, "pl7.app/vdj/imputed")
 				delete(baseSpec.annotations, "pl7.app/vdj/isAssemblingFeature")
 				delete(baseSpec.annotations, "pl7.app/vdj/isMainSequence")
+				// peptide-specific annotations
+				delete(baseSpec.annotations, "pl7.app/isAssemblingFeature")
+				delete(baseSpec.annotations, "pl7.app/isMainSequence")
 				baseSpec.annotations["pl7.app/label"] = "Centroid trimmed " + baseSpec.annotations["pl7.app/label"]
 				seqColumns = append(seqColumns, {
 					column: "trim_" + ("sequence_" + string(nr)),
@@ -404,11 +412,18 @@ wf.body(func(args) {
 			}
 		} else if len(sequencesRef) > 0 {
 			baseSpec := maps.clone(columns.getSpec(sequencesRef[0]))
+			// VDJ-specific annotations
 			delete(baseSpec.annotations, "pl7.app/vdj/imputed")
 			delete(baseSpec.annotations, "pl7.app/vdj/isAssemblingFeature")
 			delete(baseSpec.annotations, "pl7.app/vdj/isMainSequence")
-			// Derive label parts
+			// peptide-specific annotations
+			delete(baseSpec.annotations, "pl7.app/isAssemblingFeature")
+			delete(baseSpec.annotations, "pl7.app/isMainSequence")
+			// Derive label parts (peptide specs use "pl7.app/feature"; VDJ uses "pl7.app/vdj/feature")
 			feature := baseSpec.domain["pl7.app/vdj/feature"]
+			if is_undefined(feature) {
+				feature = baseSpec.domain["pl7.app/feature"]
+			}
 			alphabet := baseSpec.domain["pl7.app/alphabet"]
 			alphaSuffix := (alphabet == "aminoacid" ? " aa" : (alphabet == "nucleotide" ? " nt" : ""))
 			baseSpec.annotations["pl7.app/label"] = "Centroid trimmed " + string(feature) + alphaSuffix
@@ -442,11 +457,11 @@ wf.body(func(args) {
 		columns: [{
 			column: "distanceToCentroid",
 			spec: setTableProps({
-				name: "pl7.app/vdj/distanceToCentroid",
+				name: "pl7.app/distanceToCentroid",
 				valueType: "Float",
 				domain:  {
-					"pl7.app/vdj/clustering/algorithm": "mmseqs2",
-					"pl7.app/vdj/clustering/blockId": blockId
+					"pl7.app/clustering/algorithm": "mmseqs2",
+					"pl7.app/blockId": blockId
 				},
 				annotations: {
 					"pl7.app/min": "0",
@@ -468,7 +483,7 @@ wf.body(func(args) {
 		columns: [{
 			column: "clusterRadius",
 			spec: setTableProps({
-				name: "pl7.app/vdj/clustering/clusterRadius",
+				name: "pl7.app/clustering/clusterRadius",
 				valueType: "Float",
 				annotations: {
 					"pl7.app/rankingOrder": "decreasing",
@@ -562,7 +577,7 @@ wf.body(func(args) {
 		columns: [{
 			column: "clusterRadius",
 			spec: setTableProps({
-				name: "pl7.app/vdj/clustering/clusterRadius",
+				name: "pl7.app/clustering/clusterRadius",
 				valueType: "Float",
 				annotations: {
 					"pl7.app/rankingOrder": "decreasing",

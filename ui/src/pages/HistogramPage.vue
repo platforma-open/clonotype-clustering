@@ -37,7 +37,7 @@ const defaultOptions = computed((): PredefinedGraphOption<'histogram'>[] | undef
   const defaults: PredefinedGraphOption<'histogram'>[] = [
     {
       inputName: 'value',
-      selectedSource: histPcols[getIndex('pl7.app/vdj/clustering/clusterSize',
+      selectedSource: histPcols[getIndex('pl7.app/clustering/clusterSize',
         histPcols)].spec,
     },
   ];

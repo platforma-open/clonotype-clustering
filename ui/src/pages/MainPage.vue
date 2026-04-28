@@ -141,13 +141,13 @@ const clusterAxis = computed<AxisId>(() => {
   if (app.model.outputs.clusterAbundanceSpec?.axesSpec[1] === undefined) {
     return {
       type: 'String',
-      name: 'pl7.app/vdj/clusterId',
+      name: 'pl7.app/clusterId',
       domain: {},
     };
   } else {
     return {
       type: 'String',
-      name: 'pl7.app/vdj/clusterId',
+      name: 'pl7.app/clusterId',
       domain: app.model.outputs.clusterAbundanceSpec?.axesSpec[1].domain,
     };
   }
@@ -158,7 +158,7 @@ const clusterAxis = computed<AxisId>(() => {
   <PlBlockPage
     v-model:subtitle="app.model.args.customBlockLabel"
     :subtitle-placeholder="app.model.args.defaultBlockLabel"
-    title="Clonotype Clustering"
+    title="Sequence Clustering"
   >
     <template #append>
       <PlBtnGhost @click.stop="() => (mmseqsLogOpen = true)">
