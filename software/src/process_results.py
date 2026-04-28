@@ -77,9 +77,10 @@ else:
         pl.concat_str([pl.col(c).fill_null("") for c in sorted_trimmed_cols], separator="====").alias('trimmed_fullSequence')
     )
 
-# Transform clonotypeKeyLabel from "C-XXXXXX" with "CL-XXXXXX"
+# Transform clonotypeKeyLabel from "C-XXXXXX" (clonotype, MiXCR-side) or "P-XXXXXX"
+# (peptide, peptide-extraction-side) into "CL-XXXXXX"
 cloneTable = cloneTable.with_columns(
-    pl.col('clonotypeKeyLabel').str.replace('C-', 'CL-', n=1).alias('clusterLabel')
+    pl.col('clonotypeKeyLabel').str.replace(r'^[CP]-', 'CL-').alias('clusterLabel')
 )
 
 # clusterId, clonotypeKey (both are representative keys from de-duplicated FASTA)
