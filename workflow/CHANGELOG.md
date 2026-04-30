@@ -1,5 +1,16 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.0.0
+
+### Major Changes
+
+- 0be1c80: Support peptides
+
+### Patch Changes
+
+- Updated dependencies [0be1c80]
+  - @platforma-open/milaboratories.clonotype-clustering.software@4.0.0
+
 ## 3.28.0
 
 ### Minor Changes

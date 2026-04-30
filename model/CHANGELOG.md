@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 3.0.0
+
+### Major Changes
+
+- 0be1c80: Support peptides
+
 ## 2.16.2
 
 ### Patch Changes
