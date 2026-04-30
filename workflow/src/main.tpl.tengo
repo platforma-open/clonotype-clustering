@@ -210,6 +210,22 @@ wf.body(func(args) {
 
 	abundanceLabel := abundanceSpec.annotations["pl7.app/label"]
 
+	// Distinct names per (aggregation level x count/fraction). Same kind+name+domain+axes
+	// PColumns get silently deduped by PColumnCollection (valueType and annotations aren't
+	// part of identity), so siblings that differ only in valueType/normalized must use
+	// different names. Names also follow MiXCR's convention: per-clonotype aggregates use
+	// "Total" (e.g. readCountTotal); we mirror that for per-cluster aggregates.
+	fractionName := "pl7.app/vdj/readFraction"
+	totalCountName := "pl7.app/vdj/readCountTotal"
+	totalFractionName := "pl7.app/vdj/readFractionTotal"
+	abundanceUnit := "reads"
+	if text.contains(ac.name, "uniqueMoleculeCount") {
+		fractionName = "pl7.app/vdj/uniqueMoleculeFraction"
+		totalCountName = "pl7.app/vdj/uniqueMoleculeCountTotal"
+		totalFractionName = "pl7.app/vdj/uniqueMoleculeFractionTotal"
+		abundanceUnit = "molecules"
+	}
+
 	// De-anonymize TSV files that contain sampleId
 	// Run deanonymization as ephemeral to avoid cross-project deduplication while keeping
 	// clustering computation cached. This ensures mapping is applied per project.
@@ -237,9 +253,11 @@ wf.body(func(args) {
 		{
 			column: "abundance_normalized",
 			spec: setTableProps(maps.deepMerge(ac, {
+				name: fractionName,
 				valueType: "Float",
 				annotations: {
-					"pl7.app/abundance/normalized": "true"
+					"pl7.app/abundance/normalized": "true",
+					"pl7.app/abundance/unit": abundanceUnit
 				}
 			}), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
 		}],
@@ -254,24 +272,15 @@ wf.body(func(args) {
 		}],
 		columns: [{
 			column: "abundance_per_cluster",
-			spec: setTableProps(ac, "Total " + abundanceLabel + " in Cluster", true, "2000")
+			spec: setTableProps(maps.deepMerge(ac, {
+				name: totalCountName
+			}), "Total " + abundanceLabel + " in Cluster", true, "2000")
 		},
 		{
 			column: "abundance_fraction_per_cluster",
 			spec: func() {
-				// Determine fraction name and unit based on abundance type
-				fractionName := "pl7.app/vdj/readFraction"
-				abundanceUnit := "reads"
-				if text.contains(ac.name, "uniqueMoleculeCount") {
-					fractionName = "pl7.app/vdj/uniqueMoleculeFraction"
-					abundanceUnit = "molecules"
-				} else if text.contains(ac.name, "readCount") {
-					fractionName = "pl7.app/vdj/readFraction"
-					abundanceUnit = "reads"
-				}
-				
 				abundanceFractionSpec := maps.deepMerge(ac, {
-					name: fractionName,
+					name: totalFractionName,
 					valueType: "Float",
 					annotations: {
 						"pl7.app/abundance/isPrimary": "true",
