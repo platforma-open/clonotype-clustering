@@ -1,4 +1,5 @@
 import type { GraphMakerState } from '@milaboratories/graph-maker';
+import strings from '@milaboratories/strings';
 import type {
   PColumnIdAndSpec,
   PColumnSpec,
@@ -13,7 +14,7 @@ import {
   createPlDataTableStateV2,
   createPlDataTableV2,
 } from '@platforma-sdk/model';
-import strings from '@milaboratories/strings';
+export type * from '@milaboratories/helpers';
 
 export type BlockArgs = {
   defaultBlockLabel: string;
@@ -160,6 +161,12 @@ export const model = BlockModel.create()
         { name: 'pl7.app/vdj/scClonotypeKey' },
       ],
       annotations: { 'pl7.app/isAnchor': 'true' },
+    }, {
+      axes: [
+        { name: 'pl7.app/sampleId' },
+        { name: 'pl7.app/variantKey' },
+      ],
+      annotations: { 'pl7.app/isAnchor': 'true' },
     }],
     {
       // suppress native label of the column (e.g. "Number of Reads") to show only the dataset label
@@ -171,51 +178,62 @@ export const model = BlockModel.create()
     const ref = ctx.args.datasetRef;
     if (ref === undefined) return undefined;
 
-    const isSingleCell = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
-
-    // Check if any PColumns in the dataset have the name "pl7.app/vdj/scFv-sequence"
-    const scfvColumns = ctx.resultPool.getAnchoredPColumns(
-      { main: ref },
-      [{
-        name: 'pl7.app/vdj/scFv-sequence',
-      }],
-    );
-    const isScfv = scfvColumns && scfvColumns.length > 0;
+    const axis1Name = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1].name;
+    const isPeptide = axis1Name === 'pl7.app/variantKey';
+    const isSingleCell = axis1Name === 'pl7.app/vdj/scClonotypeKey';
 
     const sequenceMatchers = [];
-    // const allowedFeatures = ['CDR1', 'CDR2', 'CDR3', 'FR1', 'FR2',
-    //   'FR3', 'FR4', 'FR4InFrame', 'VDJRegion', 'VDJRegionInFrame'];
-    // for (const feature of allowedFeatures) {
-    if (isSingleCell) {
+
+    if (isPeptide) {
       sequenceMatchers.push({
         axes: [{ anchor: 'main', idx: 1 }],
-        name: 'pl7.app/vdj/sequence',
+        name: 'pl7.app/sequence',
         domain: {
-          // 'pl7.app/vdj/feature': feature,
-          'pl7.app/vdj/scClonotypeChain/index': 'primary',
+          'pl7.app/feature': 'peptide',
           'pl7.app/alphabet': ctx.args.sequenceType,
         },
       });
     } else {
-      sequenceMatchers.push({
-        axes: [{ anchor: 'main', idx: 1 }],
-        name: 'pl7.app/vdj/sequence',
-        domain: {
-          // 'pl7.app/vdj/feature': feature,
-          'pl7.app/alphabet': ctx.args.sequenceType,
-        },
-      });
-    }
+      // const allowedFeatures = ['CDR1', 'CDR2', 'CDR3', 'FR1', 'FR2',
+      //   'FR3', 'FR4', 'FR4InFrame', 'VDJRegion', 'VDJRegionInFrame'];
+      // for (const feature of allowedFeatures) {
+      if (isSingleCell) {
+        sequenceMatchers.push({
+          axes: [{ anchor: 'main', idx: 1 }],
+          name: 'pl7.app/vdj/sequence',
+          domain: {
+            // 'pl7.app/vdj/feature': feature,
+            'pl7.app/vdj/scClonotypeChain/index': 'primary',
+            'pl7.app/alphabet': ctx.args.sequenceType,
+          },
+        });
+      } else {
+        sequenceMatchers.push({
+          axes: [{ anchor: 'main', idx: 1 }],
+          name: 'pl7.app/vdj/sequence',
+          domain: {
+            // 'pl7.app/vdj/feature': feature,
+            'pl7.app/alphabet': ctx.args.sequenceType,
+          },
+        });
+      }
 
-    // Add scFv sequence matcher if scFv columns exist in the dataset
-    if (isScfv) {
-      sequenceMatchers.push({
-        axes: [{ anchor: 'main', idx: 1 }],
-        name: 'pl7.app/vdj/scFv-sequence',
-        domain: {
-          'pl7.app/alphabet': ctx.args.sequenceType,
-        },
-      });
+      // Check if any PColumns in the dataset have the name "pl7.app/vdj/scFv-sequence"
+      const scfvColumns = ctx.resultPool.getAnchoredPColumns(
+        { main: ref },
+        [{
+          name: 'pl7.app/vdj/scFv-sequence',
+        }],
+      );
+      if (scfvColumns && scfvColumns.length > 0) {
+        sequenceMatchers.push({
+          axes: [{ anchor: 'main', idx: 1 }],
+          name: 'pl7.app/vdj/scFv-sequence',
+          domain: {
+            'pl7.app/alphabet': ctx.args.sequenceType,
+          },
+        });
+      }
     }
 
     return ctx.resultPool.getCanonicalOptions(
@@ -238,6 +256,19 @@ export const model = BlockModel.create()
 
     return spec.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
   })
+
+  .output('modality', (ctx) => {
+    const spec = ctx.args.datasetRef
+      ? ctx.resultPool.getPColumnSpecByRef(ctx.args.datasetRef)
+      : undefined;
+    if (!spec) return undefined;
+    for (const ax of spec.axesSpec) {
+      if (ax.name === 'pl7.app/variantKey') return 'peptide';
+      if (ax.name === 'pl7.app/vdj/clonotypeKey' || ax.name === 'pl7.app/vdj/scClonotypeKey') return 'antibody_tcr';
+    }
+    // Fallback when the input is resolved but unrecognized.
+    return 'antibody_tcr';
+  }, { retentive: true })
 
   .output('inputState', (ctx): boolean | undefined => {
     const inputState = ctx.outputs?.resolve('isEmpty')?.getDataAsJson() as object;
@@ -356,7 +387,7 @@ export const model = BlockModel.create()
 
   .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 
-  .title(() => 'Clonotype Clustering')
+  .title(() => 'Sequence Clustering')
 
   .subtitle((ctx) => ctx.args.customBlockLabel || ctx.args.defaultBlockLabel)
 

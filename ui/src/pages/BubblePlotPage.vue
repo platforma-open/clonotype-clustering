@@ -33,7 +33,7 @@ const defaultOptions = computed((): PredefinedGraphOption<'bubble'>[] | undefine
     },
     {
       inputName: 'valueColor',
-      selectedSource: bubblePcols[getIndex('pl7.app/vdj/clustering/clusterSize',
+      selectedSource: bubblePcols[getIndex('pl7.app/clustering/clusterSize',
         bubblePcols)].spec,
     },
     {
@@ -43,7 +43,7 @@ const defaultOptions = computed((): PredefinedGraphOption<'bubble'>[] | undefine
     },
     {
       inputName: 'filters',
-      selectedSource: bubblePcols[getIndex('pl7.app/vdj/clustering/clusterSize',
+      selectedSource: bubblePcols[getIndex('pl7.app/clustering/clusterSize',
         bubblePcols)].spec,
       selectedFilterRange: { min: 3 },
     },
