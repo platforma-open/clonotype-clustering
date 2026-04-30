@@ -192,7 +192,7 @@ wf.body(func(args) {
 		domain: maps.deepMerge(datasetSpec.axesSpec[1].domain,
 		{
 			"pl7.app/clustering/algorithm": "mmseqs2",
-			"pl7.app/blockId": blockId
+			"pl7.app/clustering/blockId": blockId
 		}),
 		annotations: {
 			"pl7.app/label": "Cluster Id",
@@ -236,12 +236,19 @@ wf.body(func(args) {
 		},
 		{
 			column: "abundance_normalized",
-			spec: setTableProps(maps.deepMerge(ac, {
-				valueType: "Float",
-				annotations: {
-					"pl7.app/abundance/normalized": "true"
+			spec: func() {
+				fractionName := "pl7.app/readFraction"
+				if text.contains(ac.name, "uniqueMoleculeCount") {
+					fractionName = "pl7.app/uniqueMoleculeFraction"
 				}
-			}), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
+				return setTableProps(maps.deepMerge(ac, {
+					name: fractionName,
+					valueType: "Float",
+					annotations: {
+						"pl7.app/abundance/normalized": "true"
+					}
+				}), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
+			}()
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 1
@@ -461,7 +468,7 @@ wf.body(func(args) {
 				valueType: "Float",
 				domain:  {
 					"pl7.app/clustering/algorithm": "mmseqs2",
-					"pl7.app/blockId": blockId
+					"pl7.app/clustering/blockId": blockId
 				},
 				annotations: {
 					"pl7.app/min": "0",
@@ -548,12 +555,19 @@ wf.body(func(args) {
 			},
 			{
 				column: "abundance_normalized",
-				spec: setTableProps(maps.deepMerge(ac, {
-					valueType: "Float",
-					annotations: {
-						"pl7.app/abundance/normalized": "true"
+				spec: func() {
+					fractionName := "pl7.app/readFraction"
+					if text.contains(ac.name, "uniqueMoleculeCount") {
+						fractionName = "pl7.app/uniqueMoleculeFraction"
 					}
-				}), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
+					return setTableProps(maps.deepMerge(ac, {
+						name: fractionName,
+						valueType: "Float",
+						annotations: {
+							"pl7.app/abundance/normalized": "true"
+						}
+					}), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
+				}()
 			}],
 			storageFormat: "Parquet",
 			partitionKeyLength: 1

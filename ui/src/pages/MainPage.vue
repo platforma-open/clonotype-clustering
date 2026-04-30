@@ -224,7 +224,7 @@ const clusterAxis = computed<AxisId>(() => {
         :maxValue="1.0"
       >
         <template #tooltip>
-          Sets the lowest percentage of identical residues required for clonotypes to be considered for the same cluster.
+          Sets the lowest percentage of identical residues required for sequences to be considered for the same cluster.
         </template>
       </PlNumberField>
 
@@ -236,7 +236,7 @@ const clusterAxis = computed<AxisId>(() => {
         :maxValue="1.0"
       >
         <template #tooltip>
-          Sets the lowest percentage of sequence length that must be covered for clonotypes to be considered for the same cluster.
+          Sets the lowest percentage of sequence length that must be covered for sequences to be considered for the same cluster.
         </template>
       </PlNumberField>
       <PlAlert v-if="app.model.outputs.inputState" type="warn" style="margin-top: 1rem">
