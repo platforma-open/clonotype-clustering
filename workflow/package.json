@@ -1,6 +1,6 @@
 {
   "name": "@platforma-open/milaboratories.clonotype-clustering.workflow",
-  "version": "3.27.1",
+  "version": "3.28.0",
   "description": "Tengo-based template",
   "scripts": {
     "build": "shx rm -rf dist && pl-tengo check && pl-tengo build",
