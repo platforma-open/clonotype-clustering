@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { PlMultiSequenceAlignment } from '@milaboratories/multi-sequence-alignment';
 import strings from '@milaboratories/strings';
-import { similarityTypeOptions, clusteringToolOptions } from '@platforma-open/milaboratories.clonotype-clustering.model';
+import { clusteringToolOptions, similarityTypeOptions } from '@platforma-open/milaboratories.clonotype-clustering.model';
 import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey, SUniversalPColumnId } from '@platforma-sdk/model';
 import {
   listToOptions,
@@ -219,7 +219,7 @@ const clusterAxis = computed<AxisId>(() => {
         label="Alignment Score"
       >
         <template #tooltip>
-          Select the similarity metric used for clustering. BLOSUM matrices score biochemical similarity between amino acids — lower numbers (e.g. BLOSUM40) are suited for more divergent sequences, higher numbers (e.g. BLOSUM80) for more conserved regions like framework sequences. BLOSUM62 is a good default for CDR sequences. Exact Match counts only identical residues.
+          Select the similarity metric used for clustering. BLOSUM matrices score biochemical similarity between amino acids — lower numbers (e.g. BLOSUM40) tolerate more substitutions and suit more divergent sequences, higher numbers (e.g. BLOSUM80) penalize substitutions more strongly and suit highly conserved sequences such as antibody framework regions. BLOSUM62 is a balanced default and works well for CDRs and many peptide sets. For very short peptides (≤8 aa), Exact Match — which counts only identical residues — might be a safer choice.
         </template>
       </PlDropdown>
 
@@ -268,7 +268,7 @@ const clusterAxis = computed<AxisId>(() => {
         <PlCheckbox v-model="app.model.args.highPrecision" :disabled="app.model.args.clusteringTool === 'easy-linclust'">
           High precision mode
           <PlTooltip class="info" position="top">
-            <template #tooltip>Uses high-sensitivity MMseqs2 settings optimized for short sequences (e.g. single CDR). Disable for longer sequences (e.g. full VDJ region or multiple sequences) as it may significantly increase computation time and memory usage. Only available with easy-cluster.</template>
+            <template #tooltip>Uses high-sensitivity MMseqs2 settings optimized for short sequences (e.g. a single CDR or a short peptide). Disable for longer sequences (e.g. full VDJ region or multiple concatenated sequences) as it may significantly increase computation time and memory usage. Only available with easy-cluster.</template>
           </PlTooltip>
         </PlCheckbox>
 
