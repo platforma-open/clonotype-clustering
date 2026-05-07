@@ -186,7 +186,6 @@ const clusterAxis = computed<AxisId>(() => {
       :not-ready-text="strings.callToActions.configureSettingsAndRun"
       :no-rows-text="strings.states.noDataAvailable"
       :show-cell-button-for-axis-id="clusterAxis"
-      show-export-button
       @cell-button-clicked="onRowDoubleClicked"
     />
     <PlSlideModal v-model="settingsOpen" close-on-outside-click shadow>
