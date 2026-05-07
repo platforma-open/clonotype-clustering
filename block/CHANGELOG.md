@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.0.1
+
+### Patch Changes
+
+- 3d96459: Universalize tooltips
+- Updated dependencies [3d96459]
+  - @platforma-open/milaboratories.clonotype-clustering.ui@4.0.1
+
 ## 3.0.0
 
 ### Major Changes
