@@ -49,7 +49,7 @@ const defaultOptions = computed((): PredefinedGraphOption<'histogram'>[] | undef
 <template>
   <PlBlockPage>
     <GraphMaker
-      v-model="app.model.ui.graphStateHistogram"
+      v-model="app.model.data.graphStateHistogram"
       chartType="histogram"
       :data-state-key="app.model.outputs.clustersPf"
       :p-frame="app.model.outputs.clustersPf"

@@ -29,13 +29,13 @@ import { useApp } from '../app';
 const app = useApp();
 
 // Migrate legacy 'alignment-score' → 'blosum62'
-if ((app.model.args.similarityType as string) === 'alignment-score') {
-  app.model.args.similarityType = 'blosum62';
+if ((app.model.data.similarityType as string) === 'alignment-score') {
+  app.model.data.similarityType = 'blosum62';
 }
 
 const multipleSequenceAlignmentOpen = ref(false);
 const mmseqsLogOpen = ref(false);
-const settingsOpen = ref(app.model.args.datasetRef === undefined || app.model.args.sequencesRef === undefined);
+const settingsOpen = ref(app.model.data.datasetRef === undefined || app.model.data.sequencesRef === undefined);
 
 // Watch for when the workflow starts running and close settings
 watch(() => app.model.outputs.isRunning, (isRunning) => {
@@ -64,7 +64,7 @@ const onRowDoubleClicked = reactive((key?: PTableKey) => {
 });
 
 function setInput(inputRef?: PlRef) {
-  app.model.args.datasetRef = inputRef;
+  app.model.data.datasetRef = inputRef;
 }
 
 const tableSettings = usePlDataTableSettingsV2({
@@ -84,30 +84,30 @@ const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
 ]; */
 
 const isSequenceColumn = (column: PColumnIdAndSpec) => {
-  const trimEnabled = ((app.model.args.trimStart ?? 0) > 0) || ((app.model.args.trimEnd ?? 0) > 0);
+  const trimEnabled = ((app.model.data.trimStart ?? 0) > 0) || ((app.model.data.trimEnd ?? 0) > 0);
   if (trimEnabled) {
     // When trimming is enabled, use annotation to include only trimmed sequences
     return column.spec?.annotations?.['pl7.app/sequence/trimmed'] === 'true';
   }
   // Default: only show the clustering sequence(s) selected by the user
-  return app.model.args.sequencesRef?.some((r) => r === column.columnId) ?? false;
+  return app.model.data.sequencesRef?.some((r) => r === column.columnId) ?? false;
 };
 
 // Reset highPrecision when switching to linclust
-watch(() => app.model.args.clusteringTool, (tool) => {
+watch(() => app.model.data.clusteringTool, (tool) => {
   if (tool === 'easy-linclust') {
-    app.model.args.highPrecision = false;
+    app.model.data.highPrecision = false;
   }
 });
 
 // Check if any selected sequence is CDR3
 const hasCDR3Sequences = computed(() => {
-  if (!app.model.args.sequencesRef || !app.model.outputs.sequenceOptions) {
+  if (!app.model.data.sequencesRef || !app.model.outputs.sequenceOptions) {
     return false;
   }
 
   const sequenceOptions = app.model.outputs.sequenceOptions;
-  return app.model.args.sequencesRef.some((selectedId) => {
+  return app.model.data.sequencesRef.some((selectedId) => {
     const option = sequenceOptions.find((opt) => opt.value === selectedId);
     if (!option) return false;
 
@@ -125,9 +125,9 @@ const hasCDR3Sequences = computed(() => {
 // replacement and clobber the user's explicit BLOSUM choice on app reopen
 // or any concurrent write.
 function onSequencesRefChange(sequencesRef: SUniversalPColumnId[]) {
-  app.model.args.sequencesRef = sequencesRef;
+  app.model.data.sequencesRef = sequencesRef;
 
-  if (app.model.args.similarityType === 'sequence-identity') return;
+  if (app.model.data.similarityType === 'sequence-identity') return;
 
   const sequenceOptions = app.model.outputs.sequenceOptions;
   if (!sequencesRef?.length || !sequenceOptions) return;
@@ -139,7 +139,7 @@ function onSequencesRefChange(sequencesRef: SUniversalPColumnId[]) {
     return label.includes('fr') && !label.includes('cdr');
   });
 
-  app.model.args.similarityType = allFramework ? 'blosum80' : 'blosum62';
+  app.model.data.similarityType = allFramework ? 'blosum80' : 'blosum62';
 }
 
 // Set instructions to track cluster axis
@@ -162,8 +162,8 @@ const clusterAxis = computed<AxisId>(() => {
 
 <template>
   <PlBlockPage
-    v-model:subtitle="app.model.args.customBlockLabel"
-    :subtitle-placeholder="app.model.args.defaultBlockLabel"
+    v-model:subtitle="app.model.data.customBlockLabel"
+    :subtitle-placeholder="app.model.data.defaultBlockLabel"
     title="Sequence Clustering"
   >
     <template #append>
@@ -181,7 +181,7 @@ const clusterAxis = computed<AxisId>(() => {
       </PlBtnGhost>
     </template>
     <PlAgDataTableV2
-      v-model="app.model.ui.tableState"
+      v-model="app.model.data.tableState"
       :settings="tableSettings"
       :not-ready-text="strings.callToActions.configureSettingsAndRun"
       :no-rows-text="strings.states.noDataAvailable"
@@ -191,7 +191,7 @@ const clusterAxis = computed<AxisId>(() => {
     <PlSlideModal v-model="settingsOpen" close-on-outside-click shadow>
       <template #title>{{ strings.titles.settings }}</template>
       <PlDropdownRef
-        v-model="app.model.args.datasetRef"
+        v-model="app.model.data.datasetRef"
         :options="app.model.outputs.datasetOptions"
         :label="strings.titles.dataset"
         clearable
@@ -199,22 +199,22 @@ const clusterAxis = computed<AxisId>(() => {
         @update:model-value="setInput"
       />
       <PlBtnGroup
-        v-model="app.model.args.sequenceType"
+        v-model="app.model.data.sequenceType"
         label="Sequence Type"
         :options="sequenceType"
         compact
       />
       <PlDropdownMulti
-        :model-value="app.model.args.sequencesRef"
+        :model-value="app.model.data.sequencesRef"
         :options="app.model.outputs.sequenceOptions"
         label="Sequence Columns to Cluster"
         required
-        :disabled="app.model.args.datasetRef === undefined"
+        :disabled="app.model.data.datasetRef === undefined"
         @update:model-value="onSequencesRefChange"
       />
 
       <PlDropdown
-        v-model="app.model.args.similarityType"
+        v-model="app.model.data.similarityType"
         :options="similarityTypeOptions"
         label="Alignment Score"
       >
@@ -224,7 +224,7 @@ const clusterAxis = computed<AxisId>(() => {
       </PlDropdown>
 
       <PlNumberField
-        v-model="app.model.args.identity"
+        v-model="app.model.data.identity"
         label="Minimal Identity"
         :minValue="0.1"
         :step="0.1"
@@ -236,7 +236,7 @@ const clusterAxis = computed<AxisId>(() => {
       </PlNumberField>
 
       <PlNumberField
-        v-model="app.model.args.coverageThreshold"
+        v-model="app.model.data.coverageThreshold"
         label="Coverage Threshold"
         :minValue="0.1"
         :step="0.1"
@@ -255,7 +255,7 @@ const clusterAxis = computed<AxisId>(() => {
 
       <PlAccordionSection :label="strings.titles.advancedSettings">
         <PlDropdown
-          v-model="app.model.args.clusteringTool"
+          v-model="app.model.data.clusteringTool"
           :options="clusteringToolOptions"
           label="Clustering Algorithm"
         >
@@ -265,7 +265,7 @@ const clusterAxis = computed<AxisId>(() => {
           </template>
         </PlDropdown>
 
-        <PlCheckbox v-model="app.model.args.highPrecision" :disabled="app.model.args.clusteringTool === 'easy-linclust'">
+        <PlCheckbox v-model="app.model.data.highPrecision" :disabled="app.model.data.clusteringTool === 'easy-linclust'">
           High precision mode
           <PlTooltip class="info" position="top">
             <template #tooltip>Uses high-sensitivity MMseqs2 settings optimized for short sequences (e.g. a single CDR or a short peptide). Disable for longer sequences (e.g. full VDJ region or multiple concatenated sequences) as it may significantly increase computation time and memory usage. Only available with easy-cluster.</template>
@@ -275,7 +275,7 @@ const clusterAxis = computed<AxisId>(() => {
         <template v-if="hasCDR3Sequences">
           <PlSectionSeparator>Trimming options</PlSectionSeparator>
           <PlNumberField
-            v-model="app.model.args.trimStart"
+            v-model="app.model.data.trimStart"
             label="Trim from start (amino acids)"
             :minValue="0"
             :step="1"
@@ -287,7 +287,7 @@ const clusterAxis = computed<AxisId>(() => {
           </PlNumberField>
 
           <PlNumberField
-            v-model="app.model.args.trimEnd"
+            v-model="app.model.data.trimEnd"
             label="Trim from end (amino acids)"
             :minValue="0"
             :step="1"
@@ -301,7 +301,7 @@ const clusterAxis = computed<AxisId>(() => {
 
         <PlSectionSeparator>Resource Allocation</PlSectionSeparator>
         <PlNumberField
-          v-model="app.model.args.mem"
+          v-model="app.model.data.mem"
           label="Memory (GiB)"
           :minValue="1"
           :step="1"
@@ -313,7 +313,7 @@ const clusterAxis = computed<AxisId>(() => {
         </PlNumberField>
 
         <PlNumberField
-          v-model="app.model.args.cpu"
+          v-model="app.model.data.cpu"
           label="CPU (cores)"
           :minValue="1"
           :step="1"
@@ -335,7 +335,7 @@ const clusterAxis = computed<AxisId>(() => {
     <template #title>{{ strings.titles.multipleSequenceAlignment }}</template>
     <PlMultiSequenceAlignment
       v-if="app.model.outputs.inputState === false"
-      v-model="app.model.ui.alignmentModel"
+      v-model="app.model.data.alignmentModel"
       :sequence-column-predicate="isSequenceColumn"
       :p-frame="app.model.outputs.msaPf"
       :selection="selection"

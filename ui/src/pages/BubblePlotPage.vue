@@ -56,7 +56,7 @@ const defaultOptions = computed((): PredefinedGraphOption<'bubble'>[] | undefine
 <template>
   <PlBlockPage>
     <GraphMaker
-      v-model="app.model.ui.graphStateBubble"
+      v-model="app.model.data.graphStateBubble"
       chartType="bubble"
       :data-state-key="app.model.outputs.bubblePlotPf"
       :p-frame="app.model.outputs.bubblePlotPf"
