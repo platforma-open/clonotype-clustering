@@ -112,6 +112,7 @@ const dataModel = new DataModelBuilder()
   .from<BlockData>('v1')
   .upgradeLegacy<OldArgs, OldUiState>(({ args, uiState }) => ({
     ...args,
+    similarityType: (args.similarityType as string) === 'alignment-score' ? 'blosum62' : args.similarityType,
     tableState: uiState.tableState,
     graphStateBubble: uiState.graphStateBubble,
     alignmentModel: uiState.alignmentModel,

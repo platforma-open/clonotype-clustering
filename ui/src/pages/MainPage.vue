@@ -28,11 +28,6 @@ import { useApp } from '../app';
 
 const app = useApp();
 
-// Migrate legacy 'alignment-score' → 'blosum62'
-if ((app.model.data.similarityType as string) === 'alignment-score') {
-  app.model.data.similarityType = 'blosum62';
-}
-
 const multipleSequenceAlignmentOpen = ref(false);
 const mmseqsLogOpen = ref(false);
 const settingsOpen = ref(app.model.data.datasetRef === undefined || app.model.data.sequencesRef === undefined);
