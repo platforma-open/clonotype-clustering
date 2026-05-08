@@ -9,14 +9,30 @@ import type {
   PlRef, SUniversalPColumnId,
 } from '@platforma-sdk/model';
 import {
-  BlockModel,
+  BlockModelV3,
+  DataModelBuilder,
   createPFrameForGraphs,
   createPlDataTableStateV2,
   createPlDataTableV2,
 } from '@platforma-sdk/model';
 export type * from '@milaboratories/helpers';
 
-export type BlockArgs = {
+/** Map user-facing similarity type to mmseqs2 similarity type */
+export const similarityTypeOptions = [
+  { label: 'Exact Match', value: 'sequence-identity' },
+  { label: 'BLOSUM40', value: 'blosum40' },
+  { label: 'BLOSUM50', value: 'blosum50' },
+  { label: 'BLOSUM62', value: 'blosum62' },
+  { label: 'BLOSUM80', value: 'blosum80' },
+  { label: 'BLOSUM90', value: 'blosum90' },
+] as const;
+
+export const clusteringToolOptions = [
+  { label: 'Easy Cluster', value: 'easy-cluster' },
+  { label: 'Easy Linclust', value: 'easy-linclust' },
+] as const;
+
+type OldArgs = {
   defaultBlockLabel: string;
   customBlockLabel: string;
   datasetRef?: PlRef;
@@ -35,59 +51,38 @@ export type BlockArgs = {
   cpu?: number;
 };
 
-export type UiState = {
+type OldUiState = {
   tableState: PlDataTableStateV2;
   graphStateBubble: GraphMakerState;
   alignmentModel: PlMultiSequenceAlignmentModel;
   graphStateHistogram: GraphMakerState;
 };
 
-/** Map user-facing similarity type to mmseqs2 similarity type */
-export const similarityTypeOptions = [
-  { label: 'Exact Match', value: 'sequence-identity' },
-  { label: 'BLOSUM40', value: 'blosum40' },
-  { label: 'BLOSUM50', value: 'blosum50' },
-  { label: 'BLOSUM62', value: 'blosum62' },
-  { label: 'BLOSUM80', value: 'blosum80' },
-  { label: 'BLOSUM90', value: 'blosum90' },
-] as const;
-
-export const clusteringToolOptions = [
-  { label: 'Easy Cluster', value: 'easy-cluster' },
-  { label: 'Easy Linclust', value: 'easy-linclust' },
-] as const;
-
-function getDefaultBlockArgs(): BlockArgs {
-  const defaultSimilarityType = similarityTypeOptions[3];
-  const defaults = {
-    customBlockLabel: '',
-    identity: 0.8,
-    sequenceType: 'aminoacid',
-    sequencesRef: [],
-    similarityType: defaultSimilarityType.value,
-    coverageThreshold: 0.8, // default value matching MMseqs2 default
-    coverageMode: 0, // default to coverage of query and target
-    highPrecision: false, // default to off, can be enabled manually in advanced settings
-    trimStart: 0, // default to no trimming from start
-    trimEnd: 0, // default to no trimming from end
-    clusteringTool: 'easy-cluster',
-  } satisfies Partial<BlockArgs>;
-  return {
-    defaultBlockLabel: getDefaultBlockLabel({
-      sequenceLabels: [],
-      similarityType: defaults.similarityType,
-      identity: defaults.identity,
-      coverageThreshold: defaults.coverageThreshold,
-      trimStart: defaults.trimStart,
-      trimEnd: defaults.trimEnd,
-    }),
-    ...defaults,
-  };
-}
+export type BlockData = {
+  defaultBlockLabel: string;
+  customBlockLabel: string;
+  datasetRef?: PlRef;
+  sequencesRef: SUniversalPColumnId[];
+  sequenceType: 'aminoacid' | 'nucleotide';
+  identity: number;
+  similarityType: 'sequence-identity' | 'blosum40' | 'blosum50' | 'blosum62' | 'blosum80' | 'blosum90';
+  coverageThreshold: number; // fraction of aligned residues required
+  coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
+  highPrecision: boolean; // use high-precision mmseqs2 settings (suitable for short sequences like CDR3)
+  trimStart?: number; // number of amino acids to remove from the beginning
+  trimEnd?: number; // number of amino acids to remove from the end
+  clusteringTool: 'easy-cluster' | 'easy-linclust';
+  mem?: number;
+  cpu?: number;
+  tableState: PlDataTableStateV2;
+  graphStateBubble: GraphMakerState;
+  alignmentModel: PlMultiSequenceAlignmentModel;
+  graphStateHistogram: GraphMakerState;
+};
 
 export function getDefaultBlockLabel(data: {
   sequenceLabels: string[];
-  similarityType: BlockArgs['similarityType'];
+  similarityType: BlockData['similarityType'];
   identity: number;
   coverageThreshold: number;
   trimStart: number;
@@ -111,11 +106,38 @@ export function getDefaultBlockLabel(data: {
   return parts.filter(Boolean).join(', ');
 }
 
-export const model = BlockModel.create()
+const defaultSimilarityType = similarityTypeOptions[3];
 
-  .withArgs<BlockArgs>(getDefaultBlockArgs())
-
-  .withUiState<UiState>({
+const dataModel = new DataModelBuilder()
+  .from<BlockData>('v1')
+  .upgradeLegacy<OldArgs, OldUiState>(({ args, uiState }) => ({
+    ...args,
+    similarityType: (args.similarityType as string) === 'alignment-score' ? 'blosum62' : args.similarityType,
+    tableState: uiState.tableState,
+    graphStateBubble: uiState.graphStateBubble,
+    alignmentModel: uiState.alignmentModel,
+    graphStateHistogram: uiState.graphStateHistogram,
+  }))
+  .init(() => ({
+    defaultBlockLabel: getDefaultBlockLabel({
+      sequenceLabels: [],
+      similarityType: defaultSimilarityType.value,
+      identity: 0.8,
+      coverageThreshold: 0.8,
+      trimStart: 0,
+      trimEnd: 0,
+    }),
+    customBlockLabel: '',
+    sequencesRef: [],
+    sequenceType: 'aminoacid',
+    identity: 0.8,
+    similarityType: defaultSimilarityType.value,
+    coverageThreshold: 0.8, // default value matching MMseqs2 default
+    coverageMode: 0, // default to coverage of query and target
+    highPrecision: false, // default to off, can be enabled manually in advanced settings
+    trimStart: 0, // default to no trimming from start
+    trimEnd: 0, // default to no trimming from end
+    clusteringTool: 'easy-cluster',
     tableState: createPlDataTableStateV2(),
     graphStateBubble: {
       title: 'Most abundant clusters',
@@ -143,10 +165,31 @@ export const model = BlockModel.create()
         other: { binsCount: 30 },
       },
     },
-  })
+  }));
 
-  .argsValid((ctx) => ctx.args.datasetRef !== undefined
-    && ctx.args.sequencesRef.length > 0)
+export const platforma = BlockModelV3.create(dataModel)
+
+  .args((data) => {
+    if (!data.datasetRef) throw new Error('Dataset is required');
+    if (!data.sequencesRef.length) throw new Error('Sequences are required');
+    return {
+      defaultBlockLabel: data.defaultBlockLabel,
+      customBlockLabel: data.customBlockLabel,
+      datasetRef: data.datasetRef,
+      sequencesRef: data.sequencesRef,
+      sequenceType: data.sequenceType,
+      identity: data.identity,
+      similarityType: data.similarityType,
+      coverageThreshold: data.coverageThreshold,
+      coverageMode: data.coverageMode,
+      highPrecision: data.highPrecision,
+      trimStart: data.trimStart,
+      trimEnd: data.trimEnd,
+      clusteringTool: data.clusteringTool,
+      mem: data.mem,
+      cpu: data.cpu,
+    };
+  })
 
   .output('datasetOptions', (ctx) =>
     ctx.resultPool.getOptions([{
@@ -175,7 +218,7 @@ export const model = BlockModel.create()
   )
 
   .output('sequenceOptions', (ctx) => {
-    const ref = ctx.args.datasetRef;
+    const ref = ctx.data.datasetRef;
     if (ref === undefined) return undefined;
 
     const axis1Name = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1].name;
@@ -190,7 +233,7 @@ export const model = BlockModel.create()
         name: 'pl7.app/sequence',
         domain: {
           'pl7.app/feature': 'peptide',
-          'pl7.app/alphabet': ctx.args.sequenceType,
+          'pl7.app/alphabet': ctx.data.sequenceType,
         },
       });
     } else {
@@ -204,7 +247,7 @@ export const model = BlockModel.create()
           domain: {
             // 'pl7.app/vdj/feature': feature,
             'pl7.app/vdj/scClonotypeChain/index': 'primary',
-            'pl7.app/alphabet': ctx.args.sequenceType,
+            'pl7.app/alphabet': ctx.data.sequenceType,
           },
         });
       } else {
@@ -213,7 +256,7 @@ export const model = BlockModel.create()
           name: 'pl7.app/vdj/sequence',
           domain: {
             // 'pl7.app/vdj/feature': feature,
-            'pl7.app/alphabet': ctx.args.sequenceType,
+            'pl7.app/alphabet': ctx.data.sequenceType,
           },
         });
       }
@@ -230,7 +273,7 @@ export const model = BlockModel.create()
           axes: [{ anchor: 'main', idx: 1 }],
           name: 'pl7.app/vdj/scFv-sequence',
           domain: {
-            'pl7.app/alphabet': ctx.args.sequenceType,
+            'pl7.app/alphabet': ctx.data.sequenceType,
           },
         });
       }
@@ -247,9 +290,9 @@ export const model = BlockModel.create()
   })
 
   .output('isSingleCell', (ctx) => {
-    if (ctx.args.datasetRef === undefined) return undefined;
+    if (ctx.data.datasetRef === undefined) return undefined;
 
-    const spec = ctx.resultPool.getPColumnSpecByRef(ctx.args.datasetRef);
+    const spec = ctx.resultPool.getPColumnSpecByRef(ctx.data.datasetRef);
     if (spec === undefined) {
       return undefined;
     }
@@ -258,8 +301,8 @@ export const model = BlockModel.create()
   })
 
   .output('modality', (ctx) => {
-    const spec = ctx.args.datasetRef
-      ? ctx.resultPool.getPColumnSpecByRef(ctx.args.datasetRef)
+    const spec = ctx.data.datasetRef
+      ? ctx.resultPool.getPColumnSpecByRef(ctx.data.datasetRef)
       : undefined;
     if (!spec) return undefined;
     for (const ax of spec.axesSpec) {
@@ -281,7 +324,7 @@ export const model = BlockModel.create()
   .outputWithStatus('clustersTable', (ctx) => {
     const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
     if (pCols === undefined) return undefined;
-    return createPlDataTableV2(ctx, pCols, ctx.uiState.tableState);
+    return createPlDataTableV2(ctx, pCols, ctx.data.tableState);
   })
 
   .output('mmseqsOutput', (ctx) => ctx.outputs?.resolve('mmseqsOutput')?.getLogHandle())
@@ -291,16 +334,16 @@ export const model = BlockModel.create()
     if (!msaCols) return undefined;
 
     // When trimming is enabled, use trimmed sequences from msaPf only
-    const trimEnabled = (ctx.args.trimStart ?? 0) > 0 || (ctx.args.trimEnd ?? 0) > 0;
+    const trimEnabled = (ctx.data.trimStart ?? 0) > 0 || (ctx.data.trimEnd ?? 0) > 0;
     if (trimEnabled) {
       return createPFrameForGraphs(ctx, msaCols);
     }
 
-    const datasetRef = ctx.args.datasetRef;
+    const datasetRef = ctx.data.datasetRef;
     if (datasetRef === undefined)
       return undefined;
 
-    const sequencesRef = ctx.args.sequencesRef;
+    const sequencesRef = ctx.data.sequencesRef;
     if (sequencesRef.length === 0)
       return undefined;
 
@@ -327,7 +370,7 @@ export const model = BlockModel.create()
   })
 
   .output('inputSpec', (ctx) => {
-    const anchor = ctx.args.datasetRef;
+    const anchor = ctx.data.datasetRef;
     if (anchor === undefined)
       return undefined;
     const anchorSpec = ctx.resultPool.getPColumnSpecByRef(anchor);
@@ -389,7 +432,7 @@ export const model = BlockModel.create()
 
   .title(() => 'Sequence Clustering')
 
-  .subtitle((ctx) => ctx.args.customBlockLabel || ctx.args.defaultBlockLabel)
+  .subtitle((ctx) => ctx.data.customBlockLabel || ctx.data.defaultBlockLabel)
 
   .sections((_ctx) => [
     { type: 'link', href: '/', label: strings.titles.main },
@@ -397,4 +440,4 @@ export const model = BlockModel.create()
     { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
   ])
 
-  .done(2);
+  .done();
