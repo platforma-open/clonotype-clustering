@@ -22,8 +22,8 @@ catalog:
   '@milaboratories/strings': 0.1.2
 
   # Block-specific dependencies
-  '@milaboratories/graph-maker': 1.4.0
-  '@milaboratories/multi-sequence-alignment': '1.47.11'
+  '@milaboratories/graph-maker': 1.4.1
+  '@milaboratories/multi-sequence-alignment': '1.47.12'
   '@milaboratories/software-pframes-conv': ^2.2.9
   '@platforma-open/milaboratories.runenv-python-3': ^1.7.3
   '@platforma-open/soedinglab.software-mmseqs2': 1.18.0
