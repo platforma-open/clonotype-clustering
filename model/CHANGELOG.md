@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 3.0.1
+
+### Patch Changes
+
+- 8e4b279: migrate to model v3, turn on table export
+
 ## 3.0.0
 
 ### Major Changes
