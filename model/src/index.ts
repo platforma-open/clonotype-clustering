@@ -17,6 +17,7 @@ import {
 } from '@platforma-sdk/model';
 export type * from '@milaboratories/helpers';
 
+/** Map user-facing similarity type to mmseqs2 similarity type */
 export const similarityTypeOptions = [
   { label: 'Exact Match', value: 'sequence-identity' },
   { label: 'BLOSUM40', value: 'blosum40' },
@@ -36,14 +37,15 @@ type OldArgs = {
   customBlockLabel: string;
   datasetRef?: PlRef;
   sequencesRef: SUniversalPColumnId[];
+  // Added sequenceType here for future use in algorithm selection in workflow
   sequenceType: 'aminoacid' | 'nucleotide';
   identity: number;
   similarityType: 'sequence-identity' | 'blosum40' | 'blosum50' | 'blosum62' | 'blosum80' | 'blosum90';
-  coverageThreshold: number;
-  coverageMode: 0 | 1 | 2 | 3 | 4 | 5;
-  highPrecision: boolean;
-  trimStart?: number;
-  trimEnd?: number;
+  coverageThreshold: number; // fraction of aligned residues required
+  coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
+  highPrecision: boolean; // use high-precision mmseqs2 settings (suitable for short sequences like CDR3)
+  trimStart?: number; // number of amino acids to remove from the beginning
+  trimEnd?: number; // number of amino acids to remove from the end
   clusteringTool: 'easy-cluster' | 'easy-linclust';
   mem?: number;
   cpu?: number;
@@ -64,11 +66,11 @@ export type BlockData = {
   sequenceType: 'aminoacid' | 'nucleotide';
   identity: number;
   similarityType: 'sequence-identity' | 'blosum40' | 'blosum50' | 'blosum62' | 'blosum80' | 'blosum90';
-  coverageThreshold: number;
-  coverageMode: 0 | 1 | 2 | 3 | 4 | 5;
-  highPrecision: boolean;
-  trimStart?: number;
-  trimEnd?: number;
+  coverageThreshold: number; // fraction of aligned residues required
+  coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
+  highPrecision: boolean; // use high-precision mmseqs2 settings (suitable for short sequences like CDR3)
+  trimStart?: number; // number of amino acids to remove from the beginning
+  trimEnd?: number; // number of amino acids to remove from the end
   clusteringTool: 'easy-cluster' | 'easy-linclust';
   mem?: number;
   cpu?: number;
@@ -129,11 +131,11 @@ const dataModel = new DataModelBuilder()
     sequenceType: 'aminoacid',
     identity: 0.8,
     similarityType: defaultSimilarityType.value,
-    coverageThreshold: 0.8,
-    coverageMode: 0,
-    highPrecision: false,
-    trimStart: 0,
-    trimEnd: 0,
+    coverageThreshold: 0.8, // default value matching MMseqs2 default
+    coverageMode: 0, // default to coverage of query and target
+    highPrecision: false, // default to off, can be enabled manually in advanced settings
+    trimStart: 0, // default to no trimming from start
+    trimEnd: 0, // default to no trimming from end
     clusteringTool: 'easy-cluster',
     tableState: createPlDataTableStateV2(),
     graphStateBubble: {
@@ -234,11 +236,15 @@ export const platforma = BlockModelV3.create(dataModel)
         },
       });
     } else {
+      // const allowedFeatures = ['CDR1', 'CDR2', 'CDR3', 'FR1', 'FR2',
+      //   'FR3', 'FR4', 'FR4InFrame', 'VDJRegion', 'VDJRegionInFrame'];
+      // for (const feature of allowedFeatures) {
       if (isSingleCell) {
         sequenceMatchers.push({
           axes: [{ anchor: 'main', idx: 1 }],
           name: 'pl7.app/vdj/sequence',
           domain: {
+            // 'pl7.app/vdj/feature': feature,
             'pl7.app/vdj/scClonotypeChain/index': 'primary',
             'pl7.app/alphabet': ctx.data.sequenceType,
           },
@@ -248,11 +254,13 @@ export const platforma = BlockModelV3.create(dataModel)
           axes: [{ anchor: 'main', idx: 1 }],
           name: 'pl7.app/vdj/sequence',
           domain: {
+            // 'pl7.app/vdj/feature': feature,
             'pl7.app/alphabet': ctx.data.sequenceType,
           },
         });
       }
 
+      // Check if any PColumns in the dataset have the name "pl7.app/vdj/scFv-sequence"
       const scfvColumns = ctx.resultPool.getAnchoredPColumns(
         { main: ref },
         [{
