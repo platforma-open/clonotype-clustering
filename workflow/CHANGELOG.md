@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.0.1
+
+### Patch Changes
+
+- 7c5abe0: Make cluster label visible and update SDK
+
 ## 4.0.0
 
 ### Major Changes
