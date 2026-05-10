@@ -321,7 +321,7 @@ export const platforma = BlockModelV3.create(dataModel)
     return undefined;
   })
 
-  .outputWithStatus('clustersTable', (ctx) => {
+  .retentiveOutputWithStatus('clustersTable', (ctx) => {
     const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
     if (pCols === undefined) return undefined;
     return createPlDataTableV2(ctx, pCols, ctx.data.tableState);
@@ -379,7 +379,7 @@ export const platforma = BlockModelV3.create(dataModel)
     return anchorSpec;
   })
 
-  .outputWithStatus('clustersPf', (ctx): PFrameHandle | undefined => {
+  .retentiveOutputWithStatus('clustersPf', (ctx): PFrameHandle | undefined => {
     const pCols = ctx.outputs?.resolve('pf')?.getPColumns();
     if (pCols === undefined) {
       return undefined;
@@ -388,7 +388,7 @@ export const platforma = BlockModelV3.create(dataModel)
     return createPFrameForGraphs(ctx, pCols);
   })
 
-  .outputWithStatus('bubblePlotPf', (ctx): PFrameHandle | undefined => {
+  .retentiveOutputWithStatus('bubblePlotPf', (ctx): PFrameHandle | undefined => {
     const pCols = ctx.outputs?.resolve('bubblePlotPf')?.getPColumns();
     if (pCols === undefined) {
       return undefined;
