@@ -133,7 +133,10 @@ self.body(func(inputs) {
             run()
 
         // get split memory limit based on real system ram
-	    memLimit := "{int(ceil(system.ram.gb * 0.8))}" + "G"
+        // --split-memory-limit controls only the prefilter database splitting;
+        // actual peak usage is ~125% of this value, plus uncontrolled memory
+        // from clustering and alignment steps; 60% leaves headroom for all of that
+	    memLimit := "{int(max(system.ram.gb*60/100,1))}" + "G"
 
         mem := string(baseMemGiB) + "GiB"
 	    cpu := 16
