@@ -1,5 +1,15 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.0.4
+
+### Patch Changes
+
+- fdb4061: Update SDK
+- Updated dependencies [fdb4061]
+- Updated dependencies [f446d40]
+  - @platforma-open/milaboratories.clonotype-clustering.model@3.0.2
+  - @platforma-open/milaboratories.clonotype-clustering.ui@4.0.3
+
 ## 3.0.3
 
 ### Patch Changes
