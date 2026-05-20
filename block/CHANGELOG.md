@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.0.5
+
+### Patch Changes
+
+- ef85b2f: Set clustering block order
+
 ## 3.0.4
 
 ### Patch Changes
