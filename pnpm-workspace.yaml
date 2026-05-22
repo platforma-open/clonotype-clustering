@@ -36,3 +36,5 @@ catalog:
   'eslint': ^9.25.1
   '@changesets/cli': ^2.29.8
   'shx': ^0.4.0
+
+# Intentional edit to trigger the pnpm-workspace.yaml vs pnpm-lock.yaml drift gate.
