@@ -16,6 +16,7 @@ clusteringTpl := assets.importTemplate(":clustering")
 emptyCheckTpl := assets.importTemplate(":empty-check")
 deanonimizationTpl := assets.importTemplate(":deanonimization")
 anonymizationTpl := assets.importTemplate(":anonymization")
+minPeptideLengthTpl := assets.importTemplate(":min-peptide-length")
 
 setTableProps := func(spec, label, visibility, orderPriority) {
 	visibilityValue := ""
@@ -77,6 +78,15 @@ wf.prepare(func(args) {
 			axes: [{ anchor: "main", idx: 1 }],
 			name: "pl7.app/label"
 		}, "clonotypeKeyLabels")
+
+	// Peptide-only: pull the per-peptide sequence length column. Empty on VDJ inputs.
+	// Used to decide whether to force mmseqs2 -k 5 when peptides are too short for auto-tune.
+	bundleBuilder.addMulti(
+		{
+			axes: [{ anchor: "main", idx: 1 }],
+			name: "pl7.app/sequenceLength",
+			domain: { "pl7.app/feature": "peptide" }
+		}, "peptideSequenceLength")
 			
 	return {
 		columns: bundleBuilder.build()
@@ -94,6 +104,7 @@ wf.body(func(args) {
 	abundanceSpec := columns.getSpec("abundance")
 
 	isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
+	isPeptide := datasetSpec.axesSpec[1].name == "pl7.app/variantKey"
 
 	baseMemGiB := 32
 	if !is_undefined(args.mem) {
@@ -155,6 +166,21 @@ wf.body(func(args) {
 	cloneTableBuilder.cpu(4)
 	cloneTable := cloneTableBuilder.build()
 
+	// Peptide mode: compute min peptide length to decide whether mmseqs2 needs -k 5.
+	// MMseqs2 auto-tune floors k at ~6, so peptides shorter than that get empty results.
+	minPeptideLength := undefined
+	if isPeptide {
+		peptideLenCols := columns.getColumns("peptideSequenceLength")
+		if len(peptideLenCols) == 0 {
+			ll.panic("Peptide input is missing required pl7.app/sequenceLength column")
+		}
+		minLenResult := render.create(minPeptideLengthTpl, {
+			spec: peptideLenCols[0].spec,
+			data: peptideLenCols[0].data
+		})
+		minPeptideLength = minLenResult.output("minLength")
+	}
+
 	/////////// Run clustering template ///////////
 	// Analysis will only run if result from emptyOrNot is "notEmpty"
 	clusteringAnalysis := render.create(clusteringTpl, {
@@ -162,6 +188,8 @@ wf.body(func(args) {
 		seqTable: seqTable,
 		cloneTable: cloneTable,
 		isSingleCell: isSingleCell,
+		isPeptide: isPeptide,
+		minPeptideLength: minPeptideLength,
 		identity: args.identity,
 		similarityType: args.similarityType,
 		coverageThreshold: args.coverageThreshold,
@@ -714,7 +742,8 @@ wf.body(func(args) {
 			clusterRadiusTop: clusteringAnalysis.output("clusterRadiusTop"),
 			abundancesTop: clusteringAnalysis.output("abundancesTop"),
 			trimmedSequences: clusteringAnalysis.output("trimmedSequences"),
-			isEmpty: isEmpty
+			isEmpty: isEmpty,
+			minPeptideLength: minPeptideLength
 		},
 		exports: {
 			pf: epf
