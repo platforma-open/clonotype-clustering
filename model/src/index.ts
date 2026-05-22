@@ -321,6 +321,11 @@ export const platforma = BlockModelV3.create(dataModel)
     return undefined;
   })
 
+  .output('minPeptideLength', (ctx): number | undefined => {
+    const data = ctx.outputs?.resolve('minPeptideLength')?.getDataAsJson<{ min_len: number }>();
+    return data?.min_len;
+  })
+
   .outputWithStatus('clustersTable', (ctx) => {
     const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
     if (pCols === undefined) return undefined;
