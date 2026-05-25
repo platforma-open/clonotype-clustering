@@ -1,6 +1,6 @@
 {
   "name": "@platforma-open/milaboratories.clonotype-clustering",
-  "version": "3.0.4",
+  "version": "3.0.5",
   "scripts": {
     "build": "shx rm -rf ./block-pack && block-tools pack",
     "mark-stable": "block-tools mark-stable -r 's3://milab-euce1-prod-pkgs-s3-block-registry/pub/releases/?region=eu-central-1'",
@@ -37,6 +37,7 @@
         "clustering",
         "peptide"
       ],
+      "marketplaceRanking": 12330,
       "organization": {
         "name": "MiLaboratories Inc",
         "url": "https://milaboratories.com/",
