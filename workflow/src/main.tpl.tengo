@@ -171,9 +171,6 @@ wf.body(func(args) {
 	minPeptideLength := undefined
 	if isPeptide {
 		peptideLenCols := columns.getColumns("peptideSequenceLength")
-		if len(peptideLenCols) == 0 {
-			ll.panic("Peptide input is missing required pl7.app/sequenceLength column")
-		}
 		minLenResult := render.create(minPeptideLengthTpl, {
 			spec: peptideLenCols[0].spec,
 			data: peptideLenCols[0].data
@@ -715,36 +712,41 @@ wf.body(func(args) {
 
 	clusterAbundanceSpec := trace.inject(abundancesPf["abundance"].spec)
 
-	return {
-		outputs: {
-			// for table
-			clustersPf: pframes.exportFrame(opf),
-			// for bubble plot
-			bubblePlotPf: pframes.exportFrame(bubblePlotPf),
-			// for MSA
-			msaPf: pframes.exportFrame(msaPf),
-			// pf for plots
-			pf: pframes.exportFrame(epf),
-			// specs to outputs for visualization purposes
-			clusterAbundanceSpec: clusterAbundanceSpec,
+	outputs := {
+		// for table
+		clustersPf: pframes.exportFrame(opf),
+		// for bubble plot
+		bubblePlotPf: pframes.exportFrame(bubblePlotPf),
+		// for MSA
+		msaPf: pframes.exportFrame(msaPf),
+		// pf for plots
+		pf: pframes.exportFrame(epf),
+		// specs to outputs for visualization purposes
+		clusterAbundanceSpec: clusterAbundanceSpec,
 
-			// save mmseqs2 result in the output to enable deduplication of mmseqs2 run
-			// NOTE: mmseqs2 produces different results for same input (different line order)
-			mmseqs: mmseqs,
-			mmseqsOutput: mmseqsOutput,
-			abundances: clusteringAnalysis.output("abundances"),
-			clusterToSeq: clusteringAnalysis.output("clusterToSeq"),
-			cloneToCluster: clusteringAnalysis.output("cloneToCluster"),
-			abundancesPerCluster: clusteringAnalysis.output("abundancesPerCluster"),
-			distanceToCentroid: clusteringAnalysis.output("distanceToCentroid"),
-			clusterRadius: clusteringAnalysis.output("clusterRadius"),
-			clusterToSeqTop: clusteringAnalysis.output("clusterToSeqTop"),
-			clusterRadiusTop: clusteringAnalysis.output("clusterRadiusTop"),
-			abundancesTop: clusteringAnalysis.output("abundancesTop"),
-			trimmedSequences: clusteringAnalysis.output("trimmedSequences"),
-			isEmpty: isEmpty,
-			minPeptideLength: minPeptideLength
-		},
+		// save mmseqs2 result in the output to enable deduplication of mmseqs2 run
+		// NOTE: mmseqs2 produces different results for same input (different line order)
+		mmseqs: mmseqs,
+		mmseqsOutput: mmseqsOutput,
+		abundances: clusteringAnalysis.output("abundances"),
+		clusterToSeq: clusteringAnalysis.output("clusterToSeq"),
+		cloneToCluster: clusteringAnalysis.output("cloneToCluster"),
+		abundancesPerCluster: clusteringAnalysis.output("abundancesPerCluster"),
+		distanceToCentroid: clusteringAnalysis.output("distanceToCentroid"),
+		clusterRadius: clusteringAnalysis.output("clusterRadius"),
+		clusterToSeqTop: clusteringAnalysis.output("clusterToSeqTop"),
+		clusterRadiusTop: clusteringAnalysis.output("clusterRadiusTop"),
+		abundancesTop: clusteringAnalysis.output("abundancesTop"),
+		trimmedSequences: clusteringAnalysis.output("trimmedSequences"),
+		isEmpty: isEmpty
+	}
+	// minPeptideLength is only set in peptide mode
+	if !is_undefined(minPeptideLength) {
+		outputs.minPeptideLength = minPeptideLength
+	}
+
+	return {
+		outputs: outputs,
 		exports: {
 			pf: epf
 		}
