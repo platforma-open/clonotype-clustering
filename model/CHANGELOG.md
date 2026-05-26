@@ -1,5 +1,12 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 3.1.0
+
+### Minor Changes
+
+- 058d322: Adapt to short peptides
+- 0642e10: Adapt to short peptides
+
 ## 3.0.2
 
 ### Patch Changes

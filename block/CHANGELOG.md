@@ -1,5 +1,20 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.1.0
+
+### Minor Changes
+
+- 058d322: Adapt to short peptides
+- 0642e10: Adapt to short peptides
+
+### Patch Changes
+
+- Updated dependencies [058d322]
+- Updated dependencies [0642e10]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@4.1.0
+  - @platforma-open/milaboratories.clonotype-clustering.model@3.1.0
+  - @platforma-open/milaboratories.clonotype-clustering.ui@4.1.0
+
 ## 3.0.5
 
 ### Patch Changes
