@@ -247,6 +247,19 @@ const clusterAxis = computed<AxisId>(() => {
           Please choose a different dataset.'
         }}
       </PlAlert>
+      <PlAlert
+        v-if="app.model.outputs.modality === 'peptide'
+          && app.model.outputs.minPeptideLength !== undefined
+          && app.model.outputs.minPeptideLength < 5"
+        type="warn"
+        style="margin-top: 1rem"
+      >
+        {{
+          'Warning: Some peptides in the input are shorter than 5 amino acids. \
+          MMseqs2 requires at least 5 aa for k-mer matching, so clustering results \
+          for these peptides may be empty or incomplete.'
+        }}
+      </PlAlert>
 
       <PlAccordionSection :label="strings.titles.advancedSettings">
         <PlDropdown

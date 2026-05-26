@@ -16,6 +16,7 @@ clusteringTpl := assets.importTemplate(":clustering")
 emptyCheckTpl := assets.importTemplate(":empty-check")
 deanonimizationTpl := assets.importTemplate(":deanonimization")
 anonymizationTpl := assets.importTemplate(":anonymization")
+minPeptideLengthTpl := assets.importTemplate(":min-peptide-length")
 
 setTableProps := func(spec, label, visibility, orderPriority) {
 	visibilityValue := ""
@@ -77,6 +78,15 @@ wf.prepare(func(args) {
 			axes: [{ anchor: "main", idx: 1 }],
 			name: "pl7.app/label"
 		}, "clonotypeKeyLabels")
+
+	// Peptide-only: pull the per-peptide sequence length column. Empty on VDJ inputs.
+	// Used to decide whether to force mmseqs2 -k 5 when peptides are too short for auto-tune.
+	bundleBuilder.addMulti(
+		{
+			axes: [{ anchor: "main", idx: 1 }],
+			name: "pl7.app/sequenceLength",
+			domain: { "pl7.app/feature": "peptide" }
+		}, "peptideSequenceLength")
 			
 	return {
 		columns: bundleBuilder.build()
@@ -94,6 +104,7 @@ wf.body(func(args) {
 	abundanceSpec := columns.getSpec("abundance")
 
 	isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
+	isPeptide := datasetSpec.axesSpec[1].name == "pl7.app/variantKey"
 
 	baseMemGiB := 32
 	if !is_undefined(args.mem) {
@@ -155,6 +166,18 @@ wf.body(func(args) {
 	cloneTableBuilder.cpu(4)
 	cloneTable := cloneTableBuilder.build()
 
+	// Peptide mode: compute min peptide length to decide whether mmseqs2 needs -k 5.
+	// MMseqs2 auto-tune floors k at ~6, so peptides shorter than that get empty results.
+	minPeptideLength := undefined
+	if isPeptide {
+		peptideLenCols := columns.getColumns("peptideSequenceLength")
+		minLenResult := render.create(minPeptideLengthTpl, {
+			spec: peptideLenCols[0].spec,
+			data: peptideLenCols[0].data
+		})
+		minPeptideLength = minLenResult.output("minLength")
+	}
+
 	/////////// Run clustering template ///////////
 	// Analysis will only run if result from emptyOrNot is "notEmpty"
 	clusteringAnalysis := render.create(clusteringTpl, {
@@ -162,6 +185,8 @@ wf.body(func(args) {
 		seqTable: seqTable,
 		cloneTable: cloneTable,
 		isSingleCell: isSingleCell,
+		isPeptide: isPeptide,
+		minPeptideLength: minPeptideLength,
 		identity: args.identity,
 		similarityType: args.similarityType,
 		coverageThreshold: args.coverageThreshold,
@@ -687,35 +712,41 @@ wf.body(func(args) {
 
 	clusterAbundanceSpec := trace.inject(abundancesPf["abundance"].spec)
 
-	return {
-		outputs: {
-			// for table
-			clustersPf: pframes.exportFrame(opf),
-			// for bubble plot
-			bubblePlotPf: pframes.exportFrame(bubblePlotPf),
-			// for MSA
-			msaPf: pframes.exportFrame(msaPf),
-			// pf for plots
-			pf: pframes.exportFrame(epf),
-			// specs to outputs for visualization purposes
-			clusterAbundanceSpec: clusterAbundanceSpec,
+	outputs := {
+		// for table
+		clustersPf: pframes.exportFrame(opf),
+		// for bubble plot
+		bubblePlotPf: pframes.exportFrame(bubblePlotPf),
+		// for MSA
+		msaPf: pframes.exportFrame(msaPf),
+		// pf for plots
+		pf: pframes.exportFrame(epf),
+		// specs to outputs for visualization purposes
+		clusterAbundanceSpec: clusterAbundanceSpec,
 
-			// save mmseqs2 result in the output to enable deduplication of mmseqs2 run
-			// NOTE: mmseqs2 produces different results for same input (different line order)
-			mmseqs: mmseqs,
-			mmseqsOutput: mmseqsOutput,
-			abundances: clusteringAnalysis.output("abundances"),
-			clusterToSeq: clusteringAnalysis.output("clusterToSeq"),
-			cloneToCluster: clusteringAnalysis.output("cloneToCluster"),
-			abundancesPerCluster: clusteringAnalysis.output("abundancesPerCluster"),
-			distanceToCentroid: clusteringAnalysis.output("distanceToCentroid"),
-			clusterRadius: clusteringAnalysis.output("clusterRadius"),
-			clusterToSeqTop: clusteringAnalysis.output("clusterToSeqTop"),
-			clusterRadiusTop: clusteringAnalysis.output("clusterRadiusTop"),
-			abundancesTop: clusteringAnalysis.output("abundancesTop"),
-			trimmedSequences: clusteringAnalysis.output("trimmedSequences"),
-			isEmpty: isEmpty
-		},
+		// save mmseqs2 result in the output to enable deduplication of mmseqs2 run
+		// NOTE: mmseqs2 produces different results for same input (different line order)
+		mmseqs: mmseqs,
+		mmseqsOutput: mmseqsOutput,
+		abundances: clusteringAnalysis.output("abundances"),
+		clusterToSeq: clusteringAnalysis.output("clusterToSeq"),
+		cloneToCluster: clusteringAnalysis.output("cloneToCluster"),
+		abundancesPerCluster: clusteringAnalysis.output("abundancesPerCluster"),
+		distanceToCentroid: clusteringAnalysis.output("distanceToCentroid"),
+		clusterRadius: clusteringAnalysis.output("clusterRadius"),
+		clusterToSeqTop: clusteringAnalysis.output("clusterToSeqTop"),
+		clusterRadiusTop: clusteringAnalysis.output("clusterRadiusTop"),
+		abundancesTop: clusteringAnalysis.output("abundancesTop"),
+		trimmedSequences: clusteringAnalysis.output("trimmedSequences"),
+		isEmpty: isEmpty
+	}
+	// minPeptideLength is only set in peptide mode
+	if !is_undefined(minPeptideLength) {
+		outputs.minPeptideLength = minPeptideLength
+	}
+
+	return {
+		outputs: outputs,
 		exports: {
 			pf: epf
 		}

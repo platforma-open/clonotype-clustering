@@ -5,6 +5,7 @@ assets:= import("@platforma-sdk/workflow-tengo:assets")
 pframes := import("@platforma-sdk/workflow-tengo:pframes")
 
 math := import("math")
+json := import("json")
 
 prepareFastaSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:prepare-fasta")
 processResultsSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-clustering.software:process-results")
@@ -17,6 +18,8 @@ self.validateInputs({
     seqTable: "any",
     cloneTable: "any",
     isSingleCell: "boolean",
+    "isPeptide,?": "boolean",
+    "minPeptideLength,?": "any",
     identity: "number",
     similarityType: "string",
     coverageThreshold: "number",
@@ -118,7 +121,7 @@ self.body(func(inputs) {
         fastaBuilder := exec.builder().
             software(prepareFastaSw).
             mem(string(int(math.max(16, baseMemGiB / 4))) + "GiB").
-	    cpu(1).
+	        cpu(1).
             addFile("input.tsv", seqTable).
             arg("--trim-start").arg(string(trimStart)).
             arg("--trim-end").arg(string(trimEnd))
@@ -175,6 +178,30 @@ self.body(func(inputs) {
                 arg("--single-step-clustering").
                 arg("--spaced-kmer-mode").arg("0").
                 arg("-e").arg("inf")
+        } else {
+            // Peptide guard: mmseqs2 auto-tunes k with a floor of ~6, so peptides
+            // shorter than that get silently empty results. Force -k 5 when the
+            // shortest peptide is below 10 aa (small buffer above the floor).
+            isPeptide := is_undefined(inputs.isPeptide) ? false : inputs.isPeptide
+            if isPeptide && !is_undefined(inputs.minPeptideLength) {
+                ml := int(json.decode(string(inputs.minPeptideLength.getData())).min_len)
+                if ml < 10 {
+                   mmseqsBuilder = mmseqsBuilder.
+                                    arg("-k").arg("5").
+                                    arg("--spaced-kmer-mode").arg("0").
+                                    arg("--mask").arg("0").
+                                    arg("--comp-bias-corr").arg("0").
+                                    arg("-e").arg("inf")
+                   // --min-ungapped-score is only accepted by easy-cluster;
+                   // easy-linclust rejects it.
+                   if clusteringTool == "easy-cluster" {
+                       mmseqsBuilder = mmseqsBuilder.
+                                        arg("--min-ungapped-score").arg("0").
+                                        arg("--max-seqs").arg("1000").
+                                        arg("-s").arg("7.5")
+                   }
+                }
+            }
         }
         // For non-default BLOSUM matrices, reference the .out file from the mmseqs2 package
         // blosum62 is built into mmseqs2 binary, no --sub-mat needed
