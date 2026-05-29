@@ -2,7 +2,7 @@
 import { PlMultiSequenceAlignment } from '@milaboratories/multi-sequence-alignment';
 import strings from '@milaboratories/strings';
 import { clusteringToolOptions, similarityTypeOptions } from '@platforma-open/milaboratories.clonotype-clustering.model';
-import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey, SUniversalPColumnId } from '@platforma-sdk/model';
+import type { AxisId, ColumnUniversalId, PColumnIdAndSpec, PlSelectionModel, PTableKey } from '@platforma-sdk/model';
 import {
   listToOptions,
   PlAccordionSection,
@@ -58,9 +58,19 @@ const onRowDoubleClicked = reactive((key?: PTableKey) => {
   multipleSequenceAlignmentOpen.value = true;
 });
 
-function setInput(inputRef?: PlRef) {
+function setInput(inputRef?: ColumnUniversalId) {
   app.model.data.datasetRef = inputRef;
 }
+
+// `getColumnOptions` returns `{ id, label }`; `PlDropdownRef` / `PlDropdownMulti`
+// expect `{ value, label }`. Wrap in a computed rather than touching every
+// model output.
+const datasetOptions = computed(() =>
+  app.model.outputs.datasetOptions?.map((o) => ({ value: o.id, label: o.label })),
+);
+const sequenceOptions = computed(() =>
+  app.model.outputs.sequenceOptions?.map((o) => ({ value: o.id, label: o.label })),
+);
 
 const tableSettings = usePlDataTableSettingsV2({
   model: () => app.model.outputs.clustersTable,
@@ -101,9 +111,9 @@ const hasCDR3Sequences = computed(() => {
     return false;
   }
 
-  const sequenceOptions = app.model.outputs.sequenceOptions;
+  const opts = app.model.outputs.sequenceOptions;
   return app.model.data.sequencesRef.some((selectedId) => {
-    const option = sequenceOptions.find((opt) => opt.value === selectedId);
+    const option = opts.find((opt) => opt.id === selectedId);
     if (!option) return false;
 
     // Check if the column name contains CDR3 (case insensitive)
@@ -119,16 +129,16 @@ const hasCDR3Sequences = computed(() => {
 // every nested property a new reference. A watcher would fire on that
 // replacement and clobber the user's explicit BLOSUM choice on app reopen
 // or any concurrent write.
-function onSequencesRefChange(sequencesRef: SUniversalPColumnId[]) {
+function onSequencesRefChange(sequencesRef: ColumnUniversalId[]) {
   app.model.data.sequencesRef = sequencesRef;
 
   if (app.model.data.similarityType === 'sequence-identity') return;
 
-  const sequenceOptions = app.model.outputs.sequenceOptions;
-  if (!sequencesRef?.length || !sequenceOptions) return;
+  const opts = app.model.outputs.sequenceOptions;
+  if (!sequencesRef?.length || !opts) return;
 
   const allFramework = sequencesRef.every((selectedId) => {
-    const option = sequenceOptions.find((opt) => opt.value === selectedId);
+    const option = opts.find((opt) => opt.id === selectedId);
     if (!option) return false;
     const label = option.label?.toLowerCase() || '';
     return label.includes('fr') && !label.includes('cdr');
@@ -187,7 +197,7 @@ const clusterAxis = computed<AxisId>(() => {
       <template #title>{{ strings.titles.settings }}</template>
       <PlDropdownRef
         v-model="app.model.data.datasetRef"
-        :options="app.model.outputs.datasetOptions"
+        :options="datasetOptions"
         :label="strings.titles.dataset"
         clearable
         required
@@ -201,7 +211,7 @@ const clusterAxis = computed<AxisId>(() => {
       />
       <PlDropdownMulti
         :model-value="app.model.data.sequencesRef"
-        :options="app.model.outputs.sequenceOptions"
+        :options="sequenceOptions"
         label="Sequence Columns to Cluster"
         required
         :disabled="app.model.data.datasetRef === undefined"

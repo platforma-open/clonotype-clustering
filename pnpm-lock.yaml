@@ -40,8 +40,8 @@ catalogs:
       specifier: 3.12.0
       version: 3.12.0
     '@platforma-sdk/tengo-builder':
-      specifier: 2.5.29
-      version: 2.5.29
+      specifier: 3.0.0
+      version: 3.0.0
     '@platforma-sdk/test':
       specifier: 1.77.1
       version: 1.77.1
@@ -240,7 +240,7 @@ importers:
     devDependencies:
       '@platforma-sdk/tengo-builder':
         specifier: 'catalog:'
-        version: 2.5.29
+        version: 3.0.0
 
 packages:
 
@@ -1001,7 +1001,7 @@ packages:
     resolution: {integrity: sha512-/X2PJ9VYmVKHZ12X7p2lgzEN+zqeycatVGdVA1ifsdBXE4bKNmCrWhUr4JRlpoB5wuj/J5chBbIi6N9y6Tk1aw==}
 
   '@milaboratories/columns-collection-driver@file:../platforma_1/lib/model/columns-collection-driver/package.tgz':
-    resolution: {integrity: sha512-zPCm1ahEt0lSEZORv8sAGOKdNWKYcx6aQe8Dp+sf3jWvdbVss1Od970QA5gCe4xA5/QmdP6x/XWhsrgNlTH3rw==, tarball: file:../platforma_1/lib/model/columns-collection-driver/package.tgz}
+    resolution: {integrity: sha512-oc0vn5f0ZD9D5BliAdB/lGKDkDmiHbgnP0XkYaZcToZ4ay9z79Gi7rcSN4eE2XE9nRQKk+jyh15h5tU5UiKujg==, tarball: file:../platforma_1/lib/model/columns-collection-driver/package.tgz}
     version: 0.1.0
 
   '@milaboratories/computable@2.9.4':
@@ -1069,6 +1069,10 @@ packages:
     resolution: {integrity: sha512-eVDnXExhKB4DYzqkWD49MYyi6AyBxWyG8WoDMFrB23FjyHgMTR7rSoep0iUsWEoLLGnwq4Qd8l89/hBYpAVg0A==}
     engines: {node: '>=22.19.0'}
 
+  '@milaboratories/pl-client@3.7.0':
+    resolution: {integrity: sha512-/mBCy4IfS/sR8allgq3XfBBBxjEY0lcwbN8xxS2U+SWKaWVkgQZgQFRek8RmWAST6Qsnl60TvY6RpeAq2JBTCw==}
+    engines: {node: '>=22.19.0'}
+
   '@milaboratories/pl-client@3.8.0':
     resolution: {integrity: sha512-ADUFHvwtGDC/sOYd4btCw2GdR58gq3+Nm9yV3UUYhmH5dv3J/1tXsxJH15mv1mT9YvK0IS4vMw0eDteeQUmaiQ==}
     engines: {node: '>=22.19.0'}
@@ -1100,11 +1104,14 @@ packages:
   '@milaboratories/pl-model-backend@1.2.29':
     resolution: {integrity: sha512-0jL+k6z6MJha0XMFXq/e814THyvNZZNeBB6zcLYtiWKVYRCKp/iK43xOFCzGAgT1uQVz4AdhKsqgqQv5B9deBw==}
 
+  '@milaboratories/pl-model-backend@1.3.0':
+    resolution: {integrity: sha512-fY0FobfDtE+ZN6D6yrPgNo/28pwjQt/KeYeJTcfFVcDAEv8kltxfb7hhE36nl7Af27msodvZVtEmDNqWP/xKuQ==}
+
   '@milaboratories/pl-model-backend@1.3.1':
     resolution: {integrity: sha512-zDWTa/AqI2YSmD3FpQavWI9OnZzMRoNQS+E8YtdSadC9LkvetqY5YI9Uu/IAGrWVonlvjD6uA0PrPX5hACOxow==}
 
   '@milaboratories/pl-model-common@file:../platforma_1/lib/model/common/package.tgz':
-    resolution: {integrity: sha512-EQ8F24fhIV8IhFKItjK+DELi6uEJSsJ4IRiRQUW8p1k1BIgjjuXOHadZCoyfWyzUHs3gmvw0CuMwR1UTljXuOw==, tarball: file:../platforma_1/lib/model/common/package.tgz}
+    resolution: {integrity: sha512-aton7jR+IBtt1FndvwAI5czXNUwKG1jyMKQqRd8Jomn4V0RclhaG5tREJtjep9EZkxiXVRCU0q9qM05ZuJbgog==, tarball: file:../platforma_1/lib/model/common/package.tgz}
     version: 1.42.0
 
   '@milaboratories/pl-model-middle-layer@1.18.5':
@@ -1152,7 +1159,7 @@ packages:
     engines: {node: '>=22.19.0'}
 
   '@milaboratories/uikit@file:../platforma_1/lib/ui/uikit/package.tgz':
-    resolution: {integrity: sha512-goWt6Xxe4gWrAVwLG4IBO+TSZ1PVNfgujY7lqSq9iCp230YmGZcs7RRZaeO18qKHRux2W0nd2jHPzFHHxPpYEw==, tarball: file:../platforma_1/lib/ui/uikit/package.tgz}
+    resolution: {integrity: sha512-wPmQifIQRmbJx+i6GgoCNuKLGJEe2RGHb7hD6lmtBTCENrxAFE5AnnMBijnW+0loy3r/KRvEmVb5J8dgb5MRjg==, tarball: file:../platforma_1/lib/ui/uikit/package.tgz}
     version: 2.14.11
 
   '@napi-rs/wasm-runtime@1.1.4':
@@ -1453,15 +1460,15 @@ packages:
       typescript-eslint: ^8.17.0
 
   '@platforma-sdk/model@file:../platforma_1/sdk/model/package.tgz':
-    resolution: {integrity: sha512-H7sd0OhOjlhk95aD4AW2OTjx8MoppRcmgiKgfOwz0LEj4MXfh/REWj9heRSSYsAYVj/n6VY/NszmgAJXXtlFqw==, tarball: file:../platforma_1/sdk/model/package.tgz}
+    resolution: {integrity: sha512-eVfpfNde6ozAUcRz37fE7rpZBEFGIOdmjGk2wALxaphYFxA/IL6c+nYK4Ihxf/bbNVAaQD9amlBFJWP1cLaLEA==, tarball: file:../platforma_1/sdk/model/package.tgz}
     version: 1.77.4
 
   '@platforma-sdk/package-builder@3.12.0':
     resolution: {integrity: sha512-bId52YqV5iLDAn9D9C3xaLD1bKyymGpHe2CDEZTqV+1yWCBh1RM6iH96JIXudVJdcmJaqwJWDw6X4WzStE6SCg==}
     hasBin: true
 
-  '@platforma-sdk/tengo-builder@2.5.29':
-    resolution: {integrity: sha512-iurwyuFCq1DynPuoud182Ebdrk8dhSjLddkOSvPQb1QZ+HVU/CcEfIx0SgZ+qOLstHQ1lB2YeHv7GCaMHsjI9A==}
+  '@platforma-sdk/tengo-builder@3.0.0':
+    resolution: {integrity: sha512-HfKoCZLHKwfdgwXqpYcp/gBxrFix5C8BJfkwSybZ3XNvFMcl+gvvwhFfmOwwY+TEcbiqNx21Z1GPFD5prY3g/A==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -1469,11 +1476,11 @@ packages:
     resolution: {integrity: sha512-MEYH648sAYkMc0jMX9EVzaEhAhNf+37XRMIov+8S6myBVOH3YE297dB8DO77bFVZPcID0HTo44uJpAf6e1BvuQ==}
 
   '@platforma-sdk/ui-vue@file:../platforma_1/sdk/ui-vue/package.tgz':
-    resolution: {integrity: sha512-TGbfrODyn6wIq8ceX+LQKFRQBMhR/qrhwrAwFKv1QzWXE69MUZPYrOqV/X0neXQ4c6oJMAV0imnsEkq7fPVkVg==, tarball: file:../platforma_1/sdk/ui-vue/package.tgz}
+    resolution: {integrity: sha512-GL0ySVx7DmIdXjy/Z2NSmDQXRac/OomJRoP1prtNZw50xiiO8ThEwPDh9wmb0ve40hMw5C7gAsQrOQfyjlOniQ==, tarball: file:../platforma_1/sdk/ui-vue/package.tgz}
     version: 1.77.4
 
   '@platforma-sdk/workflow-tengo@file:../platforma_1/sdk/workflow-tengo/package.tgz':
-    resolution: {integrity: sha512-mgHI8DZsHpdwNKbE7wXGnyWkpB9t9SmisknFnqVsdWEWVJbNT71LCYD86cnbg9HhRgH2Gbw4k37ivd0yU4Jyeg==, tarball: file:../platforma_1/sdk/workflow-tengo/package.tgz}
+    resolution: {integrity: sha512-/oP64hXfTO1bBUkdSG8VbfKYq06gg5QfiAYlJuRF0gL5yJTMbuZUiGaS11QI/rfHSKhRnDA04j2Qh6/gH9D99w==, tarball: file:../platforma_1/sdk/workflow-tengo/package.tgz}
     version: 5.25.0
 
   '@protobuf-ts/grpc-transport@2.11.1':
@@ -7588,6 +7595,24 @@ snapshots:
       utility-types: 3.11.0
       yaml: 2.8.1
 
+  '@milaboratories/pl-client@3.7.0':
+    dependencies:
+      '@grpc/grpc-js': 1.13.4
+      '@milaboratories/pl-http': 1.2.4
+      '@milaboratories/pl-model-common': file:../platforma_1/lib/model/common/package.tgz
+      '@milaboratories/ts-helpers': 1.8.2
+      '@protobuf-ts/grpc-transport': 2.11.1(@grpc/grpc-js@1.13.4)
+      '@protobuf-ts/runtime': 2.11.1
+      '@protobuf-ts/runtime-rpc': 2.11.1
+      canonicalize: 2.1.0
+      denque: 2.1.0
+      long: 5.3.2
+      lru-cache: 11.2.2
+      openapi-fetch: 0.15.0
+      undici: 7.16.0
+      utility-types: 3.11.0
+      yaml: 2.8.1
+
   '@milaboratories/pl-client@3.8.0':
     dependencies:
       '@grpc/grpc-js': 1.13.4
@@ -7703,6 +7728,12 @@ snapshots:
   '@milaboratories/pl-model-backend@1.2.29':
     dependencies:
       '@milaboratories/pl-client': 3.5.0
+      canonicalize: 2.1.0
+      zod: 3.25.76
+
+  '@milaboratories/pl-model-backend@1.3.0':
+    dependencies:
+      '@milaboratories/pl-client': 3.7.0
       canonicalize: 2.1.0
       zod: 3.25.76
 
@@ -8246,9 +8277,9 @@ snapshots:
     transitivePeerDependencies:
       - aws-crt
 
-  '@platforma-sdk/tengo-builder@2.5.29':
+  '@platforma-sdk/tengo-builder@3.0.0':
     dependencies:
-      '@milaboratories/pl-model-backend': 1.2.29
+      '@milaboratories/pl-model-backend': 1.3.0
       '@milaboratories/resolve-helper': 1.1.3
       '@milaboratories/tengo-tester': 1.6.4
       '@milaboratories/ts-helpers': 1.8.2

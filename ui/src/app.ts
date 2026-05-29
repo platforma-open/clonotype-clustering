@@ -31,7 +31,7 @@ function syncDefaultBlockLabel(model: AppModel) {
     const sequenceLabels = model.data.sequencesRef
       .map((r) => {
         const label = model.outputs.sequenceOptions
-          ?.find((o) => o.value === r)
+          ?.find((o) => o.id === r)
           ?.label;
         return label?.replace('InFrame', '') ?? '';
       });
