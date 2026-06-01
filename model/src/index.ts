@@ -314,7 +314,13 @@ export const platforma = BlockModelV3.create(dataModel)
   }, { retentive: true })
 
   .output('inputState', (ctx): boolean | undefined => {
-    const inputState = ctx.outputs?.resolve('isEmpty')?.getDataAsJson() as object;
+    // Use getDataAsString (not getDataAsJson): a resolved-but-not-yet-fetched
+    // blob yields undefined instead of throwing "Resource has no content."
+    // mid-run, which flashes a transient block error on remote backends
+    // (MILAB-6318).
+    const content = ctx.outputs?.resolve('isEmpty')?.getDataAsString();
+    if (content === undefined) return undefined;
+    const inputState = JSON.parse(content) as unknown;
     if (typeof inputState === 'boolean') {
       return inputState;
     }
@@ -322,7 +328,11 @@ export const platforma = BlockModelV3.create(dataModel)
   })
 
   .output('minPeptideLength', (ctx): number | undefined => {
-    const data = ctx.outputs?.resolve({ field: 'minPeptideLength', allowPermanentAbsence: true })?.getDataAsJson<{ min_len: number | null }>();
+    // getDataAsString avoids the "Resource has no content." throw on a resolved
+    // but not-yet-fetched blob (MILAB-6318).
+    const content = ctx.outputs?.resolve({ field: 'minPeptideLength', allowPermanentAbsence: true })?.getDataAsString();
+    if (content === undefined) return undefined;
+    const data = JSON.parse(content) as { min_len: number | null };
     return data?.min_len ?? undefined;
   })
 
@@ -369,9 +379,11 @@ export const platforma = BlockModelV3.create(dataModel)
   })
 
   .output('clusterAbundanceSpec', (ctx) => {
-    const spec = ctx.outputs?.resolve('clusterAbundanceSpec')?.getDataAsJson();
-    if (spec === undefined) return undefined;
-    return spec as PColumnSpec;
+    // getDataAsString avoids the "Resource has no content." throw on a resolved
+    // but not-yet-fetched blob (MILAB-6318).
+    const content = ctx.outputs?.resolve('clusterAbundanceSpec')?.getDataAsString();
+    if (content === undefined) return undefined;
+    return JSON.parse(content) as PColumnSpec;
   })
 
   .output('inputSpec', (ctx) => {
