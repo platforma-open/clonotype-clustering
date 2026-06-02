@@ -314,8 +314,7 @@ export const platforma = BlockModelV3.create(dataModel)
   }, { retentive: true })
 
   .output('inputState', (ctx): boolean | undefined => {
-    // getDataAsJsonOrUndefined returns undefined while the resource is not ready,
-    // instead of throwing "Resource has no content." mid-run (MILAB-6318).
+    // Not-ready-safe read — getDataAsJson throws mid-run here on remote backends (MILAB-6318).
     const inputState = ctx.outputs?.resolve('isEmpty')?.getDataAsJsonOrUndefined<unknown>();
     if (typeof inputState === 'boolean') {
       return inputState;
@@ -324,8 +323,7 @@ export const platforma = BlockModelV3.create(dataModel)
   })
 
   .output('minPeptideLength', (ctx): number | undefined => {
-    // getDataAsJsonOrUndefined returns undefined while the resource is not ready,
-    // instead of throwing "Resource has no content." mid-run (MILAB-6318).
+    // Not-ready-safe read — getDataAsJson throws mid-run here on remote backends (MILAB-6318).
     const data = ctx.outputs?.resolve({ field: 'minPeptideLength', allowPermanentAbsence: true })?.getDataAsJsonOrUndefined<{ min_len: number | null }>();
     return data?.min_len ?? undefined;
   })
@@ -373,8 +371,7 @@ export const platforma = BlockModelV3.create(dataModel)
   })
 
   .output('clusterAbundanceSpec', (ctx) => {
-    // getDataAsJsonOrUndefined returns undefined while the resource is not ready,
-    // instead of throwing "Resource has no content." mid-run (MILAB-6318).
+    // Not-ready-safe read — getDataAsJson throws mid-run here on remote backends (MILAB-6318).
     return ctx.outputs?.resolve('clusterAbundanceSpec')?.getDataAsJsonOrUndefined<PColumnSpec>();
   })
 

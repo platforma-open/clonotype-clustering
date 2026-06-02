@@ -2,4 +2,4 @@
 "@platforma-open/milaboratories.clonotype-clustering.model": patch
 ---
 
-MILAB-6318: read `isEmpty`, `minPeptideLength`, and `clusterAbundanceSpec` via `getDataAsJsonOrUndefined` instead of `getDataAsJson`. `getDataAsJson` throws "Resource has no content." when a field is resolved but its blob is not yet fetched, flashing a transient block error during calculation on remote backends.
+MILAB-6318: fix a transient "Some outputs have errors" banner that flashed during calculation on remote backends. `inputState`, `minPeptideLength`, and `clusterAbundanceSpec` now read via `getDataAsJsonOrUndefined`, which returns `undefined` while a field is resolved-but-not-yet-fetched instead of throwing like `getDataAsJson`.
