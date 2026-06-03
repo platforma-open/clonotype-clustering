@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.1.1
+
+### Patch Changes
+
+- 9688057: Update dependencies and workspace configuration
+
 ## 3.1.0
 
 ### Minor Changes
