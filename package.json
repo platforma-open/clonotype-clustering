@@ -20,14 +20,16 @@
     "typescript": "catalog:",
     "shx": "catalog:"
   },
+  "packageManager": "pnpm@9.14.4",
   "//pnpm": {
     "overrides": {
-      "@milaboratories/pl-model-common": "file:/Users/poslavskysv/Projects/milab/platforma/platforma-sdk/lib/model/common/package.tgz",
-      "@platforma-sdk/model": "file:/Users/poslavskysv/Projects/milab/platforma/platforma-sdk/sdk/model/package.tgz",
-      "@platforma-sdk/ui-vue": "file:/Users/poslavskysv/Projects/milab/platforma/platforma-sdk/sdk/ui-vue/package.tgz",
-      "@platforma-sdk/workflow-tengo": "file:/Users/poslavskysv/Projects/milab/platforma/platforma-sdk/sdk/workflow-tengo/package.tgz",
-      "@milaboratories/uikit": "file:/Users/poslavskysv/Projects/milab/platforma/platforma-sdk/lib/ui/uikit/package.tgz"
+      "@milaboratories/pf-plots": "file:../visualizations/packages/pf-plots/package.tgz",
+      "@milaboratories/multi-sequence-alignment": "file:../visualizations/packages/multi-sequence-alignment/package.tgz",
+      "@milaboratories/pl-model-common": "file:../platforma/lib/model/common/package.tgz",
+      "@platforma-sdk/model": "file:../platforma/sdk/model/package.tgz",
+      "@platforma-sdk/ui-vue": "file:../platforma/sdk/ui-vue/package.tgz",
+      "@platforma-sdk/workflow-tengo": "file:../platforma/sdk/workflow-tengo/package.tgz",
+      "@milaboratories/uikit": "file:../platforma/lib/ui/uikit/package.tgz"
     }
-  },
-  "packageManager": "pnpm@9.14.4"
+  }
 }
