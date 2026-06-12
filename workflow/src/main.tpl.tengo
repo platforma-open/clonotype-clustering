@@ -8,9 +8,26 @@ slices := import("@platforma-sdk/workflow-tengo:slices")
 render := import("@platforma-sdk/workflow-tengo:render")
 pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 ll := import("@platforma-sdk/workflow-tengo:ll")
+smart := import("@platforma-sdk/workflow-tengo:smart")
+canonical := import("@platforma-sdk/workflow-tengo:canonical")
+objects := import("@platforma-sdk/workflow-tengo:objects")
 
 text := import("text")
 math := import("math")
+
+// base32 of a resolved resource's backend content id (CanonicalID). info() is a
+// strict map — probe with maps.containsKey (a missing key throws). A resolved
+// resource carries CanonicalID directly; a field reference does not, so
+// dereference its Value. Used to content-address the cluster axis/columns by the
+// input data rather than the per-block blockId.
+resourceCID := func(dataRef) {
+	i := dataRef.info()
+	if maps.containsKey(i, "CanonicalID") {
+		return ll.base32Encode(i.CanonicalID)
+	}
+	ri := smart.resource(i.Value).info()
+	return ll.base32Encode(ri.CanonicalID)
+}
 
 clusteringTpl := assets.importTemplate(":clustering")
 emptyCheckTpl := assets.importTemplate(":empty-check")
@@ -94,8 +111,6 @@ wf.prepare(func(args) {
 })
 
 wf.body(func(args) {
-	blockId := wf.blockId().getDataAsJson()
-
 	// sort to preserve order of sequences
 	sequencesRef := slices.quickSort(args.sequencesRef)
 
@@ -211,13 +226,38 @@ wf.body(func(args) {
 	trimStart := is_undefined(args.trimStart) ? 0 : args.trimStart
 	trimEnd := is_undefined(args.trimEnd) ? 0 : args.trimEnd
 
+	// Content tag for the cluster axis/columns, replacing the per-block blockId.
+	// Derived from the resolved input columns' content ids plus the clustering
+	// parameters — everything that determines the result. Identical runs across
+	// blocks/projects produce the same tag (clusters dedupe) while different
+	// inputs/params get distinct tags (no collision). Input columns are resolved
+	// upstream data here, so their CanonicalID is available in this body.
+	seqCIDs := []
+	for nr, seq in sequencesRef {
+		seqCIDs = append(seqCIDs, resourceCID(columns.getColumn(seq).data))
+	}
+	contentHash := ll.base32Encode(ll.sha256Encode(canonical.encode(objects.deleteUndefined({
+		sequences: seqCIDs,
+		abundance: resourceCID(columns.getColumn("abundance").data),
+		identity: args.identity,
+		similarityType: args.similarityType,
+		coverageThreshold: args.coverageThreshold,
+		coverageMode: args.coverageMode,
+		highPrecision: args.highPrecision,
+		trimStart: trimStart,
+		trimEnd: trimEnd,
+		clusteringTool: args.clusteringTool,
+		isSingleCell: isSingleCell,
+		isPeptide: isPeptide
+	})))[0:16])
+
 	clusterIdAxisSpec := {
 		name: "pl7.app/clusterId",
 		type: "String",
 		domain: maps.deepMerge(datasetSpec.axesSpec[1].domain,
 		{
 			"pl7.app/clustering/algorithm": "mmseqs2",
-			"pl7.app/clustering/blockId": blockId
+			"pl7.app/clustering/contentHash": contentHash
 		}),
 		annotations: {
 			"pl7.app/label": "Cluster Id",
@@ -496,7 +536,7 @@ wf.body(func(args) {
 				valueType: "Float",
 				domain:  {
 					"pl7.app/clustering/algorithm": "mmseqs2",
-					"pl7.app/clustering/blockId": blockId
+					"pl7.app/clustering/contentHash": contentHash
 				},
 				annotations: {
 					"pl7.app/min": "0",
