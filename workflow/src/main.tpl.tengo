@@ -26,6 +26,9 @@ resourceCID := func(dataRef) {
 		return ll.base32Encode(i.CanonicalID)
 	}
 	ri := smart.resource(i.Value).info()
+	if !maps.containsKey(ri, "CanonicalID") {
+		ll.panic("resourceCID: resolved resource has no CanonicalID")
+	}
 	return ll.base32Encode(ri.CanonicalID)
 }
 
@@ -232,6 +235,17 @@ wf.body(func(args) {
 	// blocks/projects produce the same tag (clusters dedupe) while different
 	// inputs/params get distinct tags (no collision). Input columns are resolved
 	// upstream data here, so their CanonicalID is available in this body.
+	//
+	// abundance is included deliberately, not just for sequence/cluster-assignment
+	// inputs: this tag namespaces the SHARED pl7.app/clusterId axis, which carries
+	// both the pure-sequence columns (clusterId, centroid sequences) and the
+	// abundance-derived aggregations (abundancesPerCluster, fractions). Dropping
+	// abundance would let two runs with identical sequences but different abundance
+	// emit abundance-per-cluster columns with identical identity but different data,
+	// so the dedup layer would serve stale abundance values. The cost is that a
+	// pure abundance change also re-namespaces the sequence-only columns (they miss
+	// dedup); avoiding that would require splitting them onto a separately-hashed
+	// axis, which we intentionally do not do here.
 	seqCIDs := []
 	for nr, seq in sequencesRef {
 		seqCIDs = append(seqCIDs, resourceCID(columns.getColumn(seq).data))
