@@ -15,12 +15,16 @@ def main():
                         help='Directory to save output files (default: current directory)')
     args = parser.parse_args()
 
-    # Open input file
-    df_input = pd.read_csv(args.input, sep=args.input_separator, dtype=str)
+    # Open input file. Embedding mode passes a Parquet matrix (separator is irrelevant there); sequence
+    # mode passes a TSV. Detect by extension so the same emptiness check serves both.
+    if args.input.lower().endswith('.parquet'):
+        import polars as pl
+        is_empty = pl.read_parquet(args.input).height == 0
+    else:
+        is_empty = pd.read_csv(args.input, sep=args.input_separator, dtype=str).empty
 
     # Check if input table is empty
-    fileContent = "empty"
-    if df_input.empty:
+    if is_empty:
         print("Input table is empty.")
         fileContent = "empty"
     else:

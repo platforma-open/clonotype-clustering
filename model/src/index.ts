@@ -14,6 +14,7 @@ import {
   createPFrameForGraphs,
   createPlDataTableStateV2,
   createPlDataTableV2,
+  isPColumnSpec,
 } from '@platforma-sdk/model';
 export type * from '@milaboratories/helpers';
 
@@ -72,6 +73,11 @@ export type BlockData = {
   trimStart?: number; // number of amino acids to remove from the beginning
   trimEnd?: number; // number of amino acids to remove from the end
   clusteringTool: 'easy-cluster' | 'easy-linclust';
+  // Embedding-distance clustering. Single embedding column.
+  clusteringMethod: 'sequence' | 'embedding';
+  // PlRef (not a canonical/anchored id)
+  embeddingRef?: PlRef;
+  minClusterSize: number;
   mem?: number;
   cpu?: number;
   tableState: PlDataTableStateV2;
@@ -80,14 +86,29 @@ export type BlockData = {
   graphStateHistogram: GraphMakerState;
 };
 
-export function getDefaultBlockLabel(data: {
-  sequenceLabels: string[];
-  similarityType: BlockData['similarityType'];
-  identity: number;
-  coverageThreshold: number;
-  trimStart: number;
-  trimEnd: number;
-}) {
+// Single source of truth for the auto-subtitle (also the workflow trace label, main.tpl), one variant
+// per clustering method. The UI's syncDefaultBlockLabel (app.ts) only resolves the human-readable column
+// labels from the result pool (which a pure function can't do) and calls this; it owns no format logic.
+export function getDefaultBlockLabel(
+  data:
+    | {
+      clusteringMethod: 'sequence';
+      sequenceLabels: string[];
+      similarityType: BlockData['similarityType'];
+      identity: number;
+      coverageThreshold: number;
+      trimStart: number;
+      trimEnd: number;
+    }
+    | {
+      clusteringMethod: 'embedding';
+      embeddingLabel: string;
+      minClusterSize: number;
+    },
+) {
+  if (data.clusteringMethod === 'embedding') {
+    return `${data.embeddingLabel || 'Embedding'}, HDBSCAN, mcs:${data.minClusterSize}`;
+  }
   const parts: string[] = [];
   parts.push(data.sequenceLabels.join(' - '));
   parts.push(
@@ -113,6 +134,9 @@ const dataModel = new DataModelBuilder()
   .upgradeLegacy<OldArgs, OldUiState>(({ args, uiState }) => ({
     ...args,
     similarityType: (args.similarityType as string) === 'alignment-score' ? 'blosum62' : args.similarityType,
+    // Existing projects load in sequence mode (embedding mode is opt-in).
+    clusteringMethod: 'sequence',
+    minClusterSize: 5,
     tableState: uiState.tableState,
     graphStateBubble: uiState.graphStateBubble,
     alignmentModel: uiState.alignmentModel,
@@ -120,6 +144,7 @@ const dataModel = new DataModelBuilder()
   }))
   .init(() => ({
     defaultBlockLabel: getDefaultBlockLabel({
+      clusteringMethod: 'sequence',
       sequenceLabels: [],
       similarityType: defaultSimilarityType.value,
       identity: 0.8,
@@ -138,6 +163,8 @@ const dataModel = new DataModelBuilder()
     trimStart: 0, // default to no trimming from start
     trimEnd: 0, // default to no trimming from end
     clusteringTool: 'easy-cluster',
+    clusteringMethod: 'sequence', // embedding mode is opt-in (R1/R2)
+    minClusterSize: 5, // HDBSCAN; user-configurable, fixed small default, not scaled with N (R10)
     tableState: createPlDataTableStateV2(),
     graphStateBubble: {
       title: 'Most abundant clusters',
@@ -171,13 +198,35 @@ export const platforma = BlockModelV3.create(dataModel)
 
   .args((data) => {
     if (!data.datasetRef) throw new Error('Dataset is required');
-    if (!data.sequencesRef.length) throw new Error('Sequences are required');
-    return {
+
+    // Shared by both methods. The lambda branches on clusteringMethod and returns ONLY the active
+    // method's fields, so a stale off-mode value can't stale the block (V3 conditional suppression).
+    const shared = {
       defaultBlockLabel: data.defaultBlockLabel,
       customBlockLabel: data.customBlockLabel,
       datasetRef: data.datasetRef,
       sequencesRef: data.sequencesRef,
       sequenceType: data.sequenceType,
+      clusteringMethod: data.clusteringMethod,
+      mem: data.mem,
+      cpu: data.cpu,
+    };
+
+    if (data.clusteringMethod === 'embedding') {
+      if (!data.embeddingRef)
+        throw new Error('Connect a Sequence Embeddings output and pick an embedding column to cluster by embedding distance');
+      // sequencesRef is auto-derived from the embedding column (for centroid/MSA display) and may be
+      // empty; the embedding model is read from the column spec in the workflow, not snapshotted here.
+      return {
+        ...shared,
+        embeddingRef: data.embeddingRef,
+        minClusterSize: data.minClusterSize,
+      };
+    }
+
+    if (!data.sequencesRef.length) throw new Error('Sequences are required');
+    return {
+      ...shared,
       identity: data.identity,
       similarityType: data.similarityType,
       coverageThreshold: data.coverageThreshold,
@@ -186,8 +235,6 @@ export const platforma = BlockModelV3.create(dataModel)
       trimStart: data.trimStart,
       trimEnd: data.trimEnd,
       clusteringTool: data.clusteringTool,
-      mem: data.mem,
-      cpu: data.cpu,
     };
   })
 
@@ -287,6 +334,36 @@ export const platforma = BlockModelV3.create(dataModel)
           includeNativeLabel: true,
         },
       });
+  })
+
+  .output('embeddingOptions', (ctx) => {
+    const ref = ctx.data.datasetRef;
+    if (ref === undefined) return undefined;
+    // PlRef-based options (NOT getCanonicalOptions): the embedding's producer must be wired as an
+    // upstream via wf.resolve(PlRef), so the picker selects a PlRef. We scope to the current dataset by
+    // requiring the embedding's clonotype axis (axis 0) to match the dataset's clonotype axis (axis 1),
+    // and enrich each option with the embedding's `pl7.app/feature` so the UI can auto-derive the source
+    // sequence column(s) for the centroid (it has no spec for a bare PlRef).
+    const datasetSpec = ctx.resultPool.getPColumnSpecByRef(ref);
+    const cloneAxis = datasetSpec?.axesSpec?.[1];
+    if (cloneAxis === undefined) return undefined;
+    const sameClonotypeAxis = (embAxis?: { name?: string; domain?: Record<string, string> }) => {
+      if (embAxis === undefined || embAxis.name !== cloneAxis.name) return false;
+      const datasetDomain = cloneAxis.domain ?? {};
+      const embDomain = embAxis.domain ?? {};
+      return Object.keys(datasetDomain).every((k) => embDomain[k] === datasetDomain[k]);
+    };
+    const options = ctx.resultPool.getOptions(
+      (spec) => isPColumnSpec(spec)
+        && spec.name === 'pl7.app/embedding'
+        && sameClonotypeAxis(spec.axesSpec?.[0]),
+      { label: { includeNativeLabel: true } },
+    );
+    return options.map((o) => ({
+      ref: o.ref,
+      label: o.label,
+      feature: ctx.resultPool.getPColumnSpecByRef(o.ref)?.domain?.['pl7.app/feature'],
+    }));
   })
 
   .output('isSingleCell', (ctx) => {

@@ -8,6 +8,8 @@ parser.add_argument('--trim-end', type=int, default=0, help='Number of amino aci
 parser.add_argument('--per-chain-trim', action='store_true', help='Apply trimming to each chain before computing distances and summaries')
 parser.add_argument('--min-seq-id', type=float, default=1.0, help='Minimum sequence identity threshold (0-1) used by mmseqs2. Used for singleton reassignment post-processing.')
 parser.add_argument('--high-precision', action='store_true', help='Enable high-precision post-processing (singleton reassignment). Should match the high-precision mmseqs2 mode.')
+parser.add_argument('--distances', default=None, help='Embedding mode: precomputed cosine distances TSV (representativeKey, distance). When set, used instead of sequence Levenshtein.')
+parser.add_argument('--no-strip-prefix', action='store_true', help='Embedding mode: keys carry no "s-" prefix (prepare_fasta adds it for mmseqs); skip the strip.')
 args = parser.parse_args()
 
 trim_start = args.trim_start
@@ -90,10 +92,11 @@ clusters = pl.read_csv(clustersTsv, separator="\t", has_header=False,
 # Remove the "s-" prefix from clusterId and clonotypeKey. This prefix is added
 # during FASTA preparation for mmseqs and needs to be removed to match keys
 # in other tables like cloneTable.
-clusters = clusters.with_columns(
-    pl.col("clusterId").str.strip_prefix("s-"),
-    pl.col("clonotypeKey").str.strip_prefix("s-")
-)
+if not args.no_strip_prefix:
+    clusters = clusters.with_columns(
+        pl.col("clusterId").str.strip_prefix("s-"),
+        pl.col("clonotypeKey").str.strip_prefix("s-")
+    )
 
 def reassign_singletons(clusters: pl.DataFrame, cloneTable: pl.DataFrame,
                         min_seq_id: float) -> pl.DataFrame:
@@ -228,6 +231,17 @@ else:
 # each representative back to all original clonotypeKeys that share its sequence.
 dedup_mapping = pl.read_csv(dedupMappingTsv, separator="\t")
 # dedup_mapping has columns: representativeKey, clonotypeKey
+
+if args.distances:
+    # Embedding mode: clonotypes absent from the embedding matrix (e.g. sparse Fv/scFv coverage -- a
+    # clonotype without a complete chain pair) never reach clustering, so they carry no cluster and are
+    # naturally excluded from every output below (all of which derive from `clusters`). Report the drop
+    # count for the run log.
+    embedded_keys = set(dedup_mapping.get_column("clonotypeKey").to_list())
+    n_excluded = cloneTable.filter(~pl.col("clonotypeKey").is_in(embedded_keys)).height
+    if n_excluded:
+        print(f"Embedding mode: {n_excluded} clonotype(s) excluded from clustering -- no embedding "
+              f"vector in the selected column (e.g. sparse Fv/scFv coverage).")
 
 num_representatives = clusters.select(pl.col("clonotypeKey").n_unique()).item()
 clusters = clusters.rename({"clonotypeKey": "representativeKey"}).join(
@@ -414,7 +428,18 @@ distance_df = distance_df_base.join(
 )
 
 
-if not sequence_cols:
+if args.distances:
+    # Embedding mode: use precomputed cosine distances to the cluster medoid (one row per
+    # representativeKey, incl. noise singletons at 0), expanded to all clonotypes via dedup_mapping.
+    # No Levenshtein, and NO 1.0 cap -- cosine distance ranges 0-2.
+    centroid_distances = pl.read_csv(args.distances, separator="\t")  # headered: representativeKey, distance
+    member_dist = dedup_mapping.join(
+        centroid_distances, on="representativeKey", how="inner"
+    ).select(["clonotypeKey", "distance"])
+    distance_df = distance_df.join(member_dist, on="clonotypeKey", how="left").with_columns(
+        pl.col("distance").fill_null(0.0).alias("distanceToCentroid")
+    ).drop("distance")
+elif not sequence_cols:
     print("No sequence columns found. Setting distanceToCentroid to 0.0 for all entries.")
     distance_df = distance_df.with_columns(
         pl.lit(0.0, dtype=pl.Float64).alias("distanceToCentroid"),

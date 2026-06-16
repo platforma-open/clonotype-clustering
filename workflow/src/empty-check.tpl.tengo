@@ -7,20 +7,24 @@ emptyCheckSw := assets.importSoftware("@platforma-open/milaboratories.clonotype-
 
 self.validateInputs({
 	"__options__,closed": "",
-    seqTable: "any"
+    seqTable: "any",
+    "fileName,?": "string"
 })
 
 self.defineOutputs("emptyResult")
 
 self.body(func(inputs) {
-    // Run script to check if input table is emptyAdd commentMore actions
+    // Input filename: TSV in sequence mode (default), Parquet matrix in embedding mode. emptyCheck.py
+    // reads by extension, so the same emptiness check serves both.
+    fileName := is_undefined(inputs.fileName) ? "sequences.tsv" : inputs.fileName
+    // Run script to check if input table is empty
 	emptyCheck := exec.builder().
 			software(emptyCheckSw).
 			mem("16GiB").
 			cpu(1).
-			addFile("sequences.tsv", inputs.seqTable).
+			addFile(fileName, inputs.seqTable).
 			arg("--output-dir").arg(".").
-			arg("--input").arg("sequences.tsv").
+			arg("--input").arg(fileName).
 			arg("--input-separator").arg("\t").
 			saveFileContent("isFileEmpty.txt").
 			printErrStreamToStdout().
