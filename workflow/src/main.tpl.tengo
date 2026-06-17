@@ -17,6 +17,7 @@ emptyCheckTpl := assets.importTemplate(":empty-check")
 deanonimizationTpl := assets.importTemplate(":deanonimization")
 anonymizationTpl := assets.importTemplate(":anonymization")
 minPeptideLengthTpl := assets.importTemplate(":min-peptide-length")
+embeddingClusteringTpl := assets.importTemplate(":embedding-clustering")
 
 setTableProps := func(spec, label, visibility, orderPriority) {
 	visibilityValue := ""
@@ -88,9 +89,20 @@ wf.prepare(func(args) {
 			domain: { "pl7.app/feature": "peptide" }
 		}, "peptideSequenceLength")
 			
-	return {
+	// Resolve the selected embedding column as an explicit input (embedding mode only) — wires its
+	// producer in as an upstream and pulls the matrix.
+	//
+	// Only add the key when it has a value: the workflow framework copies every prepare-return key into
+	// a `prepared/<key>` field and PANICS assigning an undefined value (it does not skip undefined the
+	// way render() does). So in sequence mode we must NOT return `{resolvedEmbedding: undefined}`.
+	prepared := {
 		columns: bundleBuilder.build()
 	}
+	if !is_undefined(args.embeddingRef) {
+		prepared.resolvedEmbedding = wf.resolve(args.embeddingRef, { errIfMissing: true })
+	}
+
+	return prepared
 })
 
 wf.body(func(args) {
@@ -115,22 +127,49 @@ wf.body(func(args) {
 
 	// sType := args.sequenceType == "aminoacid" ? "aa" : "nt"
 
-	// input table
-	seqTableBuilder := pframes.tsvFileBuilder()
-	seqTableBuilder.mem(string(int(math.max(32, baseMemGiB / 4))) + "GiB")
-	seqTableBuilder.cpu(4)
-	
-	seqTableBuilder.setAxisHeader(datasetSpec.axesSpec[1].name, "clonotypeKey")
-	for nr, seq in sequencesRef {
-		seqTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
-	}
-	seqTable := seqTableBuilder.build()
+	// Clustering method + per-mode input prep. The empty-input check runs on the data the chosen method
+	// actually consumes: the sequence table in sequence mode, the embedding matrix in embedding mode.
+	clusteringMethod := is_undefined(args.clusteringMethod) ? "sequence" : args.clusteringMethod
 
-	// Check if input pcols are empty
+	seqTable := undefined
+	embeddingMatrix := undefined
+	embeddingModel := undefined
+	embSpec := undefined
+	emptyCheckInput := undefined
+	emptyCheckFileName := "sequences.tsv"
+
+	if clusteringMethod == "embedding" {
+		// embedding column resolved in prepare
+		embeddingCol := args.resolvedEmbedding
+		embSpec = embeddingCol.spec
+		// model provenance from the embedding column's spec (stamped on outputs)
+		embeddingModel = embSpec.domain["pl7.app/embedding/model"]
+		// long-format Parquet matrix; headers are the embedding column's own axis/value labels
+		embeddingMatrix = xsv.exportFrame([embeddingCol], "parquet", {
+			mem: string(int(math.max(16, baseMemGiB / 4))) + "GiB",
+			cpu: 4
+		})
+		emptyCheckInput = embeddingMatrix
+		emptyCheckFileName = "embedding.parquet"
+	} else {
+		// input (sequence) table -- sequence mode only
+		seqTableBuilder := pframes.tsvFileBuilder()
+		seqTableBuilder.mem(string(int(math.max(32, baseMemGiB / 4))) + "GiB")
+		seqTableBuilder.cpu(4)
+		seqTableBuilder.setAxisHeader(datasetSpec.axesSpec[1].name, "clonotypeKey")
+		for nr, seq in sequencesRef {
+			seqTableBuilder.add(columns.getColumn(seq), {header: "sequence_" + string(nr)})
+		}
+		seqTable = seqTableBuilder.build()
+		emptyCheckInput = seqTable
+	}
+
+	// Check if the input the chosen method consumes is empty
 	emptyCheckAnalysis := render.create(emptyCheckTpl, {
-		seqTable: seqTable
+		seqTable: emptyCheckInput,
+		fileName: emptyCheckFileName
 	})
-	
+
 	// get check content to be resolved in sub-template
 	emptyOrNot := emptyCheckAnalysis.output("emptyResult")
 
@@ -180,27 +219,52 @@ wf.body(func(args) {
 
 	/////////// Run clustering template ///////////
 	// Analysis will only run if result from emptyOrNot is "notEmpty"
-	clusteringAnalysis := render.create(clusteringTpl, {
-		emptyOrNot: emptyOrNot,
-		seqTable: seqTable,
-		cloneTable: cloneTable,
-		isSingleCell: isSingleCell,
-		isPeptide: isPeptide,
-		minPeptideLength: minPeptideLength,
-		identity: args.identity,
-		similarityType: args.similarityType,
-		coverageThreshold: args.coverageThreshold,
-		coverageMode: args.coverageMode,
-		sequencesRef: sequencesRef,
-		highPrecision: args.highPrecision,
-		trimStart: args.trimStart,
-		trimEnd: args.trimEnd,
-		clusteringTool: args.clusteringTool
-	}, {
-		metaInputs: {
-			mem: args.mem,
-			cpu: args.cpu
-	}})
+	// Dispatch on clustering method.
+	// - Sequence mode -> clustering.tpl (MMseqs2, untouched)
+	// - Embedding mode -> embedding-clustering.tpl, reusing the embedding 
+	//   matrix / spec / model already computed above. 
+	// Both honor the same output-file contract.
+	clusteringAnalysis := undefined
+	if clusteringMethod == "embedding" {
+		clusteringAnalysis = render.create(embeddingClusteringTpl, {
+			emptyOrNot: emptyOrNot,
+			cloneTable: cloneTable,
+			embeddingMatrix: embeddingMatrix,
+			isSingleCell: isSingleCell,
+			sequencesRef: sequencesRef,
+			// matrix headers are the embedding column's own axis/value pl7.app/label values
+			keyCol: embSpec.axesSpec[0].annotations["pl7.app/label"],
+			dimCol: embSpec.axesSpec[1].annotations["pl7.app/label"],
+			valueCol: embSpec.annotations["pl7.app/label"],
+			minClusterSize: args.minClusterSize
+		}, {
+			metaInputs: {
+				mem: args.mem,
+				cpu: args.cpu
+		}})
+	} else {
+		clusteringAnalysis = render.create(clusteringTpl, {
+			emptyOrNot: emptyOrNot,
+			seqTable: seqTable,
+			cloneTable: cloneTable,
+			isSingleCell: isSingleCell,
+			isPeptide: isPeptide,
+			minPeptideLength: minPeptideLength,
+			identity: args.identity,
+			similarityType: args.similarityType,
+			coverageThreshold: args.coverageThreshold,
+			coverageMode: args.coverageMode,
+			sequencesRef: sequencesRef,
+			highPrecision: args.highPrecision,
+			trimStart: args.trimStart,
+			trimEnd: args.trimEnd,
+			clusteringTool: args.clusteringTool
+		}, {
+			metaInputs: {
+				mem: args.mem,
+				cpu: args.cpu
+		}})
+	}
 
 	// Gather raw results from clusteringAnalysis template
 	mmseqs := clusteringAnalysis.output("mmseqs")
@@ -211,14 +275,21 @@ wf.body(func(args) {
 	trimStart := is_undefined(args.trimStart) ? 0 : args.trimStart
 	trimEnd := is_undefined(args.trimEnd) ? 0 : args.trimEnd
 
+	// Cluster output domain: algorithm + blockId, plus the embedding model in embedding mode, so
+	// embedding-derived clusters are distinguishable and traceable. Shared by clusterId and
+	// distanceToCentroid below.
+	clusterDomain := {
+		"pl7.app/clustering/algorithm": clusteringMethod == "embedding" ? "embedding-hdbscan" : "mmseqs2",
+		"pl7.app/clustering/blockId": blockId
+	}
+	if clusteringMethod == "embedding" && !is_undefined(embeddingModel) {
+		clusterDomain["pl7.app/embedding/model"] = embeddingModel
+	}
+
 	clusterIdAxisSpec := {
 		name: "pl7.app/clusterId",
 		type: "String",
-		domain: maps.deepMerge(datasetSpec.axesSpec[1].domain,
-		{
-			"pl7.app/clustering/algorithm": "mmseqs2",
-			"pl7.app/clustering/blockId": blockId
-		}),
+		domain: maps.deepMerge(datasetSpec.axesSpec[1].domain, clusterDomain),
 		annotations: {
 			"pl7.app/label": "Cluster Id",
 			"pl7.app/table/visibility": "default",
@@ -494,10 +565,7 @@ wf.body(func(args) {
 			spec: setTableProps({
 				name: "pl7.app/distanceToCentroid",
 				valueType: "Float",
-				domain:  {
-					"pl7.app/clustering/algorithm": "mmseqs2",
-					"pl7.app/clustering/blockId": blockId
-				},
+				domain: clusterDomain,
 				annotations: {
 					"pl7.app/min": "0",
 					"pl7.app/max": "1",
