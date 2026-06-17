@@ -288,7 +288,11 @@ const clusterAxis = computed<AxisId>(() => {
           :options="clusteringMethodOptions"
           compact
           @update:model-value="onMethodChange"
-        />
+        >
+          <template #tooltip>
+            Group clonotypes by amino-acid similarity (Sequences, MMseqs2) or by distance in a learned embedding space (Embeddings, HDBSCAN).
+          </template>
+        </PlBtnGroup>
         <PlBtnGroup
           v-if="effectiveMethod === 'sequence'"
           v-model="app.model.data.sequenceType"
@@ -301,7 +305,7 @@ const clusterAxis = computed<AxisId>(() => {
         v-if="effectiveMethod === 'sequence'"
         :model-value="app.model.data.sequencesRef"
         :options="app.model.outputs.sequenceOptions"
-        label="Sequence Columns to Cluster"
+        label="Sequences to Cluster"
         required
         :disabled="app.model.data.datasetRef === undefined"
         @update:model-value="onSequencesRefChange"
@@ -311,7 +315,7 @@ const clusterAxis = computed<AxisId>(() => {
         <PlDropdownRef
           :model-value="app.model.data.embeddingRef"
           :options="app.model.outputs.embeddingOptions"
-          label="Embedding Column to Cluster"
+          label="Embedding to Cluster"
           required
           :disabled="app.model.data.datasetRef === undefined"
           @update:model-value="onEmbeddingRefChange"

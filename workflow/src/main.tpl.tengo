@@ -90,16 +90,19 @@ wf.prepare(func(args) {
 		}, "peptideSequenceLength")
 			
 	// Resolve the selected embedding column as an explicit input (embedding mode only) — wires its
-	// producer in as an upstream and pulls the matrix. Undefined in sequence mode.
-	resolvedEmbedding := undefined
+	// producer in as an upstream and pulls the matrix.
+	//
+	// Only add the key when it has a value: the workflow framework copies every prepare-return key into
+	// a `prepared/<key>` field and PANICS assigning an undefined value (it does not skip undefined the
+	// way render() does). So in sequence mode we must NOT return `{resolvedEmbedding: undefined}`.
+	prepared := {
+		columns: bundleBuilder.build()
+	}
 	if !is_undefined(args.embeddingRef) {
-		resolvedEmbedding = wf.resolve(args.embeddingRef, { errIfMissing: true })
+		prepared.resolvedEmbedding = wf.resolve(args.embeddingRef, { errIfMissing: true })
 	}
 
-	return {
-		columns: bundleBuilder.build(),
-		resolvedEmbedding: resolvedEmbedding
-	}
+	return prepared
 })
 
 wf.body(func(args) {
