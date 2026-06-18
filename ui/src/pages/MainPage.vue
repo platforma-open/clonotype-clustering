@@ -1,8 +1,18 @@
 <script setup lang="ts">
-import { PlMultiSequenceAlignment } from '@milaboratories/multi-sequence-alignment';
-import strings from '@milaboratories/strings';
-import { clusteringToolOptions, similarityTypeOptions } from '@platforma-open/milaboratories.clonotype-clustering.model';
-import type { AxisId, PColumnIdAndSpec, PlRef, PlSelectionModel, PTableKey, SUniversalPColumnId } from '@platforma-sdk/model';
+import { PlMultiSequenceAlignment } from "@milaboratories/multi-sequence-alignment";
+import strings from "@milaboratories/strings";
+import {
+  clusteringToolOptions,
+  similarityTypeOptions,
+} from "@platforma-open/milaboratories.clonotype-clustering.model";
+import type {
+  AxisId,
+  PColumnIdAndSpec,
+  PlRef,
+  PlSelectionModel,
+  PTableKey,
+  SUniversalPColumnId,
+} from "@platforma-sdk/model";
 import {
   listToOptions,
   PlAccordionSection,
@@ -22,22 +32,27 @@ import {
   PlSlideModal,
   PlTooltip,
   usePlDataTableSettingsV2,
-} from '@platforma-sdk/ui-vue';
-import { computed, reactive, ref, watch } from 'vue';
-import { useApp } from '../app';
+} from "@platforma-sdk/ui-vue";
+import { computed, reactive, ref, watch } from "vue";
+import { useApp } from "../app";
 
 const app = useApp();
 
 const multipleSequenceAlignmentOpen = ref(false);
 const mmseqsLogOpen = ref(false);
-const settingsOpen = ref(app.model.data.datasetRef === undefined || app.model.data.sequencesRef === undefined);
+const settingsOpen = ref(
+  app.model.data.datasetRef === undefined || app.model.data.sequencesRef === undefined,
+);
 
 // Watch for when the workflow starts running and close settings
-watch(() => app.model.outputs.isRunning, (isRunning) => {
-  if (isRunning) {
-    settingsOpen.value = false;
-  }
-});
+watch(
+  () => app.model.outputs.isRunning,
+  (isRunning) => {
+    if (isRunning) {
+      settingsOpen.value = false;
+    }
+  },
+);
 // With selection we will get the axis of cluster id
 const selection = ref<PlSelectionModel>({
   axesSpec: [],
@@ -66,7 +81,7 @@ const tableSettings = usePlDataTableSettingsV2({
   model: () => app.model.outputs.clustersTable,
 });
 
-const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
+const sequenceType = listToOptions(["aminoacid", "nucleotide"]);
 
 // No longer available to user
 /* const coverageModeOptions = [
@@ -79,21 +94,24 @@ const sequenceType = listToOptions(['aminoacid', 'nucleotide']);
 ]; */
 
 const isSequenceColumn = (column: PColumnIdAndSpec) => {
-  const trimEnabled = ((app.model.data.trimStart ?? 0) > 0) || ((app.model.data.trimEnd ?? 0) > 0);
+  const trimEnabled = (app.model.data.trimStart ?? 0) > 0 || (app.model.data.trimEnd ?? 0) > 0;
   if (trimEnabled) {
     // When trimming is enabled, use annotation to include only trimmed sequences
-    return column.spec?.annotations?.['pl7.app/sequence/trimmed'] === 'true';
+    return column.spec?.annotations?.["pl7.app/sequence/trimmed"] === "true";
   }
   // Default: only show the clustering sequence(s) selected by the user
   return app.model.data.sequencesRef?.some((r) => r === column.columnId) ?? false;
 };
 
 // Reset highPrecision when switching to linclust
-watch(() => app.model.data.clusteringTool, (tool) => {
-  if (tool === 'easy-linclust') {
-    app.model.data.highPrecision = false;
-  }
-});
+watch(
+  () => app.model.data.clusteringTool,
+  (tool) => {
+    if (tool === "easy-linclust") {
+      app.model.data.highPrecision = false;
+    }
+  },
+);
 
 // Check if any selected sequence is CDR3
 const hasCDR3Sequences = computed(() => {
@@ -107,8 +125,8 @@ const hasCDR3Sequences = computed(() => {
     if (!option) return false;
 
     // Check if the column name contains CDR3 (case insensitive)
-    const columnName = option.label?.toLowerCase() || '';
-    return columnName.includes('cdr3') || columnName.includes('cdr-3');
+    const columnName = option.label?.toLowerCase() || "";
+    return columnName.includes("cdr3") || columnName.includes("cdr-3");
   });
 });
 
@@ -122,7 +140,7 @@ const hasCDR3Sequences = computed(() => {
 function onSequencesRefChange(sequencesRef: SUniversalPColumnId[]) {
   app.model.data.sequencesRef = sequencesRef;
 
-  if (app.model.data.similarityType === 'sequence-identity') return;
+  if (app.model.data.similarityType === "sequence-identity") return;
 
   const sequenceOptions = app.model.outputs.sequenceOptions;
   if (!sequencesRef?.length || !sequenceOptions) return;
@@ -130,25 +148,25 @@ function onSequencesRefChange(sequencesRef: SUniversalPColumnId[]) {
   const allFramework = sequencesRef.every((selectedId) => {
     const option = sequenceOptions.find((opt) => opt.value === selectedId);
     if (!option) return false;
-    const label = option.label?.toLowerCase() || '';
-    return label.includes('fr') && !label.includes('cdr');
+    const label = option.label?.toLowerCase() || "";
+    return label.includes("fr") && !label.includes("cdr");
   });
 
-  app.model.data.similarityType = allFramework ? 'blosum80' : 'blosum62';
+  app.model.data.similarityType = allFramework ? "blosum80" : "blosum62";
 }
 
 // Set instructions to track cluster axis
 const clusterAxis = computed<AxisId>(() => {
   if (app.model.outputs.clusterAbundanceSpec?.axesSpec[1] === undefined) {
     return {
-      type: 'String',
-      name: 'pl7.app/clusterId',
+      type: "String",
+      name: "pl7.app/clusterId",
       domain: {},
     };
   } else {
     return {
-      type: 'String',
-      name: 'pl7.app/clusterId',
+      type: "String",
+      name: "pl7.app/clusterId",
       domain: app.model.outputs.clusterAbundanceSpec?.axesSpec[1].domain,
     };
   }
@@ -214,7 +232,13 @@ const clusterAxis = computed<AxisId>(() => {
         label="Alignment Score"
       >
         <template #tooltip>
-          Select the similarity metric used for clustering. BLOSUM matrices score biochemical similarity between amino acids — lower numbers (e.g. BLOSUM40) tolerate more substitutions and suit more divergent sequences, higher numbers (e.g. BLOSUM80) penalize substitutions more strongly and suit highly conserved sequences such as antibody framework regions. BLOSUM62 is a balanced default and works well for CDRs and many peptide sets. For very short peptides (≤8 aa), Exact Match — which counts only identical residues — might be a safer choice.
+          Select the similarity metric used for clustering. BLOSUM matrices score biochemical
+          similarity between amino acids — lower numbers (e.g. BLOSUM40) tolerate more substitutions
+          and suit more divergent sequences, higher numbers (e.g. BLOSUM80) penalize substitutions
+          more strongly and suit highly conserved sequences such as antibody framework regions.
+          BLOSUM62 is a balanced default and works well for CDRs and many peptide sets. For very
+          short peptides (≤8 aa), Exact Match — which counts only identical residues — might be a
+          safer choice.
         </template>
       </PlDropdown>
 
@@ -226,7 +250,8 @@ const clusterAxis = computed<AxisId>(() => {
         :maxValue="1.0"
       >
         <template #tooltip>
-          Sets the lowest percentage of identical residues required for sequences to be considered for the same cluster.
+          Sets the lowest percentage of identical residues required for sequences to be considered
+          for the same cluster.
         </template>
       </PlNumberField>
 
@@ -238,26 +263,29 @@ const clusterAxis = computed<AxisId>(() => {
         :maxValue="1.0"
       >
         <template #tooltip>
-          Sets the lowest percentage of sequence length that must be covered for sequences to be considered for the same cluster.
+          Sets the lowest percentage of sequence length that must be covered for sequences to be
+          considered for the same cluster.
         </template>
       </PlNumberField>
       <PlAlert v-if="app.model.outputs.inputState" type="warn" style="margin-top: 1rem">
         {{
-          'Error: The input dataset you have selected is empty. \
-          Please choose a different dataset.'
+          "Error: The input dataset you have selected is empty. \
+          Please choose a different dataset."
         }}
       </PlAlert>
       <PlAlert
-        v-if="app.model.outputs.modality === 'peptide'
-          && app.model.outputs.minPeptideLength !== undefined
-          && app.model.outputs.minPeptideLength < 5"
+        v-if="
+          app.model.outputs.modality === 'peptide' &&
+          app.model.outputs.minPeptideLength !== undefined &&
+          app.model.outputs.minPeptideLength < 5
+        "
         type="warn"
         style="margin-top: 1rem"
       >
         {{
-          'Warning: Some peptides in the input are shorter than 5 amino acids. \
+          "Warning: Some peptides in the input are shorter than 5 amino acids. \
           MMseqs2 requires at least 5 aa for k-mer matching, so clustering results \
-          for these peptides may be empty or incomplete.'
+          for these peptides may be empty or incomplete."
         }}
       </PlAlert>
 
@@ -268,15 +296,25 @@ const clusterAxis = computed<AxisId>(() => {
           label="Clustering Algorithm"
         >
           <template #tooltip>
-            <b>Easy Cluster</b> — standard MMseqs2 cascaded clustering. Accurate for all dataset sizes.<br/>
-            <b>Easy Linclust</b> — linear-time clustering algorithm. Much faster for large datasets but may produce less precise clusters.
+            <b>Easy Cluster</b> — standard MMseqs2 cascaded clustering. Accurate for all dataset
+            sizes.<br />
+            <b>Easy Linclust</b> — linear-time clustering algorithm. Much faster for large datasets
+            but may produce less precise clusters.
           </template>
         </PlDropdown>
 
-        <PlCheckbox v-model="app.model.data.highPrecision" :disabled="app.model.data.clusteringTool === 'easy-linclust'">
+        <PlCheckbox
+          v-model="app.model.data.highPrecision"
+          :disabled="app.model.data.clusteringTool === 'easy-linclust'"
+        >
           High precision mode
           <PlTooltip class="info" position="top">
-            <template #tooltip>Uses high-sensitivity MMseqs2 settings optimized for short sequences (e.g. a single CDR or a short peptide). Disable for longer sequences (e.g. full VDJ region or multiple concatenated sequences) as it may significantly increase computation time and memory usage. Only available with easy-cluster.</template>
+            <template #tooltip
+              >Uses high-sensitivity MMseqs2 settings optimized for short sequences (e.g. a single
+              CDR or a short peptide). Disable for longer sequences (e.g. full VDJ region or
+              multiple concatenated sequences) as it may significantly increase computation time and
+              memory usage. Only available with easy-cluster.</template
+            >
           </PlTooltip>
         </PlCheckbox>
 
@@ -290,7 +328,8 @@ const clusterAxis = computed<AxisId>(() => {
             :maxValue="100"
           >
             <template #tooltip>
-              Number of amino acids to remove from the beginning of each CDR3 sequence before clustering.
+              Number of amino acids to remove from the beginning of each CDR3 sequence before
+              clustering.
             </template>
           </PlNumberField>
 
@@ -315,9 +354,7 @@ const clusterAxis = computed<AxisId>(() => {
           :step="1"
           :maxValue="1012"
         >
-          <template #tooltip>
-            Sets the amount of memory to use for the clustering.
-          </template>
+          <template #tooltip> Sets the amount of memory to use for the clustering. </template>
         </PlNumberField>
 
         <PlNumberField
@@ -327,9 +364,7 @@ const clusterAxis = computed<AxisId>(() => {
           :step="1"
           :maxValue="128"
         >
-          <template #tooltip>
-            Sets the number of CPU cores to use for the clustering.
-          </template>
+          <template #tooltip> Sets the number of CPU cores to use for the clustering. </template>
         </PlNumberField>
       </PlAccordionSection>
     </PlSlideModal>
