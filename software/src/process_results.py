@@ -130,7 +130,7 @@ def reassign_singletons(clusters: pl.DataFrame, cloneTable: pl.DataFrame,
 
     # Singleton members with their sequences
     singleton_df = (
-        clusters.filter(pl.col("clusterId").is_in(singleton_ids))
+        clusters.filter(pl.col("clusterId").is_in(singleton_ids.to_list()))
         .select(pl.col("clonotypeKey").alias("member_key"))
         .join(
             seq_df.select(
@@ -158,22 +158,86 @@ def reassign_singletons(clusters: pl.DataFrame, cloneTable: pl.DataFrame,
     n_centroids = centroid_df.height
     print(f"Singleton reassignment: checking {n_singletons} singletons against {n_centroids} centroids...")
 
-    # Cross-join all singletons with all centroids, compute Levenshtein in Rust via polars_ds
-    cross = singleton_df.join(centroid_df, how="cross")
-    cross = cross.with_columns(
-        pds.str_leven(pl.col("member_seq"), pl.col("centroid_seq"), return_sim=False).alias("distance"),
-        pl.max_horizontal(
-            pl.col("member_seq").str.len_chars(),
-            pl.col("centroid_seq").str.len_chars()
-        ).alias("max_len")
+    max_dist_frac = 1.0 - min_seq_id
+
+    # Add sequence lengths for pre-filtering
+    singleton_df = singleton_df.with_columns(
+        pl.col("member_seq").str.len_chars().alias("member_len")
+    )
+    centroid_df = centroid_df.with_columns(
+        pl.col("centroid_seq").str.len_chars().alias("centroid_len")
     )
 
-    # Filter to matches within identity threshold: distance / max_len <= (1 - min_seq_id)
-    max_dist_frac = 1.0 - min_seq_id
-    matches = cross.filter(
-        (pl.col("max_len") > 0) &
-        (pl.col("distance").cast(pl.Float64) / pl.col("max_len").cast(pl.Float64) <= max_dist_frac)
-    )
+    # Pre-filter by length compatibility:
+    # For two sequences to satisfy distance/max_len <= max_dist_frac,
+    # the length difference must be <= max_dist_frac * max(len_a, len_b).
+    # This means: min_len >= max_len * (1 - max_dist_frac), i.e.
+    # for a singleton of length L, centroids must have length in
+    # [L * (1 - max_dist_frac), L / (1 - max_dist_frac)] (when max_dist_frac < 1).
+    #
+    # We group by singleton length and only cross-join with compatible centroids.
+    singleton_lengths = singleton_df.select("member_len").unique().sort("member_len")
+    len_values = singleton_lengths["member_len"].to_list()
+
+    match_parts = []
+    total_pairs = 0
+    max_cross_rows = 2**31  # safe limit below 2^32
+
+    for member_len in len_values:
+        singletons_of_len = singleton_df.filter(pl.col("member_len") == member_len)
+        n_batch_singletons = singletons_of_len.height
+
+        if member_len == 0:
+            continue
+
+        # Compute compatible centroid length range
+        if max_dist_frac < 1.0:
+            scale = 1.0 - max_dist_frac
+            min_centroid_len = int(member_len * scale)
+            max_centroid_len = int(member_len / scale) + 1
+        else:
+            min_centroid_len = 0
+            max_centroid_len = int(1e9)
+
+        compatible_centroids = centroid_df.filter(
+            (pl.col("centroid_len") >= min_centroid_len) &
+            (pl.col("centroid_len") <= max_centroid_len)
+        )
+        n_batch_centroids = compatible_centroids.height
+
+        if n_batch_centroids == 0:
+            continue
+
+        total_pairs += n_batch_singletons * n_batch_centroids
+
+        # Sub-batch if cross product still too large
+        batch_size = max(1, max_cross_rows // max(n_batch_centroids, 1))
+        for i in range(0, n_batch_singletons, batch_size):
+            batch = singletons_of_len.slice(i, batch_size)
+            cross = batch.join(compatible_centroids, how="cross")
+            cross = cross.with_columns(
+                pds.str_leven(pl.col("member_seq"), pl.col("centroid_seq"), return_sim=False).alias("distance"),
+                pl.max_horizontal(
+                    pl.col("member_seq").str.len_chars(),
+                    pl.col("centroid_seq").str.len_chars()
+                ).alias("max_len")
+            )
+            batch_matches = cross.filter(
+                (pl.col("max_len") > 0) &
+                (pl.col("distance").cast(pl.Float64) / pl.col("max_len").cast(pl.Float64) <= max_dist_frac)
+            )
+            if batch_matches.height > 0:
+                match_parts.append(batch_matches.drop(["member_len", "centroid_len"]))
+
+    print(f"Singleton reassignment: {total_pairs:,} pairs after length pre-filter "
+          f"(vs {n_singletons * n_centroids:,} brute-force)")
+
+    empty_schema = {
+        "member_key": pl.Utf8, "member_seq": pl.Utf8,
+        "clusterId": pl.Utf8, "rep_size": pl.UInt32, "centroid_seq": pl.Utf8,
+        "distance": pl.UInt32, "max_len": pl.UInt32,
+    }
+    matches = pl.concat(match_parts) if match_parts else pl.DataFrame(schema=empty_schema)
 
     if matches.height == 0:
         print(f"Singleton reassignment: 0 of {n_singletons} singletons matched "
