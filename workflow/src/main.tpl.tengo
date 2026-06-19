@@ -613,6 +613,13 @@ wf.body(func(args) {
 	//     clusterId axis), so the two variantKey axes are distinct entities and never merge. The
 	//     exported columns are only our abundance anchor + centroid sequence, so a consumer anchoring
 	//     here never sees the table's centroid_*/reference_centroid_* columns.
+	// Block label (custom overrides default). Used both as the centroid dataset's picker name
+	// below and as the trace step label when building outputs/exports further down.
+	traceLabel := args.customBlockLabel
+	if traceLabel == "" {
+		traceLabel = args.defaultBlockLabel
+	}
+
 	centroidDatasetPf := undefined
 	centroidAbundancePf := undefined
 	centroidTablePf := undefined
@@ -761,7 +768,7 @@ wf.body(func(args) {
 						"pl7.app/isAnchor": "true",
 						"pl7.app/isAbundance": "true"
 					}
-				}), abundanceLabel + " in Cluster", true, "100")
+				}), abundanceLabel, true, "100")
 			}],
 			storageFormat: "Parquet",
 			partitionKeyLength: 1
@@ -806,16 +813,21 @@ wf.body(func(args) {
 	}
 
 	// building outputs & exports
-	traceLabel := args.customBlockLabel
-	if traceLabel == "" {
-		traceLabel = args.defaultBlockLabel
-	}
 	trace := pSpec.makeTrace(
 		abundanceSpec,
 		{
 			type: "milaboratories.clonotype-clustering.clustering",
 			importance: 30,
 			label: traceLabel
+		}
+	)
+
+	centroidTrace := pSpec.makeTrace(
+		abundanceSpec,
+		{
+			type: "milaboratories.clonotype-clustering.centroids",
+			importance: 30,
+			label: "Centroids"
 		}
 	)
 
@@ -1049,11 +1061,11 @@ wf.body(func(args) {
 		cdb := pframes.pFrameBuilder()
 		j := 0
 		for k, v in centroidAbundancePf {
-			cdb.add("a" + string(j), trace.inject(v.spec), v.data)
+			cdb.add("a" + string(j), centroidTrace.inject(v.spec), v.data)
 			j = j + 1
 		}
 		for k, v in centroidDatasetPf {
-			cdb.add("s" + string(j), trace.inject(v.spec), v.data)
+			cdb.add("s" + string(j), centroidTrace.inject(v.spec), v.data)
 			j = j + 1
 		}
 		centroidDatasetExport := cdb.build()
