@@ -80,15 +80,7 @@ function setInput(inputRef?: PlRef) {
 
 // Auto-select the clustering algorithm by dataset size: cascaded easy-cluster is
 // too slow on very large inputs, so switch to linear-time linclust above the
-// threshold. The model resolves the selected dataset's row count one tick after
-// datasetRef changes, so we react to that value rather than computing in setInput.
-//
-// This writes data from a watcher on an output, but it is NOT a hairpin:
-// clusteringTool does not feed back into datasetSize (no loop), and the written
-// value is fully determined by the dataset, so concurrent clients converge on the
-// same result instead of racing. It fires only when the size actually changes, so
-// a later manual choice in Advanced Settings is preserved. Size unknown
-// (non-parquet / not yet ready) -> leave the current choice untouched.
+// threshold.
 watch(
   () => app.model.outputs.datasetSize,
   (size) => {
