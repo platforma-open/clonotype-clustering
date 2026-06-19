@@ -195,7 +195,9 @@ wf.body(func(args) {
 		highPrecision: args.highPrecision,
 		trimStart: args.trimStart,
 		trimEnd: args.trimEnd,
-		clusteringTool: args.clusteringTool
+		clusteringTool: args.clusteringTool,
+		consensusThreshold: args.consensusThreshold,
+		generateDataset: args.generateDataset
 	}, {
 		metaInputs: {
 			mem: args.mem,
@@ -206,6 +208,7 @@ wf.body(func(args) {
 	mmseqs := clusteringAnalysis.output("mmseqs")
 	mmseqsOutput := clusteringAnalysis.output("mmseqsOutput")
 	isEmpty := clusteringAnalysis.output("isEmpty")
+	pluralityCentroid := clusteringAnalysis.output("pluralityCentroid")
 
 	// Build pFrames using the library
 	trimStart := is_undefined(args.trimStart) ? 0 : args.trimStart
@@ -352,15 +355,13 @@ wf.body(func(args) {
 	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
 	cloneToClusterLinkPf := xsv.importFile(clusteringAnalysis.output("cloneToCluster"), "tsv", {
-		axes: [
-		{
-            column: "clusterId",
+		axes: [{
+			column: "clusterId",
         	spec: clusterIdAxisSpec
-        },
-		{
+        }, {
 			column: "clonotypeKey",
 			spec: datasetSpec.axesSpec[1]
-		} ],
+		}],
 		columns: [{
 			column: "link",
 			spec: setTableProps({
@@ -397,10 +398,20 @@ wf.body(func(args) {
 		}
 	}]
 
-	// Add sequence columns
+	// Add sequence columns.
+	// Two per-chain centroid PColumns on the clusterId axis are always emitted:
+	//   * the theoretical centroid (source column "centroid_sequence_N"): the abundance-weighted
+	//     kalign MSA consensus, which drives the distance/radius metrics. Need not match any
+	//     observed member. Disambiguated by "pl7.app/clustering/sequenceContent": "centroid".
+	//   * the reference centroid (source column "reference_centroid_sequence_N"): the medoid, a
+	//     real member sequence closest to the cluster profile ("closest to centroid"), kept as a
+	//     reference. Disambiguated by "pl7.app/clustering/sequenceContent": "referenceCentroid".
+	// Both keep the original sequence spec (name/domain) so downstream consumers read them as
+	// sequence columns.
+	centroidLabel := "Theoretical Centroid "
 	for nr, seq in sequencesRef {
 		spec := maps.clone(columns.getSpec(seq))
-		spec.annotations["pl7.app/label"] = "Centroid " + spec.annotations["pl7.app/label"]
+		baseLabel := spec.annotations["pl7.app/label"]
 
 		// VDJ-specific annotations
 		delete(spec.annotations, "pl7.app/vdj/imputed")
@@ -411,13 +422,30 @@ wf.body(func(args) {
 		delete(spec.annotations, "pl7.app/isMainSequence")
 
 		seqColumns = append(seqColumns, {
-			column: "sequence_" + string(nr),
+			column: "centroid_sequence_" + string(nr),
 			spec: setTableProps({
 				name: spec.name,
 				valueType: spec.valueType,
-				domain: spec.domain,
+				domain: maps.deepMerge(spec.domain, {
+					"pl7.app/clustering/sequenceContent": "centroid"
+				}),
 				annotations: spec.annotations
-			}, spec.annotations["pl7.app/label"], true, "4000")
+			}, centroidLabel + baseLabel, true, "4000")
+		})
+
+		// Reference centroid (medoid): a real member sequence closest to the cluster
+		// profile ("closest to centroid"), kept as a reference. Same sequence spec as the
+		// theoretical centroid; "referenceCentroid" disambiguates it.
+		seqColumns = append(seqColumns, {
+			column: "reference_centroid_sequence_" + string(nr),
+			spec: setTableProps({
+				name: spec.name,
+				valueType: spec.valueType,
+				domain: maps.deepMerge(spec.domain, {
+					"pl7.app/clustering/sequenceContent": "referenceCentroid"
+				}),
+				annotations: spec.annotations
+			}, "Reference Centroid " + baseLabel, true, "4000")
 		})
 	}
 
@@ -434,15 +462,32 @@ wf.body(func(args) {
 				// peptide-specific annotations
 				delete(baseSpec.annotations, "pl7.app/isAssemblingFeature")
 				delete(baseSpec.annotations, "pl7.app/isMainSequence")
-				baseSpec.annotations["pl7.app/label"] = "Centroid trimmed " + baseSpec.annotations["pl7.app/label"]
+				baseTrimLabel := "trimmed " + baseSpec.annotations["pl7.app/label"]
+
+				// Theoretical centroid trimmed (consensus on the trimmed basis)
 				seqColumns = append(seqColumns, {
-					column: "trim_" + ("sequence_" + string(nr)),
+					column: "centroid_trim_" + ("sequence_" + string(nr)),
 					spec: setTableProps({
 						name: baseSpec.name,
 						valueType: baseSpec.valueType,
-						domain: baseSpec.domain,
+						domain: maps.deepMerge(baseSpec.domain, {
+							"pl7.app/clustering/sequenceContent": "centroid"
+						}),
 						annotations: baseSpec.annotations
-					}, baseSpec.annotations["pl7.app/label"], true, "11")
+					}, centroidLabel + baseTrimLabel, true, "11")
+				})
+
+				// Reference centroid trimmed (medoid on the trimmed basis).
+				seqColumns = append(seqColumns, {
+					column: "reference_centroid_trim_" + ("sequence_" + string(nr)),
+					spec: setTableProps({
+						name: baseSpec.name,
+						valueType: baseSpec.valueType,
+						domain: maps.deepMerge(baseSpec.domain, {
+							"pl7.app/clustering/sequenceContent": "referenceCentroid"
+						}),
+						annotations: baseSpec.annotations
+					}, "Reference Centroid " + baseTrimLabel, true, "11")
 				})
 			}
 		} else if len(sequencesRef) > 0 {
@@ -461,15 +506,32 @@ wf.body(func(args) {
 			}
 			alphabet := baseSpec.domain["pl7.app/alphabet"]
 			alphaSuffix := (alphabet == "aminoacid" ? " aa" : (alphabet == "nucleotide" ? " nt" : ""))
-			baseSpec.annotations["pl7.app/label"] = "Centroid trimmed " + string(feature) + alphaSuffix
+			baseTrimLabel := "trimmed " + string(feature) + alphaSuffix
+
+			// Theoretical centroid trimmed full (consensus, bulk)
 			seqColumns = append(seqColumns, {
-				column: "trimmed_fullSequence",
+				column: "centroid_trimmed_fullSequence",
 				spec: setTableProps({
 					name: baseSpec.name,
 					valueType: baseSpec.valueType,
-					domain: baseSpec.domain,
+					domain: maps.deepMerge(baseSpec.domain, {
+						"pl7.app/clustering/sequenceContent": "centroid"
+					}),
 					annotations: baseSpec.annotations
-				}, baseSpec.annotations["pl7.app/label"], true, "11")
+				}, centroidLabel + baseTrimLabel, true, "11")
+			})
+
+			// Reference centroid trimmed full (medoid, bulk).
+			seqColumns = append(seqColumns, {
+				column: "reference_centroid_trimmed_fullSequence",
+				spec: setTableProps({
+					name: baseSpec.name,
+					valueType: baseSpec.valueType,
+					domain: maps.deepMerge(baseSpec.domain, {
+						"pl7.app/clustering/sequenceContent": "referenceCentroid"
+					}),
+					annotations: baseSpec.annotations
+				}, "Reference Centroid " + baseTrimLabel, true, "11")
 			})
 		}
 	}
@@ -532,6 +594,217 @@ wf.body(func(args) {
 		partitionKeyLength: 0
 	}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
+	// Optional X-free plurality-consensus centroid dataset (peptide inputs only,
+	// gated by the "Generate centroid dataset" checkbox). The "dataset" concept lives entirely here: one
+	// centroid PColumn per chain on the clusterId axis, with a distinct sequenceContent domain
+	// ("consensusCentroidDataset") so it never collides with the thresholded centroid_* columns
+	// on the shared axis. Exported under its own key (centroidDatasetPf).
+	// Two surfaces from the same plurality-centroid.tsv, intentionally kept separate:
+	//   * centroidTablePf  — a regular column in the clusters table, on the shared clusterId axis
+	//     (aligns with centroid_*/reference_centroid_*), markers dropped, NOT an anchor.
+	//   * centroidDatasetPf — the exported, separately-addressable dataset. It is shaped like a real
+	//     clonotype dataset (one "clonotype" per cluster): a 2-axis [sampleId, variantKey] abundance
+	//     ANCHOR carrying the cluster's REAL per-sample abundance, plus the per-cluster centroid
+	//     sequence on the variantKey axis. The export is peptide-only, so the key axis is the standard
+	//     peptide clonotype axis "pl7.app/variantKey" — downstream peptide consumers detect it BY NAME
+	//     (no special-casing needed). It is separated from the parent peptide dataset purely by
+	//     "dataset identity" in the domain: the axis inherits the parent variantKey domain plus the
+	//     clustering discriminator (pl7.app/clustering/blockId, the same content tag carried by the
+	//     clusterId axis), so the two variantKey axes are distinct entities and never merge. The
+	//     exported columns are only our abundance anchor + centroid sequence, so a consumer anchoring
+	//     here never sees the table's centroid_*/reference_centroid_* columns.
+	centroidDatasetPf := undefined
+	centroidAbundancePf := undefined
+	centroidTablePf := undefined
+	centroidLinkPf := undefined
+	if args.generateDataset && isPeptide && !is_undefined(pluralityCentroid) {
+		// Standard peptide clonotype axis with its OWN dataset identity. We override the inherited
+		// parent extractionRunId with this block's clustering id so the centroid variantKey is NOT a
+		// spec-superset of the parent peptide dataset's variantKey. Otherwise (ignoreMissingDomains
+		// treats a superset as compatible) clonotype-browser matches the parent's columns AND its
+		// clonotypeKey<->clusterId linker (cloneToClusterLinkPf) to our anchor and surfaces a
+		// duplicate cluster axis. detectMode still sees pl7.app/peptide/extractionRunId present -> peptide.
+		// The variantKey VALUE is still the clusterId, but the axis is shaped to MIRROR a real
+		// peptide dataset's variantKey axis so downstream blocks treat it identically to a
+		// selected dataset: the axis annotations match a real peptide variantKey axis ("Peptide ID"
+		// label, segmentedBy the extractionRunId, monospace font, standard order/visibility), and a
+		// separate pl7.app/label column on this axis renders the "Peptide Id" (P-XXXX) display —
+		// exactly like a real peptide dataset, whose Peptide Id is a label column, not the axis
+		// value. deepMerge over clusterIdAxisSpec overrides label/orderPriority and adds
+		// segmentedBy/fontFamily, keeping name and domain intact.
+		centroidDatasetAxisSpec := maps.deepMerge(clusterIdAxisSpec, {
+			name: "pl7.app/variantKey",
+			domain: {
+				"pl7.app/peptide/extractionRunId": blockId
+			},
+			annotations: {
+				"pl7.app/label": "Peptide ID",
+				"pl7.app/segmentedBy": "[\"pl7.app/peptide/extractionRunId\"]",
+				"pl7.app/table/fontFamily": "monospace",
+				"pl7.app/table/orderPriority": "110000",
+				"pl7.app/table/visibility": "default"
+			}
+		})
+
+		// Mark exactly one column as the assembling feature so the exported dataset reads as a
+		// real clonotype dataset (downstream peptide consumers expect one assembling-feature
+		// sequence column). Peptide inputs have a single sequence column, so this resolves to
+		// the first; the CDR3 preference is a harmless guard for any multi-column future.
+		assemblingIdx := 0
+		for nr, seq in sequencesRef {
+			if columns.getSpec(seq).domain["pl7.app/vdj/feature"] == "CDR3" {
+				assemblingIdx = nr
+				break
+			}
+		}
+
+		datasetSeqColumns := []
+		tableSeqColumns := []
+		for nr, seq in sequencesRef {
+			dspec := maps.clone(columns.getSpec(seq))
+			dBaseLabel := dspec.annotations["pl7.app/label"]
+			seqDomain := maps.deepMerge(dspec.domain, {
+				"pl7.app/clustering/sequenceContent": "consensusCentroidDataset"
+			})
+
+			// Exported dataset sequence column. The centroid-dataset export is peptide-only,
+			// so mark the assembling column with the PEPTIDE markers downstream peptide
+			// consumers require: pl7.app/isAssemblingFeature (sequence-properties +
+			// antibody-sequence-liabilities peptide branch) and pl7.app/isMainSequence
+			// (antibody-tcr-lead-selection's peptide main-sequence fallback). Drop the VDJ
+			// assembling marker — the old antibody-branch contract no longer applies. NOT the
+			// anchor (the abundance column below is the anchor).
+			datasetAnn := maps.clone(dspec.annotations)
+			delete(datasetAnn, "pl7.app/vdj/imputed")
+			delete(datasetAnn, "pl7.app/isAnchor")
+			delete(datasetAnn, "pl7.app/vdj/isAssemblingFeature")
+			delete(datasetAnn, "pl7.app/isAssemblingFeature")
+			delete(datasetAnn, "pl7.app/isMainSequence")
+			if nr == assemblingIdx {
+				datasetAnn["pl7.app/isAssemblingFeature"] = "true"
+				datasetAnn["pl7.app/isMainSequence"] = "true"
+			}
+			datasetSeqColumns = append(datasetSeqColumns, {
+				column: "plurality_centroid_trim_sequence_" + string(nr),
+				spec: setTableProps({
+					name: dspec.name,
+					valueType: dspec.valueType,
+					domain: seqDomain,
+					annotations: datasetAnn
+				}, "Consensus Centroid " + dBaseLabel, true, "4500")
+			})
+
+			// Clusters-table column: drop the dataset/vdj markers (match the sibling centroid_*
+			// table columns), never an anchor.
+			tableAnn := maps.clone(dspec.annotations)
+			delete(tableAnn, "pl7.app/vdj/imputed")
+			delete(tableAnn, "pl7.app/vdj/isAssemblingFeature")
+			delete(tableAnn, "pl7.app/vdj/isMainSequence")
+			delete(tableAnn, "pl7.app/isAssemblingFeature")
+			delete(tableAnn, "pl7.app/isMainSequence")
+			delete(tableAnn, "pl7.app/isAnchor")
+			tableSeqColumns = append(tableSeqColumns, {
+				column: "plurality_centroid_trim_sequence_" + string(nr),
+				spec: setTableProps({
+					name: dspec.name,
+					valueType: dspec.valueType,
+					domain: seqDomain,
+					annotations: tableAnn
+				}, "Consensus Centroid " + dBaseLabel, true, "4500")
+			})
+		}
+
+		// Peptide Id label column on the variantKey axis. Mirrors a real peptide dataset, whose
+		// Peptide Id (P-XXXX) is a pl7.app/label column on the variantKey axis, NOT the axis value.
+		// Values come from the "peptideLabel" TSV column (the cluster representative's original
+		// clonotypeKeyLabel, P-XXXX), so the dataset renders an identical "Peptide Id" display.
+		peptideLabelColumn := {
+			column: "peptideLabel",
+			spec: {
+				name: "pl7.app/label",
+				valueType: "String",
+				annotations: {
+					"pl7.app/label": "Peptide Id",
+					"pl7.app/table/orderPriority": "100000",
+					"pl7.app/table/visibility": "default"
+				}
+			}
+		}
+
+		centroidDatasetPf = xsv.importFile(pluralityCentroid, "tsv", {
+			axes: [{
+				column: "clusterId",
+				spec: centroidDatasetAxisSpec
+			}],
+			columns: append(datasetSeqColumns, peptideLabelColumn),
+			storageFormat: "Parquet",
+			partitionKeyLength: 0
+		}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+		// Anchor column of the exported dataset: the cluster's REAL per-(sample, cluster) abundance
+		// (same deanonymized abundances.tsv used by abundancesPf), re-imported on the dataset's own
+		// [sampleId, variantKey] axes and marked pl7.app/isAnchor so the dataset is selectable as a
+		// 2-axis [sampleId, clonotype-key] input. The abundance VALUES are not consumed by
+		// sequence-properties (per-sequence algorithm) but make this an honest clonotype-shaped dataset.
+		centroidAbundancePf = xsv.importFile(deanonimizedAbundancesTsv, "tsv", {
+			axes: [{
+				column: "sampleId",
+				spec: abundanceSpec.axesSpec[0]
+			}, {
+				column: "clusterId",
+				spec: centroidDatasetAxisSpec
+			}],
+			columns: [{
+				column: "abundance",
+				spec: setTableProps(maps.deepMerge(ac, {
+					annotations: {
+						"pl7.app/isAnchor": "true",
+						"pl7.app/isAbundance": "true"
+					}
+				}), abundanceLabel + " in Cluster", true, "100")
+			}],
+			storageFormat: "Parquet",
+			partitionKeyLength: 1
+		}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+		centroidTablePf = xsv.importFile(pluralityCentroid, "tsv", {
+			axes: [{
+				column: "clusterId",
+				spec: clusterIdAxisSpec
+			}],
+			columns: tableSeqColumns,
+			storageFormat: "Parquet",
+			partitionKeyLength: 0
+		}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+
+		// Linker: a 2-axis column carrying BOTH the exported dataset's variantKey axis and the
+		// cluster-properties clusterId axis (same clusterId value on each, fed by the two columns
+		// clusterId / clusterIdLink). Marked pl7.app/isLinkerColumn so a downstream block anchoring
+		// the consensus dataset can follow it to every cluster property the consensus derives from
+		// (abundance, radius, distance, theoretical/reference centroids — all on the clusterId axis).
+		centroidLinkPf = xsv.importFile(pluralityCentroid, "tsv", {
+			axes: [{
+				column: "clusterIdLink",
+				spec: clusterIdAxisSpec
+			}, {
+				column: "clusterId",
+				spec: centroidDatasetAxisSpec
+			}],
+			columns: [{
+				column: "link",
+				spec: setTableProps({
+					name: "pl7.app/link",
+					valueType: "Int",
+					annotations: {
+						"pl7.app/isLinkerColumn": "true"
+					}
+				}, "Centroid to cluster link", "hidden", undefined)
+			}],
+			storageFormat: "Parquet",
+			partitionKeyLength: 0
+		}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+	}
+
 	// building outputs & exports
 	traceLabel := args.customBlockLabel
 	if traceLabel == "" {
@@ -554,6 +827,15 @@ wf.body(func(args) {
 				continue  // avoid putting label into the outputs as it will be already in exports
 			}
 			opf.add(k, trace.inject(v.spec), v.data)
+		}
+	}
+	// When the centroid dataset is generated, also surface its per-cluster plurality
+	// centroid sequence as a regular column in the clusters table (alongside
+	// centroid_*/reference_centroid_*). Uses centroidTablePf (shared clusterId axis),
+	// NOT the exported centroidDatasetPf (which lives on its own isolated axis).
+	if !is_undefined(centroidTablePf) {
+		for k, v in centroidTablePf {
+			opf.add("plurality_" + k, trace.inject(v.spec), v.data)
 		}
 	}
 	opf = opf.build()
@@ -708,6 +990,17 @@ wf.body(func(args) {
 			i = i + 1
 		}
 	}
+	// Centroid-dataset linker (variantKey <-> clusterId). Kept HERE in the main export pframe,
+	// like cloneToClusterLinkPf, rather than inside the exported centroid dataset — otherwise its
+	// clusterId axis surfaces as a second axis in the dataset view. The linker still resolves at
+	// the result-pool level, so a downstream block anchoring the centroid dataset reaches every
+	// cluster property on the clusterId axis.
+	if !is_undefined(centroidLinkPf) {
+		for k, v in centroidLinkPf {
+			epf.add("centroidLink" + string(i), trace.inject(v.spec), v.data)
+			i = i + 1
+		}
+	}
 	epf = epf.build()
 
 	clusterAbundanceSpec := trace.inject(abundancesPf["abundance"].spec)
@@ -745,11 +1038,31 @@ wf.body(func(args) {
 		outputs.minPeptideLength = minPeptideLength
 	}
 
+	exports := {
+		pf: epf
+	}
+	// Optional centroid dataset export (peptide + checkbox): a clonotype-shaped 2-axis
+	// dataset = abundance anchor ([sampleId, variantKey]) + per-cluster centroid sequence (variantKey).
+	// The variantKey <-> clusterId linker lives in the main export pframe (epf) above, NOT here, so the
+	// dataset view stays a single clonotype axis + sequence and does not show a second clusterId axis.
+	if !is_undefined(centroidDatasetPf) {
+		cdb := pframes.pFrameBuilder()
+		j := 0
+		for k, v in centroidAbundancePf {
+			cdb.add("a" + string(j), trace.inject(v.spec), v.data)
+			j = j + 1
+		}
+		for k, v in centroidDatasetPf {
+			cdb.add("s" + string(j), trace.inject(v.spec), v.data)
+			j = j + 1
+		}
+		centroidDatasetExport := cdb.build()
+		exports.centroidDatasetPf = centroidDatasetExport
+	}
+
 	return {
 		outputs: outputs,
-		exports: {
-			pf: epf
-		}
+		exports: exports
 	}
 })
 

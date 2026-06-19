@@ -1,6 +1,23 @@
 import polars as pl
 import polars_ds as pds
 import argparse
+import re
+import kalign
+
+# --- Computed-centroid (kalign MSA consensus) constants ---
+# Each cluster's distinct member sequences are aligned with kalign (multiple
+# sequence alignment); the centroid is the per-column abundance-weighted majority
+# residue over that MSA. Abundance is applied as a per-row weight during the
+# column vote rather than by replicating sequences, so kalign sees each distinct
+# sequence once.
+#   MSA_MAX_MEMBERS — cap on distinct members per cluster fed to kalign; the
+#                     top-MSA_MAX_MEMBERS by weight are kept and the rest are
+#                     dropped (logged, never silent).
+# A column only commits a residue when its winning residue holds at least
+# --consensus-threshold of the column's total weight; otherwise the position is
+# ambiguous and emits "X". This keeps a 51/49 column from being reported with the
+# same confidence as a 70/30 one.
+MSA_MAX_MEMBERS = 1000
 
 parser = argparse.ArgumentParser(description='Process clustering results and compute summaries')
 parser.add_argument('--trim-start', type=int, default=0, help='Number of amino acids to remove from start')
@@ -8,12 +25,22 @@ parser.add_argument('--trim-end', type=int, default=0, help='Number of amino aci
 parser.add_argument('--per-chain-trim', action='store_true', help='Apply trimming to each chain before computing distances and summaries')
 parser.add_argument('--min-seq-id', type=float, default=1.0, help='Minimum sequence identity threshold (0-1) used by mmseqs2. Used for singleton reassignment post-processing.')
 parser.add_argument('--high-precision', action='store_true', help='Enable high-precision post-processing (singleton reassignment). Should match the high-precision mmseqs2 mode.')
+parser.add_argument('--consensus-threshold', type=float, default=0.6,
+                    help='Minimum fraction (0-1) of a MSA column\'s total abundance weight '
+                         'the winning residue must hold for the theoretical (consensus) centroid '
+                         'to commit that residue; below it the position is ambiguous and emits "X". '
+                         'Default 0.6.')
+parser.add_argument('--emit-plurality-centroid', action='store_true',
+                    help='Also emit plurality-centroid.tsv: per-cluster abundance-weighted per-column '
+                         'majority residue (consensus at threshold 0.0, so no "X").')
 args = parser.parse_args()
 
 trim_start = args.trim_start
 trim_end = args.trim_end
 per_chain_trim = args.per_chain_trim
 min_seq_id = args.min_seq_id
+consensus_threshold = args.consensus_threshold
+emit_plurality = args.emit_plurality_centroid
 
 clustersTsv = "clusters.tsv"
 cloneTableTsv = "cloneTable.tsv"
@@ -78,9 +105,13 @@ else:
     )
 
 # Transform clonotypeKeyLabel from "C-XXXXXX" (clonotype, MiXCR-side) or "P-XXXXXX"
-# (peptide, peptide-extraction-side) into "CL-XXXXXX"
+# (peptide, peptide-extraction-side) into "CL-XXXXXX". We ALSO retain the original
+# pre-transform label as 'peptideLabel' (the representative's "P-XXXX"/"C-XXXX" form),
+# carried through to the per-cluster table so plurality-centroid.tsv can expose it as the
+# variantKey axis's "Peptide Id" label column.
 cloneTable = cloneTable.with_columns(
-    pl.col('clonotypeKeyLabel').str.replace(r'^[CP]-', 'CL-').alias('clusterLabel')
+    pl.col('clonotypeKeyLabel').str.replace(r'^[CP]-', 'CL-').alias('clusterLabel'),
+    pl.col('clonotypeKeyLabel').alias('peptideLabel'),
 )
 
 # clusterId, clonotypeKey (both are representative keys from de-duplicated FASTA)
@@ -246,7 +277,8 @@ clusters = clusters.with_columns(
 # This 'clusterLabel' is the transformed "CL-XXXX" label of the centroid.
 labelsTable_for_join = cloneTable.select(
     pl.col('clonotypeKey').alias('clusterId'), # Alias to 'clusterId' to match the left table's key name
-    'clusterLabel' # The "CL-XXXX" label associated with this key in cloneTable
+    'clusterLabel', # The "CL-XXXX" label associated with this key in cloneTable
+    'peptideLabel'  # The representative's original "P-XXXX"/"C-XXXX" label
 ).unique(subset=['clusterId'], keep='first') # Unique on the new 'clusterId' column
 
 clusters = clusters.join(
@@ -254,6 +286,522 @@ clusters = clusters.join(
     on='clusterId', # Join on 'clusterId', present in both DataFrames with the same meaning
     how='left'
 )
+
+# --- Compute per-clonotype abundance weight ---
+# Weight = abundance summed over sampleId per clonotypeKey. If there is no
+# abundance column, every clonotype gets weight 1.
+if "abundance" in cloneTable.columns:
+    clonotype_weights = (
+        cloneTable
+        .group_by("clonotypeKey")
+        .agg(pl.sum("abundance").cast(pl.Float64).alias("weight"))
+        .with_columns(
+            # Guard against null / non-positive total abundance -> fall back to 1.0
+            pl.when(pl.col("weight").is_null() | (pl.col("weight") <= 0))
+              .then(pl.lit(1.0, dtype=pl.Float64))
+              .otherwise(pl.col("weight"))
+              .alias("weight")
+        )
+    )
+else:
+    clonotype_weights = (
+        cloneTable
+        .select("clonotypeKey")
+        .unique("clonotypeKey", keep="first")
+        .with_columns(pl.lit(1.0, dtype=pl.Float64).alias("weight"))
+    )
+
+
+# kalign only understands biological-sequence letters. A stray non-letter — a stop
+# codon "*", an underscore, a space (the one that actually bit us before) — either makes
+# kalign choke or, worse, gets silently rewritten in its aligned output. The silent case
+# corrupts the profile distance: _msa_profile_distances keys each member by its
+# gap-stripped aligned row, and the caller looks that up with the original sequence, so
+# any byte kalign changes makes the lookup miss and the member is charged full distance
+# (and excluded from the medoid). To keep the round-trip exact, every non-letter is mapped
+# to "X" (unknown residue) up front and that sanitized form is used as the canonical key
+# everywhere — kalign feed, dedup key, and distance lookup. Length-preserving (1 char ->
+# 1 char), so member lengths are unaffected. A no-op on clean input.
+_NON_ALPHA_RE = re.compile(r"[^A-Za-z]")
+
+
+def _sanitize_seq(seq: str) -> str:
+    """Replace any non-letter character with 'X' so kalign never sees stray bytes."""
+    return _NON_ALPHA_RE.sub("X", seq)
+
+
+def _msa_consensus(aligned: list[str], weights: list[float], threshold: float) -> str:
+    """Abundance-weighted column-majority consensus over a kalign MSA.
+
+    `aligned` are equal-length gap-padded rows from kalign; `weights[i]` is the
+    abundance weight of row i. For each column the residue with the greatest total
+    weight wins (ties broken deterministically: non-gap over gap, then lexically).
+    Columns whose majority residue is a gap contribute nothing to the centroid.
+
+    A non-gap winner is only committed when it holds at least `threshold` of the
+    column's total weight; otherwise no residue dominates and the position emits
+    "X" (ambiguous). This stops a 51/49 column being reported as confidently as a
+    70/30 one.
+    """
+    out = []
+    for col in range(len(aligned[0])):
+        tally: dict[str, float] = {}
+        for row, w in zip(aligned, weights):
+            c = row[col]
+            tally[c] = tally.get(c, 0.0) + w
+        # Max total weight; on ties prefer a real residue, then the smaller letter.
+        best = max(tally.items(), key=lambda kv: (kv[1], kv[0] != "-", -ord(kv[0])))
+        if best[0] == "-":
+            continue  # gap-majority column: not part of the centroid
+        total = sum(tally.values())
+        # Commit the residue only when it clears the threshold, else mark ambiguous.
+        out.append(best[0] if total > 0 and best[1] / total >= threshold else "X")
+    return "".join(out)
+
+
+def _align_chain(values: list[str], weights: list[float], cluster_id: str):
+    """Build one cluster's per-chain kalign MSA ONCE; everything else derives from it.
+
+    The alignment is a pure function of the (deduplicated, ordered, capped) sequence
+    set — the abundance weights only matter to the column vote downstream, not to the
+    alignment. So this runs kalign a single time and the consensus (theoretical
+    centroid), the plurality consensus (threshold 0) and the profile distances/medoid
+    all read the SAME result, instead of re-aligning the same sequences 2-4× (the
+    redundancy was worst in single-cell, one extra pass per chain). See derive_consensus
+    / derive_distances.
+
+    - Drops empty sequences (a member missing this chain contributes nothing here).
+    - Deduplicates identical sequences, summing their abundance weights, so kalign
+      aligns each distinct sequence once and the weight still drives the column vote.
+    - Sanitizes (see _sanitize_seq) before keying so stray non-letters never reach kalign.
+    - Caps distinct members at MSA_MAX_MEMBERS by descending weight; logs how many
+      dropped (no silent truncation).
+
+    Returns a (mode, payload) bundle:
+      - ("empty", None)               — 0 non-empty members.
+      - ("single", seq)               — exactly one distinct member (kalign needs >= 2).
+      - ("msa", (aligned, weights))   — gap-padded rows + their member weights.
+    """
+    # Collapse identical sequences, summing weights (one row per distinct sequence).
+    weight_by_seq: dict[str, float] = {}
+    for v, w in zip(values, weights):
+        if v:
+            s = _sanitize_seq(v)
+            weight_by_seq[s] = weight_by_seq.get(s, 0.0) + w
+    if not weight_by_seq:
+        return ("empty", None)
+
+    # Deterministic feed order for kalign (§4): descending weight, then lexicographic
+    # on the sequence. This fixes the MSA — and hence the centroid, the medoid and the
+    # clusterId labels derived from them — run-to-run, removing the CID-conflict risk.
+    pairs = sorted(weight_by_seq.items(), key=lambda p: (-p[1], p[0]))
+
+    # Cap distinct members per cluster, keeping the top MSA_MAX_MEMBERS in that same
+    # deterministic order (no silent truncation; the kept set is stable too).
+    if len(pairs) > MSA_MAX_MEMBERS:
+        dropped = len(pairs) - MSA_MAX_MEMBERS
+        pairs = pairs[:MSA_MAX_MEMBERS]
+        print(f"  cluster {cluster_id}: capped to {MSA_MAX_MEMBERS} distinct members "
+              f"by weight, dropped {dropped}")
+
+    if len(pairs) == 1:
+        return ("single", pairs[0][0])
+
+    seqs = [s for s, _ in pairs]
+    member_weights = [w for _, w in pairs]
+    aligned = kalign.align(seqs, seq_type="auto")
+    return ("msa", (aligned, member_weights))
+
+
+def derive_consensus(bundle, threshold: float) -> str:
+    """Abundance-weighted column-majority consensus from an _align_chain bundle.
+
+    0 members -> ""; a single distinct member -> that sequence unchanged; otherwise the
+    weighted consensus over the shared MSA (see _msa_consensus). At threshold 0.0 the "X"
+    branch is unreachable, giving the X-free plurality centroid.
+    """
+    mode, payload = bundle
+    if mode == "empty":
+        return ""
+    if mode == "single":
+        return payload
+    aligned, member_weights = payload
+    return _msa_consensus(aligned, member_weights, threshold)
+
+
+def _msa_profile_distances(aligned: list[str], weights: list[float]) -> tuple[dict[str, float], int]:
+    """Positional profile distance of each aligned row to the column profile (§3).
+
+    `aligned` are equal-length gap-padded rows from kalign; `weights[i]` is the
+    abundance weight of row i. For each column j build the abundance-weighted
+    fraction p_j(a) = w_j(a) / W over residues a (the gap "-" is treated as a
+    residue, so Σ_a p_j(a) = 1). The cost of a residue in a column is 1 - p_j(a),
+    applied on EVERY column (gap columns included), so a row's distance is
+
+        D = Σ_j ( 1 - p_j( row[j] ) ).
+
+    Returns (D_by_seq, L_cons) where D_by_seq maps each aligned row's sequence
+    string (with gaps stripped, i.e. the original member sequence) to its profile
+    distance D, and L_cons is the number of non-gap-majority consensus columns
+    (the column count that contributes to the centroid; used for normalization).
+    """
+    n_cols = len(aligned[0])
+    W = sum(weights)
+    # Per-column fractions p_j(a) and the gap-majority flag (mirrors _msa_consensus).
+    col_fracs: list[dict[str, float]] = []
+    l_cons = 0
+    for col in range(n_cols):
+        tally: dict[str, float] = {}
+        for row, w in zip(aligned, weights):
+            c = row[col]
+            tally[c] = tally.get(c, 0.0) + w
+        col_fracs.append({a: (wa / W if W > 0 else 0.0) for a, wa in tally.items()})
+        # Same column winner / tie-break as the consensus: non-gap over gap, then lexical.
+        best = max(tally.items(), key=lambda kv: (kv[1], kv[0] != "-", -ord(kv[0])))
+        if best[0] != "-":
+            l_cons += 1  # non-gap-majority column: part of the centroid length
+
+    # Each member's distance is the sum over columns of 1 - p_j(its residue).
+    d_by_seq: dict[str, float] = {}
+    for row in aligned:
+        d = 0.0
+        for col in range(n_cols):
+            d += 1.0 - col_fracs[col].get(row[col], 0.0)
+        d_by_seq[row.replace("-", "")] = d
+    return d_by_seq, l_cons
+
+
+def derive_distances(bundle) -> tuple[dict[str, float], int]:
+    """Per-distinct-member profile distance (§3) from an _align_chain bundle.
+
+    Because it reads the SAME alignment as derive_consensus, the distance is computed
+    over exactly the alignment that underlies the centroid — no second kalign pass.
+    Returns (D_by_seq, L_cons):
+      - D_by_seq maps each distinct (gap-stripped, sanitized) member sequence to its
+        profile distance D^(s) for this chain. The caller looks up with the same
+        sanitized form.
+      - L_cons is the number of non-gap-majority consensus columns for this chain.
+    Members dropped by the cap are not in D_by_seq; the caller charges them full length.
+
+    Edge cases: 0 non-empty members -> ({}, 0); a single distinct member -> distance 0
+    against itself, L_cons = its length.
+    """
+    mode, payload = bundle
+    if mode == "empty":
+        return {}, 0
+    if mode == "single":
+        seq = payload
+        return {seq: 0.0}, len(seq)
+    aligned, member_weights = payload
+    return _msa_profile_distances(aligned, member_weights)
+
+
+def compute_centroid_and_distance(clusters_df: pl.DataFrame,
+                                  cloneTable: pl.DataFrame,
+                                  weights_df: pl.DataFrame,
+                                  seq_cols: list[str],
+                                  trim_cols: list[str],
+                                  threshold: float,
+                                  emit_plurality: bool,
+                                  no_trim: bool):
+    """Single per-cluster pass: align each chain ONCE and derive everything from it.
+
+    Replaces the previous three separate kalign passes — theoretical consensus,
+    plurality consensus (threshold 0) and profile distance/medoid — which each
+    re-aligned the same per-cluster, per-chain sequences (up to 4x redundant work, worst
+    in single-cell: one extra pass per chain). Here every (cluster, chain) is aligned a
+    single time via _align_chain and all three results read that one alignment.
+
+    seq_cols[i] and trim_cols[i] are the untrimmed / trimmed columns of the SAME chain
+    (trim_cols[i] == "trim_" + seq_cols[i]). The trimmed centroid, the plurality centroid
+    and the distance/medoid all use trim_cols (the chains the distance has always used);
+    the untrimmed centroid uses seq_cols. When trimming is off (`no_trim`) the trim_
+    column is a byte copy of the original, so the untrimmed centroid reuses the trimmed
+    alignment instead of aligning again.
+
+    Returns (centroid_df, plurality_df, distance_df, medoid_df) with the same columns and
+    schemas the old compute_consensus / compute_profile_distance_and_medoid produced:
+      - centroid_df:  [clusterId, centroid_<seq_cols>, centroid_<trim_cols>,
+                       centroid_trimmed_fullSequence]
+      - plurality_df: [clusterId, plurality_centroid_<trim_cols>,
+                       plurality_centroid_trimmed_fullSequence] (None values when not
+                       emit_plurality)
+      - distance_df:  [clusterId, clonotypeKey, distanceToCentroid]
+      - medoid_df:    [clusterId, medoid_key]
+    """
+    # One row per (clusterId, clonotypeKey) carrying every chain value (untrimmed +
+    # trimmed) and the weight; grouped into per-cluster lists in a single pass. All list
+    # aggregations in one .agg() share the same per-group row order, so __keys / __weights
+    # / __vals_* stay index-aligned (the distance assembly relies on this).
+    all_cols = seq_cols + trim_cols
+    value_lookup = cloneTable.select(
+        [pl.col("clonotypeKey")]
+        + [pl.col(c).fill_null("").alias(f"__v_{c}") for c in all_cols]
+    ).unique("clonotypeKey", keep="first")
+
+    members = (
+        clusters_df
+        .select(["clusterId", "clonotypeKey"])
+        .unique(subset=["clusterId", "clonotypeKey"], keep="first")
+        .join(value_lookup, on="clonotypeKey", how="left")
+        .join(weights_df, on="clonotypeKey", how="left")
+        .with_columns(
+            [pl.col(f"__v_{c}").fill_null("") for c in all_cols]
+            + [pl.col("weight").fill_null(1.0)]
+        )
+    )
+
+    grouped = (
+        members
+        .group_by("clusterId")
+        .agg(
+            pl.col("clonotypeKey").alias("__keys"),
+            pl.col("weight").alias("__weights"),
+            *[pl.col(f"__v_{c}").alias(f"__vals_{c}") for c in all_cols],
+        )
+    )
+
+    # Output column accumulators (lists, one entry per cluster row).
+    centroid_out = {"clusterId": []}
+    for c in seq_cols:
+        centroid_out[f"centroid_{c}"] = []
+    for c in trim_cols:
+        centroid_out[f"centroid_{c}"] = []
+    centroid_out["centroid_trimmed_fullSequence"] = []
+
+    plurality_out = {"clusterId": []}
+    for c in trim_cols:
+        plurality_out[f"plurality_centroid_{c}"] = []
+    plurality_out["plurality_centroid_trimmed_fullSequence"] = []
+
+    dist_clusters = []
+    dist_keys = []
+    dist_values = []
+    medoid_clusters = []
+    medoid_keys = []
+
+    # centroid_trimmed_fullSequence / plurality_* join the trim chains in sorted chain
+    # order (mirrors trimmed_fullSequence).
+    sorted_trim_cols = sorted(trim_cols)
+
+    for row in grouped.iter_rows(named=True):
+        cluster_id = row["clusterId"]
+        keys = row["__keys"]
+        wts = row["__weights"]
+
+        cons_trim: dict[str, str] = {}            # trim_col -> theoretical centroid (@ threshold)
+        plur_trim: dict[str, str] = {}            # trim_col -> plurality centroid (@ 0.0) or None
+        d_by_seq_chain: dict[str, dict] = {}      # trim_col -> {sanitized seq: D^(s)}
+        l_cons_chain: dict[str, int] = {}         # trim_col -> L_cons^(s)
+        cons_seq: dict[str, str] = {}             # seq_col -> untrimmed centroid
+
+        for sc, tc in zip(seq_cols, trim_cols):
+            # Align the trimmed chain ONCE; consensus, plurality and distance share it.
+            bundle_t = _align_chain(row[f"__vals_{tc}"], wts, cluster_id)
+            cons_trim[tc] = derive_consensus(bundle_t, threshold)
+            plur_trim[tc] = derive_consensus(bundle_t, 0.0) if emit_plurality else None
+            d_by_seq_chain[tc], l_cons_chain[tc] = derive_distances(bundle_t)
+
+            # Untrimmed centroid: identical to the trimmed one when trimming is off (the
+            # trim_ column is a byte copy of the original), else align separately.
+            if no_trim:
+                cons_seq[sc] = cons_trim[tc]
+            else:
+                bundle_u = _align_chain(row[f"__vals_{sc}"], wts, cluster_id)
+                cons_seq[sc] = derive_consensus(bundle_u, threshold)
+
+        # --- centroid row ---
+        centroid_out["clusterId"].append(cluster_id)
+        for c in seq_cols:
+            centroid_out[f"centroid_{c}"].append(cons_seq[c])
+        for c in trim_cols:
+            centroid_out[f"centroid_{c}"].append(cons_trim[c])
+        centroid_out["centroid_trimmed_fullSequence"].append(
+            "====".join(cons_trim[c] for c in sorted_trim_cols)
+        )
+
+        # --- plurality row (values only when --emit-plurality-centroid is set) ---
+        plurality_out["clusterId"].append(cluster_id)
+        if emit_plurality:
+            for c in trim_cols:
+                plurality_out[f"plurality_centroid_{c}"].append(plur_trim[c])
+            plurality_out["plurality_centroid_trimmed_fullSequence"].append(
+                "====".join(plur_trim[c] for c in sorted_trim_cols)
+            )
+        else:
+            for c in trim_cols:
+                plurality_out[f"plurality_centroid_{c}"].append(None)
+            plurality_out["plurality_centroid_trimmed_fullSequence"].append(None)
+
+        # --- profile distance (§3) + medoid (§2) over the trimmed chains ---
+        # weight is per clonotypeKey (constant across the cluster's chains).
+        weight_by_key: dict[str, float] = {}
+        seq_by_key: dict[str, str] = {}
+        d_total_by_key: dict[str, float] = {}
+        norm_by_key: dict[str, float] = {}
+        complete_by_key: dict[str, bool] = {}   # has every chain the cluster actually has
+        for idx, k in enumerate(keys):
+            weight_by_key[k] = wts[idx]
+            sum_d = 0.0          # Σ_s D_i^(s) (raw numerator, also the medoid key)
+            sum_norm = 0.0       # Σ_s max(L_cons^(s), ℓ_i^(s))
+            joined_parts = []
+            complete = True      # member carries every chain present in the cluster
+            for tc in trim_cols:
+                seq = row[f"__vals_{tc}"][idx]
+                joined_parts.append(seq)
+                member_len = len(seq)
+                if seq:
+                    # d_by_seq is keyed by the sanitized sequence (see _sanitize_seq); look
+                    # up with the same form or stray-char members would miss and be charged
+                    # full distance. Sanitizing is length-preserving, so member_len is
+                    # unchanged. Dropped-by-cap members are absent from d_by_seq -> charge
+                    # full length.
+                    d_s = d_by_seq_chain[tc].get(_sanitize_seq(seq), float(member_len))
+                    sum_d += d_s
+                    sum_norm += max(l_cons_chain[tc], member_len)
+                else:
+                    # Missing chain. A dropout is a sequencing artifact, not biology, so we
+                    # do NOT penalize it: the chain is dropped from BOTH the numerator and the
+                    # denominator, leaving its absence neutral to the distance. But a member
+                    # missing a chain the cluster actually has (l_cons_chain[tc] > 0) is an
+                    # incomplete clone and must not be picked as the reference centroid, so
+                    # flag it (see medoid below). When no member has this chain at all
+                    # (l_cons_chain[tc] == 0) the chain simply doesn't exist for the cluster.
+                    if l_cons_chain[tc] > 0:
+                        complete = False
+            seq_by_key[k] = "====".join(joined_parts)
+            d_total_by_key[k] = sum_d
+            norm_by_key[k] = min(1.0, sum_d / sum_norm) if sum_norm > 0 else 0.0
+            complete_by_key[k] = complete
+
+        for k in keys:
+            dist_clusters.append(cluster_id)
+            dist_keys.append(k)
+            dist_values.append(norm_by_key[k])
+
+        # Medoid (reference centroid): argmin D_i, tie-break (min D_i, -w_i, seq), but ONLY
+        # over COMPLETE members — a clone missing a chain (now unpenalized in the distance)
+        # must not be chosen as the biological reference. Dropped-by-cap members carry
+        # inflated D_i so they don't win the argmin. Fall back to all members only if no
+        # member is complete (degenerate cluster where every member lacks some chain).
+        candidate_keys = [k for k in keys if complete_by_key[k]] or keys
+        best_key = min(
+            candidate_keys,
+            key=lambda k: (d_total_by_key[k], -weight_by_key[k], seq_by_key[k])
+        )
+        medoid_clusters.append(cluster_id)
+        medoid_keys.append(best_key)
+
+    centroid_schema = {"clusterId": clusters_df.schema["clusterId"]}
+    for c in seq_cols:
+        centroid_schema[f"centroid_{c}"] = pl.String
+    for c in trim_cols:
+        centroid_schema[f"centroid_{c}"] = pl.String
+    centroid_schema["centroid_trimmed_fullSequence"] = pl.String
+    centroid_df = pl.DataFrame(centroid_out, schema=centroid_schema)
+
+    plurality_schema = {"clusterId": clusters_df.schema["clusterId"]}
+    for c in trim_cols:
+        plurality_schema[f"plurality_centroid_{c}"] = pl.String
+    plurality_schema["plurality_centroid_trimmed_fullSequence"] = pl.String
+    plurality_df = pl.DataFrame(plurality_out, schema=plurality_schema)
+
+    distance_df = pl.DataFrame(
+        {
+            "clusterId": dist_clusters,
+            "clonotypeKey": dist_keys,
+            "distanceToCentroid": dist_values,
+        },
+        schema={
+            "clusterId": clusters_df.schema["clusterId"],
+            "clonotypeKey": clusters_df.schema["clonotypeKey"],
+            "distanceToCentroid": pl.Float64,
+        },
+    )
+    medoid_df = pl.DataFrame(
+        {"clusterId": medoid_clusters, "medoid_key": medoid_keys},
+        schema={"clusterId": clusters_df.schema["clusterId"], "medoid_key": pl.String},
+    )
+    return centroid_df, plurality_df, distance_df, medoid_df
+
+
+# --- Theoretical centroid + plurality centroid + profile distance/medoid ---
+# All three derive from a SINGLE per-cluster, per-chain kalign MSA (see
+# compute_centroid_and_distance), instead of re-aligning the same sequences in three
+# separate passes. The theoretical centroid (abundance-weighted consensus) drives the
+# distance/radius metrics; the reference centroid (medoid) is computed from the same
+# alignment and kept purely as a reference. trim_sequence_N equals sequence_N when no
+# trimming is configured, so the untrimmed centroid reuses the trimmed alignment then.
+no_trim = (trim_start == 0 and trim_end == 0)
+
+centroid_df = None
+distance_member_df = None    # [clusterId, clonotypeKey, distanceToCentroid]
+reference_df = None          # reference_centroid_* per clusterId
+reference_cluster_to_seq_cols = []
+
+if sequence_cols:
+    centroid_df, plurality_df, distance_member_df, medoid_df = compute_centroid_and_distance(
+        clusters, cloneTable, clonotype_weights,
+        sequence_cols, trimmed_cols, consensus_threshold, emit_plurality, no_trim,
+    )
+else:
+    # No sequence columns: still write a header-only plurality file (the clustering
+    # workflow always saveFiles/getFiles it), matching create-empty-files.py's schema.
+    plurality_df = (
+        clusters.select("clusterId").unique("clusterId", keep="first")
+        .with_columns(pl.lit(None, dtype=pl.Utf8).alias("plurality_centroid_trimmed_fullSequence"))
+    )
+
+# clusterLabel: the CL-XXXX label, imported as the variantKey axis's own label column so the
+# exported dataset's axis displays "CL-..." instead of the raw clusterId value (and merges with
+# the same label reached through the linker, instead of showing as a duplicate column).
+# Linker source: a duplicate of clusterId plus a constant link value. The exported dataset lives
+# on the variantKey axis (values = clusterId); the linker column carries both that axis and the
+# cluster-properties clusterId axis, so a downstream block anchoring the consensus dataset can
+# reach every cluster property (all on the clusterId axis). clusterIdLink feeds the second axis
+# (the import projects each axis by its own column name, so the two axes need distinct columns).
+plurality_df = plurality_df.join(
+    clusters.select(["clusterId", "clusterLabel", "peptideLabel"]).unique("clusterId", keep="first"),
+    on="clusterId", how="left",
+).with_columns(
+    pl.col("clusterId").alias("clusterIdLink"),
+    pl.lit(1, dtype=pl.Int64).alias("link"),
+)
+
+# plurality-centroid.tsv is ALWAYS written; values are present only when
+# --emit-plurality-centroid is set (the threshold-0, X-free plurality consensus), and the
+# workflow only imports it when the "Generate centroid dataset" checkbox is on. Computing
+# it from the already-built MSA adds no extra kalign pass.
+plurality_df.write_csv("plurality-centroid.tsv", separator="\t")
+
+# Ordered list of centroid columns emitted into cluster-to-seq.tsv.
+centroid_cluster_to_seq_cols = (
+    [f"centroid_{c}" for c in sequence_cols]
+    + [f"centroid_{c}" for c in trimmed_cols]
+    + (["centroid_trimmed_fullSequence"] if sequence_cols else [])
+)
+
+# --- Reference centroid (medoid) columns from the medoid computed above ---
+if sequence_cols:
+    # Reference centroid = the medoid member's own per-chain sequences (a real member),
+    # mirroring the centroid_* set: reference_centroid_<sequence_N> /
+    # reference_centroid_<trim_sequence_N> / reference_centroid_trimmed_fullSequence.
+    ref_source_cols = sequence_cols + trimmed_cols + ["trimmed_fullSequence"]
+    ref_lookup = (
+        cloneTable
+        .select(
+            [pl.col("clonotypeKey").alias("medoid_key")]
+            + [pl.col(c).fill_null("").alias(f"reference_centroid_{c}") for c in ref_source_cols]
+        )
+        .unique("medoid_key", keep="first")
+    )
+    reference_df = medoid_df.join(ref_lookup, on="medoid_key", how="left").drop("medoid_key")
+
+    reference_cluster_to_seq_cols = (
+        [f"reference_centroid_{c}" for c in sequence_cols]
+        + [f"reference_centroid_{c}" for c in trimmed_cols]
+        + ["reference_centroid_trimmed_fullSequence"]
+    )
 
 # --- Generate cluster-to-seq.tsv ---
 # Prepare the right DataFrame for the join, ensuring 'clusterId' and 'size' are treated as payload.
@@ -302,7 +850,17 @@ cluster_to_seq_df = unique_clusters_info.join(
     how="left"
 )
 
-cluster_to_seq = cluster_to_seq_df.select(required_cols_cts)
+# Attach theoretical centroid (consensus) columns, keyed by clusterId.
+if centroid_df is not None:
+    cluster_to_seq_df = cluster_to_seq_df.join(centroid_df, on="clusterId", how="left")
+
+# Attach reference centroid (medoid) columns, keyed by clusterId. Always emitted.
+if reference_df is not None:
+    cluster_to_seq_df = cluster_to_seq_df.join(reference_df, on="clusterId", how="left")
+
+cluster_to_seq = cluster_to_seq_df.select(
+    required_cols_cts + centroid_cluster_to_seq_cols + reference_cluster_to_seq_cols
+)
 cluster_to_seq.write_csv(clusterToSeqTsv, separator="\t")
 
 
@@ -417,89 +975,20 @@ distance_df = distance_df_base.join(
 if not sequence_cols:
     print("No sequence columns found. Setting distanceToCentroid to 0.0 for all entries.")
     distance_df = distance_df.with_columns(
-        pl.lit(0.0, dtype=pl.Float64).alias("distanceToCentroid"),
-        pl.lit(0, dtype=pl.Int64).alias("total_raw_distance")
+        pl.lit(0.0, dtype=pl.Float64).alias("distanceToCentroid")
     )
 else:
-    # Use trimmed per-chain columns for distance computation
-    member_seq_select_expr = [pl.col("clonotypeKey").alias("member_join_key_seq")] + \
-                             [pl.col(f"trim_{sc}").alias(f"member_{sc}") for sc in sequence_cols]
-    member_sequences_to_join = cloneTable.select(member_seq_select_expr).unique("member_join_key_seq", keep="first")
-
-    centroid_seq_select_expr = [pl.col("clonotypeKey").alias("centroid_join_key_seq")] + \
-                               [pl.col(f"trim_{sc}").alias(f"centroid_{sc}") for sc in sequence_cols]
-    centroid_sequences_to_join = cloneTable.select(centroid_seq_select_expr).unique("centroid_join_key_seq", keep="first")
-
+    # distanceToCentroid is the positional profile distance (§3), precomputed per
+    # member over the same per-cluster MSA as the centroid (see
+    # compute_centroid_and_distance). Attach it by (clusterId, clonotypeKey);
+    # this replaces the previous whole-string pds.str_leven against the centroid.
     distance_df = distance_df.join(
-        member_sequences_to_join,
-        left_on="clonotypeKey",
-        right_on="member_join_key_seq",
+        distance_member_df,
+        on=["clusterId", "clonotypeKey"],
         how="left"
+    ).with_columns(
+        pl.col("distanceToCentroid").fill_null(0.0)
     )
-
-    distance_df = distance_df.join(
-        centroid_sequences_to_join,
-        left_on="clusterId",
-        right_on="centroid_join_key_seq",
-        how="left"
-    )
-
-    temp_raw_dist_cols = []
-    temp_len_centroid_cols = []
-
-    for sc_base_name in sequence_cols:
-        member_sc_col = f"member_{sc_base_name}"
-        centroid_sc_col = f"centroid_{sc_base_name}"
-
-        raw_dist_segment_col = f"__raw_dist_{sc_base_name}"
-        len_centroid_segment_col = f"__len_centroid_{sc_base_name}"
-
-        temp_raw_dist_cols.append(raw_dist_segment_col)
-        temp_len_centroid_cols.append(len_centroid_segment_col)
-
-        distance_df = distance_df.with_columns(
-            pl.when(pl.col(member_sc_col).is_not_null() & pl.col(centroid_sc_col).is_not_null())
-              .then(pds.str_leven(pl.col(member_sc_col), pl.col(centroid_sc_col), return_sim=False))
-              .when(pl.col(member_sc_col).is_not_null() & pl.col(centroid_sc_col).is_null())
-              .then(pl.col(member_sc_col).str.len_chars())
-              .when(pl.col(member_sc_col).is_null() & pl.col(centroid_sc_col).is_not_null())
-              .then(pl.col(centroid_sc_col).str.len_chars())
-              .otherwise(0)
-              .alias(raw_dist_segment_col),
-
-            pl.col(centroid_sc_col).str.len_chars().fill_null(0).alias(len_centroid_segment_col)
-        )
-
-    distance_df = distance_df.with_columns(
-        pl.sum_horizontal([pl.col(name) for name in temp_raw_dist_cols]).alias("total_raw_distance"),
-        pl.sum_horizontal([pl.col(name) for name in temp_len_centroid_cols]).alias("total_centroid_length_for_norm")
-    )
-
-    distance_df = distance_df.with_columns(
-        pl.when(pl.col("total_centroid_length_for_norm") > 0)
-          .then(
-              pl.min_horizontal(
-                  pl.lit(1.0, dtype=pl.Float64),
-                  pl.col("total_raw_distance").cast(pl.Float64) / pl.col("total_centroid_length_for_norm").cast(pl.Float64)
-              )
-          )
-          .when(pl.col("total_raw_distance") == 0)
-          .then(pl.lit(0.0, dtype=pl.Float64))
-          .otherwise(pl.lit(1.0, dtype=pl.Float64))
-          .alias("distanceToCentroid")
-    )
-
-    cols_to_drop_after_calc = (
-        temp_raw_dist_cols
-        + temp_len_centroid_cols
-        + [f"member_{sc}" for sc in sequence_cols]
-        + [f"centroid_{sc}" for sc in sequence_cols]
-        + ["member_join_key_seq", "centroid_join_key_seq"]
-    )
-
-    existing_cols_to_drop = [col for col in cols_to_drop_after_calc if col in distance_df.columns]
-    if existing_cols_to_drop:
-        distance_df = distance_df.drop(existing_cols_to_drop)
 
 
 # Select final columns for the output TSV

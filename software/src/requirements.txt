@@ -1,3 +1,4 @@
 pandas==2.2.3
 polars-lts-cpu==1.33.1
 polars-ds-lts-cpu==0.10.2
+kalign-python==3.6.0

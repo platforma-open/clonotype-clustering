@@ -75,7 +75,36 @@ const onRowDoubleClicked = reactive((key?: PTableKey) => {
 
 function setInput(inputRef?: PlRef) {
   app.model.data.datasetRef = inputRef;
+  // Sequence selections are scoped to a dataset; switching datasets invalidates
+  // them. Clear so the user re-picks against the new options and we never carry
+  // over an unresolvable ref (which would crash the workflow at xsv import).
+  app.model.data.sequencesRef = [];
 }
+
+// Self-heal stale sequence selections. PlDropdownMulti only renders chips for
+// refs present in `:options`, so if the dataset/upstream changes and a
+// previously-selected sequence column disappears from the options, the user
+// can no longer deselect it — leaving the block stuck with an unresolvable ref
+// that crashes the run ("Invalid column value in frame"). Whenever options
+// load, drop any selected ref that is no longer a valid option.
+// Guard: act only on a non-empty, loaded option set, so a transient
+// loading/empty state can't wipe a valid selection. Watching the OUTPUT (not
+// `data.sequencesRef`) is deliberate — see onSequencesRefChange's note about
+// the SDK replacing the whole args object on server patches.
+watch(
+  () => app.model.outputs.sequenceOptions,
+  (options) => {
+    if (!options || options.length === 0) return;
+    const selected = app.model.data.sequencesRef;
+    if (!selected || selected.length === 0) return;
+    const valid = new Set(options.map((o) => o.value));
+    const pruned = selected.filter((id) => valid.has(id));
+    if (pruned.length !== selected.length) {
+      app.model.data.sequencesRef = pruned;
+    }
+  },
+  { immediate: true },
+);
 
 const tableSettings = usePlDataTableSettingsV2({
   model: () => app.model.outputs.clustersTable,
@@ -267,6 +296,40 @@ const clusterAxis = computed<AxisId>(() => {
           considered for the same cluster.
         </template>
       </PlNumberField>
+
+      <PlSectionSeparator>Centroid</PlSectionSeparator>
+      <PlNumberField
+        v-model="app.model.data.consensusThreshold"
+        label="Consensus Threshold"
+        :minValue="0"
+        :step="0.05"
+        :maxValue="1.0"
+      >
+        <template #tooltip>
+          Minimum abundance-weighted fraction a residue must reach in an alignment column for the
+          <b>Theoretical Centroid</b> to emit it; columns below the threshold emit <b>X</b>. The
+          theoretical centroid (kalign MSA consensus) is what distance-to-centroid and cluster
+          radius are measured against; the <b>Reference Centroid</b> (the closest real member) is
+          always reported alongside it.
+        </template>
+      </PlNumberField>
+
+      <PlCheckbox
+        v-if="app.model.outputs.modality === 'peptide'"
+        v-model="app.model.data.generateDataset"
+      >
+        Export consensus sequences as a dataset
+        <PlTooltip class="info" position="top">
+          <template #tooltip>
+            Collapse each cluster into a single representative sequence and export them as a new
+            dataset you can feed into downstream analyses. The representative is the cluster's
+            <b>consensus</b> — the most frequent amino acid at each aligned position, weighted by
+            clonotype abundance — so it summarizes the whole group and need not match any individual
+            observed clonotype. Available for peptide inputs only.
+          </template>
+        </PlTooltip>
+      </PlCheckbox>
+
       <PlAlert v-if="app.model.outputs.inputState" type="warn" style="margin-top: 1rem">
         {{
           "Error: The input dataset you have selected is empty. \
