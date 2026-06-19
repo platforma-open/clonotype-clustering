@@ -39,7 +39,7 @@ export const clusteringToolOptions = [
  * prohibitively slow; linclust (linear-time) is auto-selected instead. Applied
  * on dataset selection in the UI — see `datasetSize` and `setInput`.
  */
-export const LARGE_DATASET_ROW_THRESHOLD = 1_000;
+export const LARGE_DATASET_ROW_THRESHOLD = 1_000_000;
 
 /** Selectors for the anchor (abundance) columns offered as the input dataset. */
 const datasetMatchers = [
