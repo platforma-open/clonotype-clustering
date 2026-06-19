@@ -2,6 +2,7 @@ import polars as pl
 import polars_ds as pds
 import argparse
 import re
+import hashlib
 import kalign
 
 # --- Computed-centroid (kalign MSA consensus) constants ---
@@ -105,13 +106,12 @@ else:
     )
 
 # Transform clonotypeKeyLabel from "C-XXXXXX" (clonotype, MiXCR-side) or "P-XXXXXX"
-# (peptide, peptide-extraction-side) into "CL-XXXXXX". We ALSO retain the original
-# pre-transform label as 'peptideLabel' (the representative's "P-XXXX"/"C-XXXX" form),
-# carried through to the per-cluster table so plurality-centroid.tsv can expose it as the
-# variantKey axis's "Peptide Id" label column.
+# (peptide, peptide-extraction-side) into "CL-XXXXXX" (the cluster label).
+# The computed centroid's own "Peptide Id" is NOT derived here — it is a hash of the
+# consensus sequence itself, computed once the plurality centroid is known (see the
+# peptideLabel derivation on plurality_df below).
 cloneTable = cloneTable.with_columns(
     pl.col('clonotypeKeyLabel').str.replace(r'^[CP]-', 'CL-').alias('clusterLabel'),
-    pl.col('clonotypeKeyLabel').alias('peptideLabel'),
 )
 
 # clusterId, clonotypeKey (both are representative keys from de-duplicated FASTA)
@@ -278,7 +278,6 @@ clusters = clusters.with_columns(
 labelsTable_for_join = cloneTable.select(
     pl.col('clonotypeKey').alias('clusterId'), # Alias to 'clusterId' to match the left table's key name
     'clusterLabel', # The "CL-XXXX" label associated with this key in cloneTable
-    'peptideLabel'  # The representative's original "P-XXXX"/"C-XXXX" label
 ).unique(subset=['clusterId'], keep='first') # Unique on the new 'clusterId' column
 
 clusters = clusters.join(
@@ -761,11 +760,29 @@ else:
 # reach every cluster property (all on the clusterId axis). clusterIdLink feeds the second axis
 # (the import projects each axis by its own column name, so the two axes need distinct columns).
 plurality_df = plurality_df.join(
-    clusters.select(["clusterId", "clusterLabel", "peptideLabel"]).unique("clusterId", keep="first"),
+    clusters.select(["clusterId", "clusterLabel"]).unique("clusterId", keep="first"),
     on="clusterId", how="left",
 ).with_columns(
     pl.col("clusterId").alias("clusterIdLink"),
     pl.lit(1, dtype=pl.Int64).alias("link"),
+)
+
+# peptideLabel: the computed centroid's "Peptide Id", exposed on the variantKey axis.
+# Peptide ids are sequence-derived properties, so the theoretical centroid (a NEW sequence
+# that need not match any observed member) gets its own id derived from the consensus
+# sequence itself — a bare hex hash of plurality_centroid_trimmed_fullSequence, with no
+# "P-"/"C-"/"CL-" prefix so it is visibly a hash and never collides with a real peptide id
+# in the original dataset. Same consensus sequence -> same id, deterministically. Null when
+# there is no centroid sequence (no sequence columns, or plurality not emitted).
+def _seq_hash(seq):
+    if seq is None or seq == "":
+        return None
+    return hashlib.sha1(seq.encode("utf-8")).hexdigest()[:16]
+
+plurality_df = plurality_df.with_columns(
+    pl.col("plurality_centroid_trimmed_fullSequence")
+      .map_elements(_seq_hash, return_dtype=pl.String)
+      .alias("peptideLabel")
 )
 
 # plurality-centroid.tsv is ALWAYS written; values are present only when
