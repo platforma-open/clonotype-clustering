@@ -74,8 +74,14 @@ const onRowDoubleClicked = reactive((key?: PTableKey) => {
   multipleSequenceAlignmentOpen.value = true;
 });
 
+// Set when the user interactively picks a dataset; consumed once that dataset's
+// size resolves (the model reports it a tick later). Kept in local Vue state, not
+// in `data` — it is transient UI intent, never persisted.
+const pendingSizeAutoSelect = ref(false);
+
 function setInput(inputRef?: PlRef) {
   app.model.data.datasetRef = inputRef;
+  pendingSizeAutoSelect.value = inputRef !== undefined;
 }
 
 // Auto-select the clustering algorithm by dataset size: cascaded easy-cluster is
@@ -84,7 +90,8 @@ function setInput(inputRef?: PlRef) {
 watch(
   () => app.model.outputs.datasetSize,
   (size) => {
-    if (size === undefined) return;
+    if (!pendingSizeAutoSelect.value || size === undefined) return;
+    pendingSizeAutoSelect.value = false;
     app.model.data.clusteringTool =
       size > LARGE_DATASET_ROW_THRESHOLD ? "easy-linclust" : "easy-cluster";
   },
