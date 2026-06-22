@@ -1,35 +1,36 @@
-import type { GraphMakerState } from '@milaboratories/graph-maker';
-import strings from '@milaboratories/strings';
+import type { GraphMakerState } from "@milaboratories/graph-maker";
+import strings from "@milaboratories/strings";
 import type {
   PColumnIdAndSpec,
   PColumnSpec,
   PFrameHandle,
   PlDataTableStateV2,
   PlMultiSequenceAlignmentModel,
-  PlRef, SUniversalPColumnId,
-} from '@platforma-sdk/model';
+  PlRef,
+  SUniversalPColumnId,
+} from "@platforma-sdk/model";
 import {
   BlockModelV3,
   DataModelBuilder,
   createPFrameForGraphs,
   createPlDataTableStateV2,
   createPlDataTableV2,
-} from '@platforma-sdk/model';
-export type * from '@milaboratories/helpers';
+} from "@platforma-sdk/model";
+export type * from "@milaboratories/helpers";
 
 /** Map user-facing similarity type to mmseqs2 similarity type */
 export const similarityTypeOptions = [
-  { label: 'Exact Match', value: 'sequence-identity' },
-  { label: 'BLOSUM40', value: 'blosum40' },
-  { label: 'BLOSUM50', value: 'blosum50' },
-  { label: 'BLOSUM62', value: 'blosum62' },
-  { label: 'BLOSUM80', value: 'blosum80' },
-  { label: 'BLOSUM90', value: 'blosum90' },
+  { label: "Exact Match", value: "sequence-identity" },
+  { label: "BLOSUM40", value: "blosum40" },
+  { label: "BLOSUM50", value: "blosum50" },
+  { label: "BLOSUM62", value: "blosum62" },
+  { label: "BLOSUM80", value: "blosum80" },
+  { label: "BLOSUM90", value: "blosum90" },
 ] as const;
 
 export const clusteringToolOptions = [
-  { label: 'Easy Cluster', value: 'easy-cluster' },
-  { label: 'Easy Linclust', value: 'easy-linclust' },
+  { label: "Easy Cluster", value: "easy-cluster" },
+  { label: "Easy Linclust", value: "easy-linclust" },
 ] as const;
 
 type OldArgs = {
@@ -38,15 +39,21 @@ type OldArgs = {
   datasetRef?: PlRef;
   sequencesRef: SUniversalPColumnId[];
   // Added sequenceType here for future use in algorithm selection in workflow
-  sequenceType: 'aminoacid' | 'nucleotide';
+  sequenceType: "aminoacid" | "nucleotide";
   identity: number;
-  similarityType: 'sequence-identity' | 'blosum40' | 'blosum50' | 'blosum62' | 'blosum80' | 'blosum90';
+  similarityType:
+    | "sequence-identity"
+    | "blosum40"
+    | "blosum50"
+    | "blosum62"
+    | "blosum80"
+    | "blosum90";
   coverageThreshold: number; // fraction of aligned residues required
   coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
   highPrecision: boolean; // use high-precision mmseqs2 settings (suitable for short sequences like CDR3)
   trimStart?: number; // number of amino acids to remove from the beginning
   trimEnd?: number; // number of amino acids to remove from the end
-  clusteringTool: 'easy-cluster' | 'easy-linclust';
+  clusteringTool: "easy-cluster" | "easy-linclust";
   mem?: number;
   cpu?: number;
 };
@@ -63,15 +70,21 @@ export type BlockData = {
   customBlockLabel: string;
   datasetRef?: PlRef;
   sequencesRef: SUniversalPColumnId[];
-  sequenceType: 'aminoacid' | 'nucleotide';
+  sequenceType: "aminoacid" | "nucleotide";
   identity: number;
-  similarityType: 'sequence-identity' | 'blosum40' | 'blosum50' | 'blosum62' | 'blosum80' | 'blosum90';
+  similarityType:
+    | "sequence-identity"
+    | "blosum40"
+    | "blosum50"
+    | "blosum62"
+    | "blosum80"
+    | "blosum90";
   coverageThreshold: number; // fraction of aligned residues required
   coverageMode: 0 | 1 | 2 | 3 | 4 | 5; // Complex option. Not available to user
   highPrecision: boolean; // use high-precision mmseqs2 settings (suitable for short sequences like CDR3)
   trimStart?: number; // number of amino acids to remove from the beginning
   trimEnd?: number; // number of amino acids to remove from the end
-  clusteringTool: 'easy-cluster' | 'easy-linclust';
+  clusteringTool: "easy-cluster" | "easy-linclust";
   mem?: number;
   cpu?: number;
   tableState: PlDataTableStateV2;
@@ -82,18 +95,16 @@ export type BlockData = {
 
 export function getDefaultBlockLabel(data: {
   sequenceLabels: string[];
-  similarityType: BlockData['similarityType'];
+  similarityType: BlockData["similarityType"];
   identity: number;
   coverageThreshold: number;
   trimStart: number;
   trimEnd: number;
 }) {
   const parts: string[] = [];
-  parts.push(data.sequenceLabels.join(' - '));
+  parts.push(data.sequenceLabels.join(" - "));
   parts.push(
-    similarityTypeOptions
-      .find((o) => o.value === data.similarityType)
-      ?.label ?? 'BLOSUM62',
+    similarityTypeOptions.find((o) => o.value === data.similarityType)?.label ?? "BLOSUM62",
   );
   parts.push(`ident:${data.identity}`);
   parts.push(`cov:${data.coverageThreshold}`);
@@ -103,16 +114,17 @@ export function getDefaultBlockLabel(data: {
   if (data.trimEnd > 0) {
     parts.push(`trimEnd: ${data.trimEnd}`);
   }
-  return parts.filter(Boolean).join(', ');
+  return parts.filter(Boolean).join(", ");
 }
 
 const defaultSimilarityType = similarityTypeOptions[3];
 
 const dataModel = new DataModelBuilder()
-  .from<BlockData>('v1')
+  .from<BlockData>("v1")
   .upgradeLegacy<OldArgs, OldUiState>(({ args, uiState }) => ({
     ...args,
-    similarityType: (args.similarityType as string) === 'alignment-score' ? 'blosum62' : args.similarityType,
+    similarityType:
+      (args.similarityType as string) === "alignment-score" ? "blosum62" : args.similarityType,
     tableState: uiState.tableState,
     graphStateBubble: uiState.graphStateBubble,
     alignmentModel: uiState.alignmentModel,
@@ -127,9 +139,9 @@ const dataModel = new DataModelBuilder()
       trimStart: 0,
       trimEnd: 0,
     }),
-    customBlockLabel: '',
+    customBlockLabel: "",
     sequencesRef: [],
-    sequenceType: 'aminoacid',
+    sequenceType: "aminoacid",
     identity: 0.8,
     similarityType: defaultSimilarityType.value,
     coverageThreshold: 0.8, // default value matching MMseqs2 default
@@ -137,11 +149,11 @@ const dataModel = new DataModelBuilder()
     highPrecision: false, // default to off, can be enabled manually in advanced settings
     trimStart: 0, // default to no trimming from start
     trimEnd: 0, // default to no trimming from end
-    clusteringTool: 'easy-cluster',
+    clusteringTool: "easy-cluster",
     tableState: createPlDataTableStateV2(),
     graphStateBubble: {
-      title: 'Most abundant clusters',
-      template: 'bubble',
+      title: "Most abundant clusters",
+      template: "bubble",
       currentTab: null,
       layersSettings: {
         bubble: {
@@ -152,15 +164,15 @@ const dataModel = new DataModelBuilder()
     alignmentModel: {},
     graphStateHistogram: {
       title: strings.titles.histogram,
-      template: 'bins',
+      template: "bins",
       currentTab: null,
       layersSettings: {
-        bins: { fillColor: '#99e099' },
+        bins: { fillColor: "#99e099" },
       },
       axesSettings: {
         axisY: {
           axisLabelsAngle: 90,
-          scale: 'log',
+          scale: "log",
         },
         other: { binsCount: 30 },
       },
@@ -170,8 +182,8 @@ const dataModel = new DataModelBuilder()
 export const platforma = BlockModelV3.create(dataModel)
 
   .args((data) => {
-    if (!data.datasetRef) throw new Error('Dataset is required');
-    if (!data.sequencesRef.length) throw new Error('Sequences are required');
+    if (!data.datasetRef) throw new Error("Dataset is required");
+    if (!data.sequencesRef.length) throw new Error("Sequences are required");
     return {
       defaultBlockLabel: data.defaultBlockLabel,
       customBlockLabel: data.customBlockLabel,
@@ -191,49 +203,46 @@ export const platforma = BlockModelV3.create(dataModel)
     };
   })
 
-  .output('datasetOptions', (ctx) =>
-    ctx.resultPool.getOptions([{
-      axes: [
-        { name: 'pl7.app/sampleId' },
-        { name: 'pl7.app/vdj/clonotypeKey' },
+  .output("datasetOptions", (ctx) =>
+    ctx.resultPool.getOptions(
+      [
+        {
+          axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/clonotypeKey" }],
+          annotations: { "pl7.app/isAnchor": "true" },
+        },
+        {
+          axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/scClonotypeKey" }],
+          annotations: { "pl7.app/isAnchor": "true" },
+        },
+        {
+          axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/variantKey" }],
+          annotations: { "pl7.app/isAnchor": "true" },
+        },
       ],
-      annotations: { 'pl7.app/isAnchor': 'true' },
-    }, {
-      axes: [
-        { name: 'pl7.app/sampleId' },
-        { name: 'pl7.app/vdj/scClonotypeKey' },
-      ],
-      annotations: { 'pl7.app/isAnchor': 'true' },
-    }, {
-      axes: [
-        { name: 'pl7.app/sampleId' },
-        { name: 'pl7.app/variantKey' },
-      ],
-      annotations: { 'pl7.app/isAnchor': 'true' },
-    }],
-    {
-      // suppress native label of the column (e.g. "Number of Reads") to show only the dataset label
-      label: { includeNativeLabel: false },
-    }),
+      {
+        // suppress native label of the column (e.g. "Number of Reads") to show only the dataset label
+        label: { includeNativeLabel: false },
+      },
+    ),
   )
 
-  .output('sequenceOptions', (ctx) => {
+  .output("sequenceOptions", (ctx) => {
     const ref = ctx.data.datasetRef;
     if (ref === undefined) return undefined;
 
     const axis1Name = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1].name;
-    const isPeptide = axis1Name === 'pl7.app/variantKey';
-    const isSingleCell = axis1Name === 'pl7.app/vdj/scClonotypeKey';
+    const isPeptide = axis1Name === "pl7.app/variantKey";
+    const isSingleCell = axis1Name === "pl7.app/vdj/scClonotypeKey";
 
     const sequenceMatchers = [];
 
     if (isPeptide) {
       sequenceMatchers.push({
-        axes: [{ anchor: 'main', idx: 1 }],
-        name: 'pl7.app/sequence',
+        axes: [{ anchor: "main", idx: 1 }],
+        name: "pl7.app/sequence",
         domain: {
-          'pl7.app/feature': 'peptide',
-          'pl7.app/alphabet': ctx.data.sequenceType,
+          "pl7.app/feature": "peptide",
+          "pl7.app/alphabet": ctx.data.sequenceType,
         },
       });
     } else {
@@ -242,54 +251,51 @@ export const platforma = BlockModelV3.create(dataModel)
       // for (const feature of allowedFeatures) {
       if (isSingleCell) {
         sequenceMatchers.push({
-          axes: [{ anchor: 'main', idx: 1 }],
-          name: 'pl7.app/vdj/sequence',
+          axes: [{ anchor: "main", idx: 1 }],
+          name: "pl7.app/vdj/sequence",
           domain: {
             // 'pl7.app/vdj/feature': feature,
-            'pl7.app/vdj/scClonotypeChain/index': 'primary',
-            'pl7.app/alphabet': ctx.data.sequenceType,
+            "pl7.app/vdj/scClonotypeChain/index": "primary",
+            "pl7.app/alphabet": ctx.data.sequenceType,
           },
         });
       } else {
         sequenceMatchers.push({
-          axes: [{ anchor: 'main', idx: 1 }],
-          name: 'pl7.app/vdj/sequence',
+          axes: [{ anchor: "main", idx: 1 }],
+          name: "pl7.app/vdj/sequence",
           domain: {
             // 'pl7.app/vdj/feature': feature,
-            'pl7.app/alphabet': ctx.data.sequenceType,
+            "pl7.app/alphabet": ctx.data.sequenceType,
           },
         });
       }
 
       // Check if any PColumns in the dataset have the name "pl7.app/vdj/scFv-sequence"
-      const scfvColumns = ctx.resultPool.getAnchoredPColumns(
-        { main: ref },
-        [{
-          name: 'pl7.app/vdj/scFv-sequence',
-        }],
-      );
+      const scfvColumns = ctx.resultPool.getAnchoredPColumns({ main: ref }, [
+        {
+          name: "pl7.app/vdj/scFv-sequence",
+        },
+      ]);
       if (scfvColumns && scfvColumns.length > 0) {
         sequenceMatchers.push({
-          axes: [{ anchor: 'main', idx: 1 }],
-          name: 'pl7.app/vdj/scFv-sequence',
+          axes: [{ anchor: "main", idx: 1 }],
+          name: "pl7.app/vdj/scFv-sequence",
           domain: {
-            'pl7.app/alphabet': ctx.data.sequenceType,
+            "pl7.app/alphabet": ctx.data.sequenceType,
           },
         });
       }
     }
 
-    return ctx.resultPool.getCanonicalOptions(
-      { main: ref },
-      sequenceMatchers,
-      { ignoreMissingDomains: true,
-        labelOps: {
-          includeNativeLabel: true,
-        },
-      });
+    return ctx.resultPool.getCanonicalOptions({ main: ref }, sequenceMatchers, {
+      ignoreMissingDomains: true,
+      labelOps: {
+        includeNativeLabel: true,
+      },
+    });
   })
 
-  .output('isSingleCell', (ctx) => {
+  .output("isSingleCell", (ctx) => {
     if (ctx.data.datasetRef === undefined) return undefined;
 
     const spec = ctx.resultPool.getPColumnSpecByRef(ctx.data.datasetRef);
@@ -297,47 +303,54 @@ export const platforma = BlockModelV3.create(dataModel)
       return undefined;
     }
 
-    return spec.axesSpec[1].name === 'pl7.app/vdj/scClonotypeKey';
+    return spec.axesSpec[1].name === "pl7.app/vdj/scClonotypeKey";
   })
 
-  .output('modality', (ctx) => {
-    const spec = ctx.data.datasetRef
-      ? ctx.resultPool.getPColumnSpecByRef(ctx.data.datasetRef)
-      : undefined;
-    if (!spec) return undefined;
-    for (const ax of spec.axesSpec) {
-      if (ax.name === 'pl7.app/variantKey') return 'peptide';
-      if (ax.name === 'pl7.app/vdj/clonotypeKey' || ax.name === 'pl7.app/vdj/scClonotypeKey') return 'antibody_tcr';
-    }
-    // Fallback when the input is resolved but unrecognized.
-    return 'antibody_tcr';
-  }, { retentive: true })
+  .output(
+    "modality",
+    (ctx) => {
+      const spec = ctx.data.datasetRef
+        ? ctx.resultPool.getPColumnSpecByRef(ctx.data.datasetRef)
+        : undefined;
+      if (!spec) return undefined;
+      for (const ax of spec.axesSpec) {
+        if (ax.name === "pl7.app/variantKey") return "peptide";
+        if (ax.name === "pl7.app/vdj/clonotypeKey" || ax.name === "pl7.app/vdj/scClonotypeKey")
+          return "antibody_tcr";
+      }
+      // Fallback when the input is resolved but unrecognized.
+      return "antibody_tcr";
+    },
+    { retentive: true },
+  )
 
-  .output('inputState', (ctx): boolean | undefined => {
+  .output("inputState", (ctx): boolean | undefined => {
     // Not-ready-safe read — getDataAsJson throws mid-run here on remote backends (MILAB-6318).
-    const inputState = ctx.outputs?.resolve('isEmpty')?.getDataAsJsonOrUndefined<unknown>();
-    if (typeof inputState === 'boolean') {
+    const inputState = ctx.outputs?.resolve("isEmpty")?.getDataAsJsonOrUndefined<unknown>();
+    if (typeof inputState === "boolean") {
       return inputState;
     }
     return undefined;
   })
 
-  .output('minPeptideLength', (ctx): number | undefined => {
+  .output("minPeptideLength", (ctx): number | undefined => {
     // Not-ready-safe read — getDataAsJson throws mid-run here on remote backends (MILAB-6318).
-    const data = ctx.outputs?.resolve({ field: 'minPeptideLength', allowPermanentAbsence: true })?.getDataAsJsonOrUndefined<{ min_len: number | null }>();
+    const data = ctx.outputs
+      ?.resolve({ field: "minPeptideLength", allowPermanentAbsence: true })
+      ?.getDataAsJsonOrUndefined<{ min_len: number | null }>();
     return data?.min_len ?? undefined;
   })
 
-  .outputWithStatus('clustersTable', (ctx) => {
-    const pCols = ctx.outputs?.resolve('clustersPf')?.getPColumns();
+  .outputWithStatus("clustersTable", (ctx) => {
+    const pCols = ctx.outputs?.resolve("clustersPf")?.getPColumns();
     if (pCols === undefined) return undefined;
     return createPlDataTableV2(ctx, pCols, ctx.data.tableState);
   })
 
-  .output('mmseqsOutput', (ctx) => ctx.outputs?.resolve('mmseqsOutput')?.getLogHandle())
+  .output("mmseqsOutput", (ctx) => ctx.outputs?.resolve("mmseqsOutput")?.getLogHandle())
 
-  .output('msaPf', (ctx) => {
-    const msaCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
+  .output("msaPf", (ctx) => {
+    const msaCols = ctx.outputs?.resolve("msaPf")?.getPColumns();
     if (!msaCols) return undefined;
 
     // When trimming is enabled, use trimmed sequences from msaPf only
@@ -347,46 +360,41 @@ export const platforma = BlockModelV3.create(dataModel)
     }
 
     const datasetRef = ctx.data.datasetRef;
-    if (datasetRef === undefined)
-      return undefined;
+    if (datasetRef === undefined) return undefined;
 
     const sequencesRef = ctx.data.sequencesRef;
-    if (sequencesRef.length === 0)
-      return undefined;
+    if (sequencesRef.length === 0) return undefined;
 
     const seqCols = ctx.resultPool.getAnchoredPColumns(
       { main: datasetRef },
       sequencesRef.map((s) => JSON.parse(s) as never),
     );
-    if (seqCols === undefined)
-      return undefined;
+    if (seqCols === undefined) return undefined;
 
     return createPFrameForGraphs(ctx, [...msaCols, ...seqCols]);
   })
 
-  .output('linkerColumnId', (ctx) => {
-    const pCols = ctx.outputs?.resolve('msaPf')?.getPColumns();
+  .output("linkerColumnId", (ctx) => {
+    const pCols = ctx.outputs?.resolve("msaPf")?.getPColumns();
     if (!pCols) return undefined;
-    return pCols.find((p) => p.spec.annotations?.['pl7.app/isLinkerColumn'] === 'true')?.id;
+    return pCols.find((p) => p.spec.annotations?.["pl7.app/isLinkerColumn"] === "true")?.id;
   })
 
-  .output('clusterAbundanceSpec', (ctx) => {
+  .output("clusterAbundanceSpec", (ctx) => {
     // Not-ready-safe read — getDataAsJson throws mid-run here on remote backends (MILAB-6318).
-    return ctx.outputs?.resolve('clusterAbundanceSpec')?.getDataAsJsonOrUndefined<PColumnSpec>();
+    return ctx.outputs?.resolve("clusterAbundanceSpec")?.getDataAsJsonOrUndefined<PColumnSpec>();
   })
 
-  .output('inputSpec', (ctx) => {
+  .output("inputSpec", (ctx) => {
     const anchor = ctx.data.datasetRef;
-    if (anchor === undefined)
-      return undefined;
+    if (anchor === undefined) return undefined;
     const anchorSpec = ctx.resultPool.getPColumnSpecByRef(anchor);
-    if (anchorSpec === undefined)
-      return undefined;
+    if (anchorSpec === undefined) return undefined;
     return anchorSpec;
   })
 
-  .outputWithStatus('clustersPf', (ctx): PFrameHandle | undefined => {
-    const pCols = ctx.outputs?.resolve('pf')?.getPColumns();
+  .outputWithStatus("clustersPf", (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.outputs?.resolve("pf")?.getPColumns();
     if (pCols === undefined) {
       return undefined;
     }
@@ -394,8 +402,8 @@ export const platforma = BlockModelV3.create(dataModel)
     return createPFrameForGraphs(ctx, pCols);
   })
 
-  .outputWithStatus('bubblePlotPf', (ctx): PFrameHandle | undefined => {
-    const pCols = ctx.outputs?.resolve('bubblePlotPf')?.getPColumns();
+  .outputWithStatus("bubblePlotPf", (ctx): PFrameHandle | undefined => {
+    const pCols = ctx.outputs?.resolve("bubblePlotPf")?.getPColumns();
     if (pCols === undefined) {
       return undefined;
     }
@@ -403,8 +411,8 @@ export const platforma = BlockModelV3.create(dataModel)
     return createPFrameForGraphs(ctx, pCols);
   })
 
-  .output('bubblePlotPfPcols', (ctx) => {
-    const pCols = ctx.outputs?.resolve('bubblePlotPf')?.getPColumns();
+  .output("bubblePlotPfPcols", (ctx) => {
+    const pCols = ctx.outputs?.resolve("bubblePlotPf")?.getPColumns();
     if (pCols === undefined) {
       return undefined;
     }
@@ -414,13 +422,13 @@ export const platforma = BlockModelV3.create(dataModel)
         ({
           columnId: c.id,
           spec: c.spec,
-        } satisfies PColumnIdAndSpec),
+        }) satisfies PColumnIdAndSpec,
     );
   })
 
   // Returns a list of Pcols for plot defaults
-  .output('clustersPfPcols', (ctx) => {
-    const pCols = ctx.outputs?.resolve('pf')?.getPColumns();
+  .output("clustersPfPcols", (ctx) => {
+    const pCols = ctx.outputs?.resolve("pf")?.getPColumns();
     if (pCols === undefined || pCols.length === 0) {
       return undefined;
     }
@@ -430,20 +438,20 @@ export const platforma = BlockModelV3.create(dataModel)
         ({
           columnId: c.id,
           spec: c.spec,
-        } satisfies PColumnIdAndSpec),
+        }) satisfies PColumnIdAndSpec,
     );
   })
 
-  .output('isRunning', (ctx) => ctx.outputs?.getIsReadyOrError() === false)
+  .output("isRunning", (ctx) => ctx.outputs?.getIsReadyOrError() === false)
 
-  .title(() => 'Sequence Clustering')
+  .title(() => "Sequence Clustering")
 
   .subtitle((ctx) => ctx.data.customBlockLabel || ctx.data.defaultBlockLabel)
 
   .sections((_ctx) => [
-    { type: 'link', href: '/', label: strings.titles.main },
-    { type: 'link', href: '/bubble', label: 'Most Abundant Clusters' },
-    { type: 'link', href: '/histogram', label: 'Cluster Size Histogram' },
+    { type: "link", href: "/", label: strings.titles.main },
+    { type: "link", href: "/bubble", label: "Most Abundant Clusters" },
+    { type: "link", href: "/histogram", label: "Cluster Size Histogram" },
   ])
 
   .done();

@@ -1,18 +1,22 @@
 {
   "name": "@platforma-open/milaboratories.clonotype-clustering.workflow",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "description": "Tengo-based template",
+  "type": "module",
   "scripts": {
-    "build": "shx rm -rf dist && pl-tengo check && pl-tengo build",
-    "format": "/usr/bin/env emacs --script ./format.el",
-    "do-pack": "shx rm -f *.tgz && pnpm pack && shx mv *.tgz package.tgz"
+    "build": "shx rm -rf dist && pl-tengo build",
+    "format": "/usr/bin/env emacs --script ./format.el || echo 'No emacs.'",
+    "do-pack": "shx rm -f *.tgz && pnpm pack && shx mv *.tgz package.tgz",
+    "check": "pl-tengo check"
   },
   "dependencies": {
-    "@platforma-sdk/workflow-tengo": "catalog:",
     "@platforma-open/milaboratories.clonotype-clustering.software": "workspace:*",
-    "@platforma-open/soedinglab.software-mmseqs2": "catalog:"
+    "@platforma-open/soedinglab.software-mmseqs2": "catalog:",
+    "@platforma-sdk/workflow-tengo": "catalog:"
   },
   "devDependencies": {
-    "@platforma-sdk/tengo-builder": "catalog:"
+    "@platforma-sdk/tengo-builder": "catalog:",
+    "@platforma-sdk/test": "catalog:",
+    "shx": "catalog:"
   }
 }

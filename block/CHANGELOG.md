@@ -1,5 +1,21 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.1.2
+
+### Patch Changes
+
+- 138e9af: Migrate block onto the structurer (block-tools 2.10.19) — full SDK upgrade: model/ui-vue 1.79.6, workflow-tengo 6.6.1, tengo-builder 4.0.8, test 1.79.10. Adopts the canonical tool-managed layout (oxlint/oxfmt, tsconfig, turbo, block index, managed package.json + catalog).
+- Updated dependencies [138e9af]
+  - @platforma-open/milaboratories.clonotype-clustering.model@3.1.1
+  - @platforma-open/milaboratories.clonotype-clustering.ui@4.1.1
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@4.1.1
+
+## 3.1.1
+
+### Patch Changes
+
+- 9688057: Update dependencies and workspace configuration
+
 ## 3.1.0
 
 ### Minor Changes

@@ -1,29 +1,28 @@
 packages:
-  - software
-  - workflow
-  - model
-  - ui
-  - test
   - block
+  - model
+  - software
+  - test
+  - ui
+  - workflow
 
 catalog:
   # SDK packages - EXACT VERSIONS (no ^ or ~)
-  '@milaboratories/ts-builder': 1.5.0
+  '@milaboratories/ts-builder': 1.5.2
   '@milaboratories/ts-configs': 1.2.3
-  '@platforma-sdk/workflow-tengo': 5.26.0
-  '@platforma-sdk/model': 1.78.1
-  '@platforma-sdk/ui-vue': 1.78.1
-  '@platforma-sdk/tengo-builder': 4.0.2
-  '@platforma-sdk/package-builder': 3.12.0
-  '@platforma-sdk/block-tools': 2.10.2
-  '@platforma-sdk/eslint-config': 1.2.0
-  '@platforma-sdk/test': 1.78.1
+  '@platforma-sdk/workflow-tengo': 6.6.2
+  '@platforma-sdk/model': 1.79.6
+  '@platforma-sdk/ui-vue': 1.79.11
+  '@platforma-sdk/tengo-builder': 4.0.8
+  '@platforma-sdk/package-builder': 3.13.0
+  '@platforma-sdk/block-tools': 2.11.0
+  '@platforma-sdk/test': 1.79.12
   '@milaboratories/helpers': 1.14.2
   '@milaboratories/strings': 0.1.2
 
   # Block-specific dependencies
-  '@milaboratories/graph-maker': 1.4.3
-  '@milaboratories/multi-sequence-alignment': '1.47.13'
+  '@milaboratories/graph-maker': 1.4.5
+  '@milaboratories/multi-sequence-alignment': '1.47.15'
   '@milaboratories/software-pframes-conv': ^2.2.9
   '@platforma-open/milaboratories.runenv-python-3': ^1.7.3
   '@platforma-open/soedinglab.software-mmseqs2': 1.18.0
