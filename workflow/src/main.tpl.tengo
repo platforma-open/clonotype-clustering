@@ -768,7 +768,8 @@ wf.body(func(args) {
 				spec: setTableProps(maps.deepMerge(ac, {
 					annotations: {
 						"pl7.app/isAnchor": "true",
-						"pl7.app/isAbundance": "true"
+						"pl7.app/isAbundance": "true",
+						"pl7.app/abundance/isPrimary": "false"
 					}
 				}), abundanceLabel, true, "100")
 			}],
