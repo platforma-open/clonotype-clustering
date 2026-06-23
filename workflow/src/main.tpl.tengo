@@ -723,10 +723,11 @@ wf.body(func(args) {
 
 		// Peptide Id label column on the variantKey axis. Mirrors a real peptide dataset, whose
 		// Peptide Id (P-XXXX) is a pl7.app/label column on the variantKey axis, NOT the axis value.
-		// Values come from the "peptideLabel" TSV column: the computed centroid's id, a bare hex
-		// hash of the consensus sequence (no "P-"/"C-" prefix). The hash is visibly distinct from
-		// real peptide ids and never collides with one in the original dataset, while the dataset
-		// still renders an identical "Peptide Id" display.
+		// Values come from the "peptideLabel" TSV column: the computed centroid's id in the form
+		// "PC-XXXXX" (Peptide Consensus). The body follows the exact same sequence-derived logic as a
+		// real peptide id (so users can recognize/track it across blocks and projects), derived from
+		// the centroid's own consensus sequence; the "PC-" prefix keeps it distinct from the real
+		// "P-XXXXX" ids in the original dataset.
 		peptideLabelColumn := {
 			column: "peptideLabel",
 			spec: {

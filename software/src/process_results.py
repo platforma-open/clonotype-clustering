@@ -2,6 +2,7 @@ import polars as pl
 import polars_ds as pds
 import argparse
 import re
+import base64
 import hashlib
 import kalign
 
@@ -767,23 +768,51 @@ plurality_df = plurality_df.join(
     pl.lit(1, dtype=pl.Int64).alias("link"),
 )
 
-# peptideLabel: the computed centroid's "Peptide Id", exposed on the variantKey axis.
-# Peptide ids are sequence-derived properties, so the theoretical centroid (a NEW sequence
-# that need not match any observed member) gets its own id derived from the consensus
-# sequence itself — a bare hex hash of plurality_centroid_trimmed_fullSequence, with no
-# "P-"/"C-"/"CL-" prefix so it is visibly a hash and never collides with a real peptide id
-# in the original dataset. Same consensus sequence -> same id, deterministically. Null when
-# there is no centroid sequence (no sequence columns, or plurality not emitted).
-def _seq_hash(seq):
-    if seq is None or seq == "":
-        return None
-    return hashlib.sha1(seq.encode("utf-8")).hexdigest()[:16]
+# peptideLabel: the computed centroid's human-readable "Peptide Id", exposed on the variantKey
+# axis as "PC-XXXXX" (Peptide Consensus). Users memorize and track these ids across blocks/
+# projects, so the centroid id must follow the SAME logic and form as a real peptide id (a
+# sequence-derived property). We mirror peptide-extraction's peptide-label algorithm exactly,
+# applied to the centroid's OWN consensus sequence: sha256 -> base64 (alphanumeric) -> drop
+# digits -> first 5 letters -> uppercase. The "PC-" prefix marks it as the theoretical centroid
+# and keeps it distinct from the real "P-XXXXX" ids in the original dataset. Same consensus
+# sequence -> same body, deterministically and cross-project. The body is a function of the
+# consensus only; like real peptide ids, the "-N" tie-break (below) is the only dataset-dependent
+# part.
+def _peptide_code(seq):
+    # Mirror of peptide-extraction's hash("sha256", "base64_alphanumeric", ...) + strip-digits +
+    # first-5 + uppercase. Taking the first 5 letters from the front makes the 120-bit truncation
+    # in the original irrelevant to the result, so it is omitted here.
+    digest = hashlib.sha256(seq.encode("utf-8")).digest()
+    b64 = base64.b64encode(digest).decode("ascii")          # standard base64 (mixed case)
+    alnum = re.sub(r"[^A-Za-z0-9]", "", b64)                 # base64_alphanumeric: drop + / =
+    letters = re.sub(r"\d", "", alnum)                       # drop digits -> letters only
+    return letters[:5].upper()
 
 plurality_df = plurality_df.with_columns(
     pl.col("plurality_centroid_trimmed_fullSequence")
-      .map_elements(_seq_hash, return_dtype=pl.String)
-      .alias("peptideLabel")
+      .map_elements(lambda s: _peptide_code(s) if s else None, return_dtype=pl.String)
+      .alias("_consensusBody")
 )
+# Disambiguate 5-letter-body collisions exactly like the peptide-label pipeline: rank distinct
+# consensus sequences sharing a body (dense rank, ordered by the sequence), and append "-N" for
+# rank > 1. Identical consensus sequences share a body AND a rank, so they get the same id.
+plurality_df = plurality_df.with_columns(
+    pl.col("plurality_centroid_trimmed_fullSequence")
+      .rank("dense")
+      .over("_consensusBody")
+      .alias("_consensusRank")
+).with_columns(
+    pl.when(pl.col("_consensusBody").is_null())
+      .then(None)
+      .otherwise(pl.concat_str([
+          pl.lit("PC-"),
+          pl.col("_consensusBody"),
+          pl.when(pl.col("_consensusRank") > 1)
+            .then(pl.concat_str([pl.lit("-"), pl.col("_consensusRank").cast(pl.String)]))
+            .otherwise(pl.lit("")),
+      ]))
+      .alias("peptideLabel")
+).drop(["_consensusBody", "_consensusRank"])
 
 # plurality-centroid.tsv is ALWAYS written; values are present only when
 # --emit-plurality-centroid is set (the threshold-0, X-free plurality consensus), and the
