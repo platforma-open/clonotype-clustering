@@ -18,19 +18,25 @@ deanonimizationTpl := assets.importTemplate(":deanonimization")
 anonymizationTpl := assets.importTemplate(":anonymization")
 minPeptideLengthTpl := assets.importTemplate(":min-peptide-length")
 
-setTableProps := func(spec, label, visibility, orderPriority) {
+// `description` (optional, trailing) sets "pl7.app/description", which the data table
+// renders as the column-header hover tooltip — a short definition of the column.
+setTableProps := func(spec, label, visibility, orderPriority, ...description) {
 	visibilityValue := ""
 	if visibility == true || visibility == false {
 		visibilityValue = visibility ? "default" : "optional"
 	} else {
 		visibilityValue = visibility
 	}
+	annotations := {
+		"pl7.app/label": label,
+		"pl7.app/table/visibility": visibilityValue,
+		"pl7.app/table/orderPriority": orderPriority
+	}
+	if len(description) > 0 && !is_undefined(description[0]) && description[0] != "" {
+		annotations["pl7.app/description"] = description[0]
+	}
 	return maps.deepMerge(spec, {
-		annotations: {
-			"pl7.app/label": label,
-			"pl7.app/table/visibility": visibilityValue,
-			"pl7.app/table/orderPriority": orderPriority
-		}
+		annotations: annotations
 	})
 }
 
@@ -277,7 +283,8 @@ wf.body(func(args) {
 		}],
 		columns: [{
 			column: "abundance",
-			spec: setTableProps(ac, abundanceLabel + " in Cluster", false, undefined)
+			spec: setTableProps(ac, abundanceLabel + " in Cluster", false, undefined,
+				abundanceLabel + " of each clonotype in this cluster, per sample.")
 		},
 		{
 			column: "abundance_normalized",
@@ -288,7 +295,8 @@ wf.body(func(args) {
 					"pl7.app/abundance/normalized": "true",
 					"pl7.app/abundance/unit": abundanceUnit
 				}
-			}), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined)
+			}), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined,
+				"Within-sample fraction of " + text.to_lower(abundanceLabel) + " of each clonotype in this cluster, per sample.")
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 1
@@ -303,7 +311,8 @@ wf.body(func(args) {
 			column: "abundance_per_cluster",
 			spec: setTableProps(maps.deepMerge(ac, {
 				name: totalCountName
-			}), "Total " + abundanceLabel + " in Cluster", true, "2000")
+			}), "Total " + abundanceLabel + " in Cluster", true, "2000",
+				"Total " + text.to_lower(abundanceLabel) + " summed over all clonotypes in the cluster, across all samples.")
 		},
 		{
 			column: "abundance_fraction_per_cluster",
@@ -325,7 +334,8 @@ wf.body(func(args) {
 				fractionLabel := text.title(text.re_replace("number of ", text.to_lower(abundanceLabel), ""))
 				// Preserve common acronyms after title-casing.
 				fractionLabel = text.re_replace("Umis", fractionLabel, "UMIs")
-				resultSpec := setTableProps(abundanceFractionSpec, "Total " + fractionLabel + " Fraction in Cluster", true, "1")
+				resultSpec := setTableProps(abundanceFractionSpec, "Total " + fractionLabel + " Fraction in Cluster", true, "1",
+					"Share of the dataset-wide total " + text.to_lower(abundanceLabel) + " contributed by this cluster (0–1).")
 				// Filter out isAnchor annotation
 				resultSpec.annotations = maps.filter(resultSpec.annotations, func(k, v) {
 					return k != "pl7.app/isAnchor"
@@ -386,7 +396,8 @@ wf.body(func(args) {
 			annotations: {
 				"pl7.app/label": "Cluster Size"
 			}
-		}, "Cluster Size", true, "3000")
+		}, "Cluster Size", true, "3000",
+			"Number of distinct clonotypes assigned to this cluster.")
 	}, {
 		column: "clusterLabel",
 		spec: {
@@ -394,7 +405,8 @@ wf.body(func(args) {
 			valueType: "String",
 			annotations: {
 				"pl7.app/label": "Cluster Id",
-				"pl7.app/table/visibility": "default"
+				"pl7.app/table/visibility": "default",
+				"pl7.app/description": "Identifier of the cluster, taken from the representative member MMseqs2 selected."
 			}
 		}
 	}]
@@ -412,6 +424,12 @@ wf.body(func(args) {
 	// Both keep the original sequence spec (name/domain) so downstream consumers read them as
 	// sequence columns.
 	centroidLabel := "Theoretical Centroid "
+	// Column-header definitions (rendered as hover tooltips via "pl7.app/description").
+	centroidDesc := "Per-column consensus of the cluster's aligned members (kalign MSA). " +
+		"May contain 'X' at low-confidence positions and need not match any observed member; " +
+		"distance-to-centroid and cluster radius are measured against it."
+	referenceCentroidDesc := "The real cluster member closest to the theoretical centroid (the medoid). " +
+		"Made entirely of observed residues, so it is directly synthesizable."
 	for nr, seq in sequencesRef {
 		spec := maps.clone(columns.getSpec(seq))
 		baseLabel := spec.annotations["pl7.app/label"]
@@ -435,7 +453,7 @@ wf.body(func(args) {
 				annotations: spec.annotations
 			// Theoretical centroid is "optional" (present in the PFrame, hidden in the
 			// table by default); the Reference Centroid below stays default-visible.
-			}, centroidLabel + baseLabel, false, "4000")
+			}, centroidLabel + baseLabel, false, "4000", centroidDesc)
 		})
 
 		// Reference centroid (medoid): a real member sequence closest to the cluster
@@ -450,7 +468,7 @@ wf.body(func(args) {
 					"pl7.app/clustering/sequenceContent": "referenceCentroid"
 				}),
 				annotations: spec.annotations
-			}, "Reference Centroid " + baseLabel, true, "4000")
+			}, "Reference Centroid " + baseLabel, true, "4000", referenceCentroidDesc)
 		})
 	}
 
@@ -479,7 +497,7 @@ wf.body(func(args) {
 							"pl7.app/clustering/sequenceContent": "centroid"
 						}),
 						annotations: baseSpec.annotations
-					}, centroidLabel + baseTrimLabel, false, "11")
+					}, centroidLabel + baseTrimLabel, false, "11", centroidDesc)
 				})
 
 				// Reference centroid trimmed (medoid on the trimmed basis).
@@ -492,7 +510,7 @@ wf.body(func(args) {
 							"pl7.app/clustering/sequenceContent": "referenceCentroid"
 						}),
 						annotations: baseSpec.annotations
-					}, "Reference Centroid " + baseTrimLabel, true, "11")
+					}, "Reference Centroid " + baseTrimLabel, true, "11", referenceCentroidDesc)
 				})
 			}
 		} else if len(sequencesRef) > 0 {
@@ -523,7 +541,7 @@ wf.body(func(args) {
 						"pl7.app/clustering/sequenceContent": "centroid"
 					}),
 					annotations: baseSpec.annotations
-				}, centroidLabel + baseTrimLabel, false, "11")
+				}, centroidLabel + baseTrimLabel, false, "11", centroidDesc)
 			})
 
 			// Reference centroid trimmed full (medoid, bulk).
@@ -536,7 +554,7 @@ wf.body(func(args) {
 						"pl7.app/clustering/sequenceContent": "referenceCentroid"
 					}),
 					annotations: baseSpec.annotations
-				}, "Reference Centroid " + baseTrimLabel, true, "11")
+				}, "Reference Centroid " + baseTrimLabel, true, "11", referenceCentroidDesc)
 			})
 		}
 	}
@@ -571,7 +589,8 @@ wf.body(func(args) {
 					"pl7.app/rankingOrder": "decreasing",
 					"pl7.app/format": ".2f"
 				}
-			}, "Distance to centroid", false, undefined)
+			}, "Distance to centroid", false, undefined,
+				"Profile distance (0–1) from each clonotype to its cluster's theoretical centroid over the kalign MSA; 0 means identical to the consensus profile.")
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 0
@@ -593,7 +612,8 @@ wf.body(func(args) {
 					"pl7.app/max": "1",
 					"pl7.app/format": ".2f"
 				}
-			}, "Cluster radius", true, "2900")
+			}, "Cluster radius", true, "2900",
+				"Largest distance-to-centroid among the cluster's members — a compactness measure (0–1; smaller is tighter).")
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 0
