@@ -89,6 +89,12 @@ export type BlockData = {
   // abundance-weighted fraction a residue must reach in an MSA column to be emitted,
   // otherwise "X". Range 0-1, default 0.6.
   consensusThreshold: number;
+  // Whether the centroid (and the profile distance / reference centroid measured
+  // against it) is weighted by clonotype abundance. When false every clonotype
+  // counts equally and column ties break deterministically (alphabetically), so the
+  // centroid reflects the cluster's sequence set rather than which clones expanded.
+  // Default false (equal weight).
+  weightByAbundance: boolean;
   // Additionally expose a dataset of per-cluster plurality-consensus centroid sequences
   // (weighted per-column argmax, no threshold, no 'X' — the theoretical centroid at
   // threshold 0). Peptide inputs only. Default false.
@@ -134,6 +140,7 @@ const dataModel = new DataModelBuilder()
     similarityType:
       (args.similarityType as string) === "alignment-score" ? "blosum62" : args.similarityType,
     consensusThreshold: 0.6,
+    weightByAbundance: false,
     generateDataset: false,
     tableState: uiState.tableState,
     graphStateBubble: uiState.graphStateBubble,
@@ -160,7 +167,8 @@ const dataModel = new DataModelBuilder()
     trimStart: 0, // default to no trimming from start
     trimEnd: 0, // default to no trimming from end
     clusteringTool: "easy-cluster",
-    consensusThreshold: 0.6, // default abundance-weighted majority threshold for the theoretical centroid
+    consensusThreshold: 0.6, // default majority threshold for the theoretical centroid
+    weightByAbundance: false, // default to equal-weight centroid (abundance ignored)
     generateDataset: false, // off by default; peptide inputs only
     tableState: createPlDataTableStateV2(),
     graphStateBubble: {
@@ -211,6 +219,7 @@ export const platforma = BlockModelV3.create(dataModel)
       trimEnd: data.trimEnd,
       clusteringTool: data.clusteringTool,
       consensusThreshold: data.consensusThreshold,
+      weightByAbundance: data.weightByAbundance,
       generateDataset: data.generateDataset,
       mem: data.mem,
       cpu: data.cpu,

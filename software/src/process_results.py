@@ -8,10 +8,14 @@ import kalign
 
 # --- Computed-centroid (kalign MSA consensus) constants ---
 # Each cluster's distinct member sequences are aligned with kalign (multiple
-# sequence alignment); the centroid is the per-column abundance-weighted majority
-# residue over that MSA. Abundance is applied as a per-row weight during the
-# column vote rather than by replicating sequences, so kalign sees each distinct
-# sequence once.
+# sequence alignment); the centroid is the per-column majority residue over that
+# MSA. By default each clonotype's summed abundance is applied as a per-row weight
+# during the column vote (rather than by replicating sequences, so kalign sees each
+# distinct sequence once). With --no-abundance-weighting every clonotype instead
+# counts equally (weight 1), so the centroid reflects the cluster's sequence set
+# rather than which clones expanded; column ties then break deterministically
+# (non-gap over gap, then alphabetically). The same weight vector drives the
+# profile-distance/medoid, so centroid and distance-to-centroid stay consistent.
 #   MSA_MAX_MEMBERS — cap on distinct members per cluster fed to kalign; the
 #                     top-MSA_MAX_MEMBERS by weight are kept and the rest are
 #                     dropped (logged, never silent).
@@ -35,6 +39,12 @@ parser.add_argument('--consensus-threshold', type=float, default=0.6,
 parser.add_argument('--emit-plurality-centroid', action='store_true',
                     help='Also emit plurality-centroid.tsv: per-cluster abundance-weighted per-column '
                          'majority residue (consensus at threshold 0.0, so no "X").')
+parser.add_argument('--no-abundance-weighting', action='store_true',
+                    help='Ignore clonotype abundance when building the centroid (and the profile '
+                         'distance/medoid measured against it): every clonotype counts equally '
+                         '(weight 1) instead of by its summed abundance. Column ties then break '
+                         'deterministically (non-gap over gap, then alphabetically). '
+                         'Default off (abundance-weighted).')
 args = parser.parse_args()
 
 trim_start = args.trim_start
@@ -43,6 +53,7 @@ per_chain_trim = args.per_chain_trim
 min_seq_id = args.min_seq_id
 consensus_threshold = args.consensus_threshold
 emit_plurality = args.emit_plurality_centroid
+no_abundance_weighting = args.no_abundance_weighting
 
 clustersTsv = "clusters.tsv"
 cloneTableTsv = "cloneTable.tsv"
@@ -289,8 +300,9 @@ clusters = clusters.join(
 
 # --- Compute per-clonotype abundance weight ---
 # Weight = abundance summed over sampleId per clonotypeKey. If there is no
-# abundance column, every clonotype gets weight 1.
-if "abundance" in cloneTable.columns:
+# abundance column, or --no-abundance-weighting is set, every clonotype gets
+# weight 1 so it contributes equally to the centroid/medoid.
+if "abundance" in cloneTable.columns and not no_abundance_weighting:
     clonotype_weights = (
         cloneTable
         .group_by("clonotypeKey")

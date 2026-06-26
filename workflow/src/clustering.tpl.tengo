@@ -30,6 +30,7 @@ self.validateInputs({
     "trimEnd,?": "number",
     "clusteringTool,?": "string",
     "consensusThreshold,?": "number",
+    "weightByAbundance,?": "boolean",
     "generateDataset,?": "boolean",
     "mem,?": "number",
     "cpu,?": "number"
@@ -60,6 +61,11 @@ self.body(func(inputs) {
     // Min fraction of a column's weight the consensus winner must hold in the theoretical
     // (consensus) centroid; below it the column emits "X" (default 0.6).
     consensusThreshold := is_undefined(inputs.consensusThreshold) ? 0.6 : inputs.consensusThreshold
+
+    // Whether the centroid (and the profile distance/medoid measured against it) is
+    // weighted by clonotype abundance. When false, every clonotype counts equally and
+    // column ties break deterministically (alphabetically). Default false (equal weight).
+    weightByAbundance := is_undefined(inputs.weightByAbundance) ? false : inputs.weightByAbundance
 
     // Optionally emit a separately-addressable plurality-consensus centroid dataset
     // (X-free, abundance-weighted per-column argmax).
@@ -266,6 +272,10 @@ self.body(func(inputs) {
 
         if generateDataset {
             resultBuilder = resultBuilder.arg("--emit-plurality-centroid")
+        }
+
+        if !weightByAbundance {
+            resultBuilder = resultBuilder.arg("--no-abundance-weighting")
         }
 
         resultBuilder = resultBuilder.

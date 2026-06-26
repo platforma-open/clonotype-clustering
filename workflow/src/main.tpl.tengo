@@ -197,6 +197,7 @@ wf.body(func(args) {
 		trimEnd: args.trimEnd,
 		clusteringTool: args.clusteringTool,
 		consensusThreshold: args.consensusThreshold,
+		weightByAbundance: args.weightByAbundance,
 		generateDataset: args.generateDataset
 	}, {
 		metaInputs: {
@@ -399,10 +400,12 @@ wf.body(func(args) {
 	}]
 
 	// Add sequence columns.
-	// Two per-chain centroid PColumns on the clusterId axis are always emitted:
-	//   * the theoretical centroid (source column "centroid_sequence_N"): the abundance-weighted
-	//     kalign MSA consensus, which drives the distance/radius metrics. Need not match any
-	//     observed member. Disambiguated by "pl7.app/clustering/sequenceContent": "centroid".
+	// Two per-chain centroid PColumns on the clusterId axis are always emitted into the PFrame:
+	//   * the theoretical centroid (source column "centroid_sequence_N"): the kalign MSA consensus
+	//     (equal-weight by default, or abundance-weighted per weightByAbundance), which drives the
+	//     distance/radius metrics. Need not match any observed member. Emitted with table
+	//     visibility "optional" (present but hidden in the table by default; user can add it).
+	//     Disambiguated by "pl7.app/clustering/sequenceContent": "centroid".
 	//   * the reference centroid (source column "reference_centroid_sequence_N"): the medoid, a
 	//     real member sequence closest to the cluster profile ("closest to centroid"), kept as a
 	//     reference. Disambiguated by "pl7.app/clustering/sequenceContent": "referenceCentroid".
@@ -430,7 +433,9 @@ wf.body(func(args) {
 					"pl7.app/clustering/sequenceContent": "centroid"
 				}),
 				annotations: spec.annotations
-			}, centroidLabel + baseLabel, true, "4000")
+			// Theoretical centroid is "optional" (present in the PFrame, hidden in the
+			// table by default); the Reference Centroid below stays default-visible.
+			}, centroidLabel + baseLabel, false, "4000")
 		})
 
 		// Reference centroid (medoid): a real member sequence closest to the cluster
@@ -474,7 +479,7 @@ wf.body(func(args) {
 							"pl7.app/clustering/sequenceContent": "centroid"
 						}),
 						annotations: baseSpec.annotations
-					}, centroidLabel + baseTrimLabel, true, "11")
+					}, centroidLabel + baseTrimLabel, false, "11")
 				})
 
 				// Reference centroid trimmed (medoid on the trimmed basis).
@@ -518,7 +523,7 @@ wf.body(func(args) {
 						"pl7.app/clustering/sequenceContent": "centroid"
 					}),
 					annotations: baseSpec.annotations
-				}, centroidLabel + baseTrimLabel, true, "11")
+				}, centroidLabel + baseTrimLabel, false, "11")
 			})
 
 			// Reference centroid trimmed full (medoid, bulk).

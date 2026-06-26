@@ -112,6 +112,11 @@ const tableSettings = usePlDataTableSettingsV2({
 
 const sequenceType = listToOptions(["aminoacid", "nucleotide"]);
 
+const centroidWeightingOptions = [
+  { label: "Equal weight", value: false },
+  { label: "By abundance", value: true },
+];
+
 // No longer available to user
 /* const coverageModeOptions = [
   { label: 'Coverage of query and target', value: 0 },
@@ -298,6 +303,22 @@ const clusterAxis = computed<AxisId>(() => {
       </PlNumberField>
 
       <PlSectionSeparator>Centroid</PlSectionSeparator>
+      <PlBtnGroup
+        :model-value="app.model.data.weightByAbundance ?? false"
+        @update:model-value="app.model.data.weightByAbundance = $event"
+        label="Residue Weighting"
+        :options="centroidWeightingOptions"
+        compact
+      >
+        <template #tooltip>
+          How each clonotype counts when voting on the consensus residue at every alignment column
+          (and in the distance/Reference Centroid measured against it).
+          <b>Equal weight</b> — every clonotype counts once, so the centroid reflects the cluster's
+          sequence set regardless of clonal expansion; ties break deterministically
+          (alphabetically). <b>By abundance</b> — each clonotype's vote is weighted by its summed
+          abundance, so expanded clones dominate.
+        </template>
+      </PlBtnGroup>
       <PlNumberField
         v-model="app.model.data.consensusThreshold"
         label="Consensus Threshold"
@@ -306,7 +327,8 @@ const clusterAxis = computed<AxisId>(() => {
         :maxValue="1.0"
       >
         <template #tooltip>
-          Minimum abundance-weighted fraction a residue must reach in an alignment column for the
+          Minimum fraction (of the column's vote, per the Residue Weighting above) a residue must
+          reach in an alignment column for the
           <b>Theoretical Centroid</b> to emit it; columns below the threshold emit <b>X</b>. The
           theoretical centroid (kalign MSA consensus) is what distance-to-centroid and cluster
           radius are measured against; the <b>Reference Centroid</b> (the closest real member) is
@@ -323,9 +345,9 @@ const clusterAxis = computed<AxisId>(() => {
           <template #tooltip>
             Collapse each cluster into a single representative sequence and export them as a new
             dataset you can feed into downstream analyses. The representative is the cluster's
-            <b>consensus</b> — the most frequent amino acid at each aligned position, weighted by
-            clonotype abundance — so it summarizes the whole group and need not match any individual
-            observed clonotype. Available for peptide inputs only.
+            <b>consensus</b> — the most frequent amino acid at each aligned position (by the Residue
+            Weighting chosen above) — so it summarizes the whole group and need not match any
+            individual observed clonotype. Available for peptide inputs only.
           </template>
         </PlTooltip>
       </PlCheckbox>
