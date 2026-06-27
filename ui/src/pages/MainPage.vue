@@ -3,6 +3,7 @@ import { PlMultiSequenceAlignment } from "@milaboratories/multi-sequence-alignme
 import strings from "@milaboratories/strings";
 import {
   clusteringToolOptions,
+  LARGE_DATASET_ROW_THRESHOLD,
   similarityTypeOptions,
 } from "@platforma-open/milaboratories.clonotype-clustering.model";
 import type {
@@ -73,9 +74,28 @@ const onRowDoubleClicked = reactive((key?: PTableKey) => {
   multipleSequenceAlignmentOpen.value = true;
 });
 
+// Set when the user interactively picks a dataset; consumed once that dataset's
+// size resolves (the model reports it a tick later). Kept in local Vue state, not
+// in `data` — it is transient UI intent, never persisted.
+const pendingSizeAutoSelect = ref(false);
+
 function setInput(inputRef?: PlRef) {
   app.model.data.datasetRef = inputRef;
+  pendingSizeAutoSelect.value = inputRef !== undefined;
 }
+
+// Auto-select the clustering algorithm by dataset size: cascaded easy-cluster is
+// too slow on very large inputs, so switch to linear-time linclust above the
+// threshold.
+watch(
+  () => app.model.outputs.datasetSize,
+  (size) => {
+    if (!pendingSizeAutoSelect.value || size === undefined) return;
+    pendingSizeAutoSelect.value = false;
+    app.model.data.clusteringTool =
+      size > LARGE_DATASET_ROW_THRESHOLD ? "easy-linclust" : "easy-cluster";
+  },
+);
 
 const tableSettings = usePlDataTableSettingsV2({
   model: () => app.model.outputs.clustersTable,

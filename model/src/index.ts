@@ -15,6 +15,7 @@ import {
   createPFrameForGraphs,
   createPlDataTableStateV2,
   createPlDataTableV2,
+  getNumberOfRows,
 } from "@platforma-sdk/model";
 export type * from "@milaboratories/helpers";
 
@@ -32,6 +33,29 @@ export const clusteringToolOptions = [
   { label: "Easy Cluster", value: "easy-cluster" },
   { label: "Easy Linclust", value: "easy-linclust" },
 ] as const;
+
+/**
+ * Above this many input rows, the cascaded easy-cluster algorithm becomes
+ * prohibitively slow; linclust (linear-time) is auto-selected instead. Applied
+ * on dataset selection in the UI — see `datasetSize` and `setInput`.
+ */
+export const LARGE_DATASET_ROW_THRESHOLD = 1_000_000;
+
+/** Selectors for the anchor (abundance) columns offered as the input dataset. */
+const datasetMatchers = [
+  {
+    axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/clonotypeKey" }],
+    annotations: { "pl7.app/isAnchor": "true" },
+  },
+  {
+    axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/scClonotypeKey" }],
+    annotations: { "pl7.app/isAnchor": "true" },
+  },
+  {
+    axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/variantKey" }],
+    annotations: { "pl7.app/isAnchor": "true" },
+  },
+];
 
 type OldArgs = {
   defaultBlockLabel: string;
@@ -204,27 +228,23 @@ export const platforma = BlockModelV3.create(dataModel)
   })
 
   .output("datasetOptions", (ctx) =>
-    ctx.resultPool.getOptions(
-      [
-        {
-          axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/clonotypeKey" }],
-          annotations: { "pl7.app/isAnchor": "true" },
-        },
-        {
-          axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/scClonotypeKey" }],
-          annotations: { "pl7.app/isAnchor": "true" },
-        },
-        {
-          axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/variantKey" }],
-          annotations: { "pl7.app/isAnchor": "true" },
-        },
-      ],
-      {
-        // suppress native label of the column (e.g. "Number of Reads") to show only the dataset label
-        label: { includeNativeLabel: false },
-      },
-    ),
+    ctx.resultPool.getOptions(datasetMatchers, {
+      // suppress native label of the column (e.g. "Number of Reads") to show only the dataset label
+      label: { includeNativeLabel: false },
+    }),
   )
+
+  // Row count of the currently selected dataset, used by the UI to auto-pick the
+  // clustering algorithm. getNumberOfRows reads parquet chunk stats from resource
+  // metadata without downloading blobs, and returns undefined for non-parquet /
+  // not-yet-ready data — in which case the UI leaves the algorithm untouched.
+  .output("datasetSize", (ctx): number | undefined => {
+    const ref = ctx.data.datasetRef;
+    if (ref === undefined) return undefined;
+    const col = ctx.resultPool.getPColumnByRef(ref);
+    if (col === undefined) return undefined;
+    return getNumberOfRows(col.data);
+  })
 
   .output("sequenceOptions", (ctx) => {
     const ref = ctx.data.datasetRef;
