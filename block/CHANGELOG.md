@@ -1,5 +1,59 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.2.0
+
+### Minor Changes
+
+- ab47ea4: Cluster centroid confidence and distance are now computed from the abundance-weighted multiple sequence alignment (MSA) profile rather than by Levenshtein comparison against a single centroid string:
+
+  - **Profile distance (1−p)** — `distanceToCentroid` and `clusterRadius` are derived from the kalign MSA: each column contributes a cost of `1 − p_j(residue)` (where `p_j(a)` is the abundance fraction of residue `a` in column `j`, gaps included) for every aligned member. The per-member distance is the sum over chains of these costs, normalized and clamped to `[0, 1]`. This replaces the previous representative-string Levenshtein metric and is measured against the theoretical (consensus) centroid.
+  - **Reference centroid (medoid)** — a new `reference_centroid_sequence_0`, `reference_centroid_trim_sequence_0`, and `reference_centroid_trimmed_fullSequence` set of columns expose the real cluster member with minimum total profile distance (the medoid). These are always emitted and kept as a reference.
+  - **Longer-sequence normalization** — per-member distance is normalized by `max(L_cons, ℓ_i)` per chain (the consensus non-gap-majority length versus the member's own non-gap length), so longer members are not unfairly penalized.
+  - **Missing chains (single-cell)** — a chain dropout is a sequencing artifact rather than biology, so a member lacking a chain is no longer penalized: the missing chain is dropped from both the numerator and the denominator, leaving its absence neutral to the distance. To avoid an incomplete clone being chosen as the reference, the medoid / reference centroid is now selected only among members that carry every chain the cluster actually has (falling back to all members only if none is complete).
+  - **Deterministic ordering** — members are sorted by `(−weight, sequence)` before the MSA member cap and the kalign feed, making the kept set, the consensus, the medoid, and the radius stable run-to-run.
+  - **Consensus threshold** — the existing `--consensus-threshold` argument (default 0.6) controls when a column emits `X` instead of a majority residue in the computed consensus.
+
+- 137afb4: Add a **Residue Weighting** option to the Centroid settings, controlling how each clonotype counts when voting on the consensus residue at every alignment column (and in the profile distance / Reference Centroid measured against it):
+
+  - **Equal weight** (default) — every clonotype counts once, so the centroid reflects the cluster's sequence set regardless of clonal expansion. Column ties break deterministically (non-gap over gap, then alphabetically).
+  - **By abundance** — each clonotype's vote is weighted by its summed abundance, so expanded clones dominate (the previous behaviour).
+
+- ab47ea4: Each cluster now exposes two centroid sequence columns, both always computed (no user selection):
+
+  - **Theoretical Centroid** — a per-chain consensus built by aligning the cluster's distinct members with kalign (multiple sequence alignment) and taking the abundance-weighted per-column majority residue, so it need not match any observed member. Distance-to-centroid and cluster radius are measured against this theoretical centroid.
+  - **Reference Centroid** — the medoid: the real member sequence closest to the cluster profile ("closest to centroid"), kept purely as a reference.
+
+  The **Consensus Threshold** setting controls the minimum abundance-weighted fraction a residue must reach in an alignment column for the theoretical centroid to emit it (otherwise "X"). Both centroid columns keep the original sequence spec, so downstream blocks consume them unchanged.
+
+- ab47ea4: A new **Generate centroid dataset** checkbox (off by default) additionally exports a downstream dataset of per-cluster centroid sequences:
+
+  - Each centroid is the abundance-weighted per-column majority residue of the cluster's MSA (plurality consensus, threshold 0), so it contains no `X` and need not match any observed member.
+  - The dataset is surfaced as a separately-addressable export, selectable as a downstream input dataset.
+  - It carries a linker column connecting the centroid axis to the cluster axis, so a downstream block can follow it to every cluster property the consensus derives from (abundance, radius, distance, theoretical/reference centroids).
+  - The block's own input dataset picker excludes this exported centroid dataset, so it cannot be selected as the clustering input of the same block.
+  - The feature is computed only when the box is checked, so the extra alignment pass is skipped when it is off.
+
+### Patch Changes
+
+- ab47ea4: The **Generate centroid dataset** feature is now restricted to peptide inputs:
+
+  - The exported centroid dataset is produced only when the input is a peptide dataset (axis `pl7.app/variantKey`); it is skipped for antibody/TCR (VDJ) inputs even if the box was checked.
+  - The **Generate centroid dataset** checkbox is hidden unless the input modality is peptide.
+  - The exported dataset is keyed on the standard peptide clonotype axis `pl7.app/variantKey` (inheriting the parent dataset's domain, including `pl7.app/peptide/extractionRunId`) and separated from the parent by the clustering content tag already on the cluster axis. Downstream peptide blocks (sequence-properties, antibody-sequence-liabilities, antibody-tcr-lead-selection) therefore detect it as a peptide dataset by axis name with no special-casing — no dedicated centroid axis is introduced.
+  - The exported dataset now mirrors a real peptide dataset's shape (a `pl7.app/variantKey` axis plus a `Peptide Id` label column) so downstream blocks treat it identically to a selected dataset.
+
+- Updated dependencies [ceac7b2]
+- Updated dependencies [ab47ea4]
+- Updated dependencies [ab47ea4]
+- Updated dependencies [137afb4]
+- Updated dependencies [843b05b]
+- Updated dependencies [ab47ea4]
+- Updated dependencies [ab47ea4]
+- Updated dependencies [137afb4]
+  - @platforma-open/milaboratories.clonotype-clustering.workflow@4.2.0
+  - @platforma-open/milaboratories.clonotype-clustering.ui@4.2.0
+  - @platforma-open/milaboratories.clonotype-clustering.model@3.2.0
+
 ## 3.1.3
 
 ### Patch Changes
