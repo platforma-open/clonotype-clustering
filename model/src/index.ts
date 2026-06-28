@@ -266,14 +266,20 @@ export const platforma = BlockModelV3.create(dataModel)
     const sequenceMatchers = [];
 
     if (isPeptide) {
-      sequenceMatchers.push({
-        axes: [{ anchor: "main", idx: 1 }],
-        name: "pl7.app/sequence",
-        domain: {
-          "pl7.app/feature": "peptide",
-          "pl7.app/alphabet": ctx.data.sequenceType,
-        },
-      });
+      // The variantKey axis is shared by two producers: peptide-extraction
+      // (feature "peptide") and synthetic-repertoire-profiler (feature
+      // "amplicon-sequence"). Offer both so either block's sequences are
+      // clusterable; getCanonicalOptions returns columns matching any matcher.
+      for (const feature of ["peptide", "amplicon-sequence"]) {
+        sequenceMatchers.push({
+          axes: [{ anchor: "main", idx: 1 }],
+          name: "pl7.app/sequence",
+          domain: {
+            "pl7.app/feature": feature,
+            "pl7.app/alphabet": ctx.data.sequenceType,
+          },
+        });
+      }
     } else {
       // const allowedFeatures = ['CDR1', 'CDR2', 'CDR3', 'FR1', 'FR2',
       //   'FR3', 'FR4', 'FR4InFrame', 'VDJRegion', 'VDJRegionInFrame'];

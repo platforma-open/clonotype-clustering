@@ -176,12 +176,19 @@ wf.body(func(args) {
 	// MMseqs2 auto-tune floors k at ~6, so peptides shorter than that get empty results.
 	minPeptideLength := undefined
 	if isPeptide {
+		// Only peptide-extraction emits pl7.app/sequenceLength (feature "peptide");
+		// other variantKey-axis producers (e.g. synthetic-repertoire-profiler) do
+		// not. When the column is absent, skip the short-peptide mmseqs tuning and
+		// leave minPeptideLength undefined — the clustering template already treats
+		// that as "use defaults" (same as VDJ mode).
 		peptideLenCols := columns.getColumns("peptideSequenceLength")
-		minLenResult := render.create(minPeptideLengthTpl, {
-			spec: peptideLenCols[0].spec,
-			data: peptideLenCols[0].data
-		})
-		minPeptideLength = minLenResult.output("minLength")
+		if len(peptideLenCols) > 0 {
+			minLenResult := render.create(minPeptideLengthTpl, {
+				spec: peptideLenCols[0].spec,
+				data: peptideLenCols[0].data
+			})
+			minPeptideLength = minLenResult.output("minLength")
+		}
 	}
 
 	/////////// Run clustering template ///////////
