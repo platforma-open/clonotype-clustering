@@ -1,6 +1,5 @@
 import pandas as pd
 import argparse
-import os
 
 def main():
     parser = argparse.ArgumentParser(
@@ -15,13 +14,12 @@ def main():
                         help='Number of amino acids to trim from end (default: 0)')
     parser.add_argument('--is-single-cell', action='store_true',
                         help='Whether this is single-cell data (affects trimmed column structure)')
+    parser.add_argument('--emit-plurality-centroid', action='store_true',
+                        help='Also emit a header-only plurality-centroid.tsv matching the real-run header '
+                             '(per-cluster abundance-weighted per-column majority residue, no "X").')
     args = parser.parse_args()
 
     num_sequences = args.num_sequences
-    trim_start = args.trim_start
-    trim_end = args.trim_end
-    is_single_cell = args.is_single_cell
-    has_trimming = trim_start > 0 or trim_end > 0
 
     # Build sequence column names
     sequence_cols = [f"sequence_{i}" for i in range(num_sequences)]
@@ -42,6 +40,14 @@ def main():
         cluster_to_seq_cols.extend(trimmed_cols)
         # Always include trimmed_fullSequence
         cluster_to_seq_cols.append("trimmed_fullSequence")
+        # Theoretical centroid (consensus) and reference centroid (medoid) columns: one
+        # per sequence column and per trimmed column, plus the joined *_trimmed_fullSequence.
+        cluster_to_seq_cols.extend([f"centroid_{c}" for c in sequence_cols])
+        cluster_to_seq_cols.extend([f"reference_centroid_{c}" for c in sequence_cols])
+        cluster_to_seq_cols.extend([f"centroid_{c}" for c in trimmed_cols])
+        cluster_to_seq_cols.extend([f"reference_centroid_{c}" for c in trimmed_cols])
+        cluster_to_seq_cols.append("centroid_trimmed_fullSequence")
+        cluster_to_seq_cols.append("reference_centroid_trimmed_fullSequence")
     pd.DataFrame(columns=cluster_to_seq_cols).to_csv(
         "cluster-to-seq.tsv", sep="\t", index=False
     )
@@ -91,6 +97,21 @@ def main():
         trimmed_seq_cols.extend(trimmed_cols)
     pd.DataFrame(columns=trimmed_seq_cols).to_csv(
         "trimmed-sequences.tsv", sep="\t", index=False
+    )
+
+    # 11. plurality-centroid.tsv: clusterId, plurality_centroid_<trim_sequence_*>,
+    # plurality_centroid_trimmed_fullSequence. Matches process_results.py's real-run header.
+    # Always emitted (the clustering workflow always saveFiles/getFiles it); the
+    # --emit-plurality-centroid flag only gates the expensive consensus computation in
+    # process_results.py, not the file's existence.
+    # clusterLabel = variantKey axis label; clusterIdLink + link feed the centroid-dataset linker
+    # (variantKey <-> clusterId). Always present so the header matches process_results.py on empty runs.
+    plurality_cols = ["clusterId", "clusterLabel", "peptideLabel", "clusterIdLink", "link"]
+    if num_sequences > 0:
+        plurality_cols.extend([f"plurality_centroid_{c}" for c in trimmed_cols])
+        plurality_cols.append("plurality_centroid_trimmed_fullSequence")
+    pd.DataFrame(columns=plurality_cols).to_csv(
+        "plurality-centroid.tsv", sep="\t", index=False
     )
 
     print("Created all empty files with proper column headers")

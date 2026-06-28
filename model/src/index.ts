@@ -85,6 +85,20 @@ export type BlockData = {
   trimStart?: number; // number of amino acids to remove from the beginning
   trimEnd?: number; // number of amino acids to remove from the end
   clusteringTool: "easy-cluster" | "easy-linclust";
+  // Consensus threshold for the theoretical (consensus) centroid: minimum
+  // abundance-weighted fraction a residue must reach in an MSA column to be emitted,
+  // otherwise "X". Range 0-1, default 0.6.
+  consensusThreshold: number;
+  // Whether the centroid (and the profile distance / reference centroid measured
+  // against it) is weighted by clonotype abundance. When false every clonotype
+  // counts equally and column ties break deterministically (alphabetically), so the
+  // centroid reflects the cluster's sequence set rather than which clones expanded.
+  // Default false (equal weight).
+  weightByAbundance: boolean;
+  // Additionally expose a dataset of per-cluster plurality-consensus centroid sequences
+  // (weighted per-column argmax, no threshold, no 'X' — the theoretical centroid at
+  // threshold 0). Peptide inputs only. Default false.
+  generateDataset: boolean;
   mem?: number;
   cpu?: number;
   tableState: PlDataTableStateV2;
@@ -125,6 +139,9 @@ const dataModel = new DataModelBuilder()
     ...args,
     similarityType:
       (args.similarityType as string) === "alignment-score" ? "blosum62" : args.similarityType,
+    consensusThreshold: 0.6,
+    weightByAbundance: false,
+    generateDataset: false,
     tableState: uiState.tableState,
     graphStateBubble: uiState.graphStateBubble,
     alignmentModel: uiState.alignmentModel,
@@ -150,6 +167,9 @@ const dataModel = new DataModelBuilder()
     trimStart: 0, // default to no trimming from start
     trimEnd: 0, // default to no trimming from end
     clusteringTool: "easy-cluster",
+    consensusThreshold: 0.6, // default majority threshold for the theoretical centroid
+    weightByAbundance: false, // default to equal-weight centroid (abundance ignored)
+    generateDataset: false, // off by default; peptide inputs only
     tableState: createPlDataTableStateV2(),
     graphStateBubble: {
       title: "Most abundant clusters",
@@ -198,13 +218,16 @@ export const platforma = BlockModelV3.create(dataModel)
       trimStart: data.trimStart,
       trimEnd: data.trimEnd,
       clusteringTool: data.clusteringTool,
+      consensusThreshold: data.consensusThreshold,
+      weightByAbundance: data.weightByAbundance,
+      generateDataset: data.generateDataset,
       mem: data.mem,
       cpu: data.cpu,
     };
   })
 
-  .output("datasetOptions", (ctx) =>
-    ctx.resultPool.getOptions(
+  .output("datasetOptions", (ctx) => {
+    const options = ctx.resultPool.getOptions(
       [
         {
           axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/clonotypeKey" }],
@@ -223,8 +246,14 @@ export const platforma = BlockModelV3.create(dataModel)
         // suppress native label of the column (e.g. "Number of Reads") to show only the dataset label
         label: { includeNativeLabel: false },
       },
-    ),
-  )
+    );
+
+    // Exclude this block's OWN exported centroid dataset from the input picker
+    return options.filter((opt) => {
+      const keyAxis = ctx.resultPool.getPColumnSpecByRef(opt.ref)?.axesSpec[1];
+      return keyAxis?.domain?.["pl7.app/clustering/algorithm"] === undefined;
+    });
+  })
 
   .output("sequenceOptions", (ctx) => {
     const ref = ctx.data.datasetRef;
@@ -395,6 +424,20 @@ export const platforma = BlockModelV3.create(dataModel)
 
   .outputWithStatus("clustersPf", (ctx): PFrameHandle | undefined => {
     const pCols = ctx.outputs?.resolve("pf")?.getPColumns();
+    if (pCols === undefined) {
+      return undefined;
+    }
+
+    return createPFrameForGraphs(ctx, pCols);
+  })
+
+  .outputWithStatus("centroidDatasetPf", (ctx): PFrameHandle | undefined => {
+    // centroidDatasetPf is only exported by the workflow when the "Generate centroid
+    // dataset" checkbox is on (peptide inputs); allowPermanentAbsence so resolving it
+    // when off returns undefined instead of throwing "input field not found".
+    const pCols = ctx.outputs
+      ?.resolve({ field: "centroidDatasetPf", allowPermanentAbsence: true })
+      ?.getPColumns();
     if (pCols === undefined) {
       return undefined;
     }

@@ -29,11 +29,14 @@ self.validateInputs({
     "trimStart,?": "number",
     "trimEnd,?": "number",
     "clusteringTool,?": "string",
+    "consensusThreshold,?": "number",
+    "weightByAbundance,?": "boolean",
+    "generateDataset,?": "boolean",
     "mem,?": "number",
     "cpu,?": "number"
 })
 
-self.defineOutputs("abundances", "clusterToSeq", "cloneToCluster", "abundancesPerCluster", "distanceToCentroid", "clusterRadius", "clusterToSeqTop", "clusterRadiusTop", "abundancesTop", "trimmedSequences", "mmseqs", "mmseqsOutput", "isEmpty")
+self.defineOutputs("abundances", "clusterToSeq", "cloneToCluster", "abundancesPerCluster", "distanceToCentroid", "clusterRadius", "clusterToSeqTop", "clusterRadiusTop", "abundancesTop", "trimmedSequences", "mmseqs", "mmseqsOutput", "isEmpty", "pluralityCentroid")
 
 self.body(func(inputs) {
     result := {}
@@ -54,6 +57,19 @@ self.body(func(inputs) {
 
     // Clustering tool: easy-cluster (default) or easy-linclust
     clusteringTool := is_undefined(inputs.clusteringTool) ? "easy-cluster" : inputs.clusteringTool
+
+    // Min fraction of a column's weight the consensus winner must hold in the theoretical
+    // (consensus) centroid; below it the column emits "X" (default 0.6).
+    consensusThreshold := is_undefined(inputs.consensusThreshold) ? 0.6 : inputs.consensusThreshold
+
+    // Whether the centroid (and the profile distance/medoid measured against it) is
+    // weighted by clonotype abundance. When false, every clonotype counts equally and
+    // column ties break deterministically (alphabetically). Default false (equal weight).
+    weightByAbundance := is_undefined(inputs.weightByAbundance) ? false : inputs.weightByAbundance
+
+    // Optionally emit a separately-addressable plurality-consensus centroid dataset
+    // (X-free, abundance-weighted per-column argmax).
+    generateDataset := is_undefined(inputs.generateDataset) ? false : inputs.generateDataset
 
     // High precision mode (only applicable to easy-cluster)
     highPrecision := is_undefined(inputs.highPrecision) ? false : inputs.highPrecision
@@ -85,8 +101,12 @@ self.body(func(inputs) {
 		if isSingleCell {
 			emptyFilesBuilder = emptyFilesBuilder.arg("--is-single-cell")
 		}
-		
-		emptyFiles := emptyFilesBuilder.
+
+		// plurality-centroid.tsv is always emitted by create-empty-files.py (it is a
+		// declared output the workflow always getFiles); the --emit-plurality-centroid
+		// flag only gates the expensive consensus in process_results.py, so it is not
+		// needed on the empty path.
+		emptyFilesBuilder = emptyFilesBuilder.
 			saveFile("abundances.tsv").
 			saveFile("cluster-to-seq.tsv").
 			saveFile("clone-to-cluster.tsv").
@@ -97,8 +117,10 @@ self.body(func(inputs) {
 			saveFile("cluster-radius-top.tsv").
 			saveFile("abundances-top.tsv").
 			saveFile("trimmed-sequences.tsv").
-			run()
-		
+			saveFile("plurality-centroid.tsv")
+
+		emptyFiles := emptyFilesBuilder.run()
+
 		return {
 			abundances: emptyFiles.getFile("abundances.tsv"),
 			clusterToSeq: emptyFiles.getFile("cluster-to-seq.tsv"),
@@ -112,7 +134,8 @@ self.body(func(inputs) {
 			trimmedSequences: emptyFiles.getFile("trimmed-sequences.tsv"),
             mmseqs: mmseqs,
             mmseqsOutput: mmseqsOutput,
-			isEmpty: true
+			isEmpty: true,
+			pluralityCentroid: emptyFiles.getFile("plurality-centroid.tsv")
 		}
 
 	} else {
@@ -236,7 +259,8 @@ self.body(func(inputs) {
             addFile("dedup_mapping.tsv", fasta.getFile("dedup_mapping.tsv")).
             arg("--trim-start").arg(string(trimStart)).
             arg("--trim-end").arg(string(trimEnd)).
-            arg("--min-seq-id").arg(string(identity))
+            arg("--min-seq-id").arg(string(identity)).
+            arg("--consensus-threshold").arg(string(consensusThreshold))
 
         if highPrecision {
             resultBuilder = resultBuilder.arg("--high-precision")
@@ -246,18 +270,31 @@ self.body(func(inputs) {
             resultBuilder = resultBuilder.arg("--per-chain-trim")
         }
 
-        result := resultBuilder.
+        if generateDataset {
+            resultBuilder = resultBuilder.arg("--emit-plurality-centroid")
+        }
+
+        if !weightByAbundance {
+            resultBuilder = resultBuilder.arg("--no-abundance-weighting")
+        }
+
+        resultBuilder = resultBuilder.
             saveFile("abundances.tsv").
             saveFile("cluster-to-seq.tsv").
             saveFile("clone-to-cluster.tsv").
             saveFile("abundances-per-cluster.tsv"). // cluster to summed abundances
-            saveFile("distance_to_centroid.tsv"). // normalized levenshtein distance to centroid
+            saveFile("distance_to_centroid.tsv"). // profile distance to centroid (1 - p_j averaged over aligned columns)
             saveFile("cluster-radius.tsv"). // max distance to centroid per cluster
             saveFile("cluster-to-seq-top.tsv"). // top clusters for bubble plot
             saveFile("cluster-radius-top.tsv"). // top clusters for bubble plot
             saveFile("abundances-top.tsv"). // top clusters for bubble plot
             saveFile("trimmed-sequences.tsv"). // per-clonotype trimmed sequences
-            run()
+            // Always saved (declared output the workflow always getFiles). The
+            // --emit-plurality-centroid flag above only gates whether process_results.py
+            // computes real values vs a header-only file.
+            saveFile("plurality-centroid.tsv")
+
+        result := resultBuilder.run()
 
 		return {
 			// Extract files from result for use in build-results template
@@ -275,7 +312,8 @@ self.body(func(inputs) {
 			// NOTE: mmseqs2 produces different results for same input (different line order)
 			mmseqs: clusters,
 			mmseqsOutput: mmseqsOutput,
-			isEmpty: false
+			isEmpty: false,
+			pluralityCentroid: result.getFile("plurality-centroid.tsv")
 		}
 	} 
 })
