@@ -259,27 +259,47 @@ export const platforma = BlockModelV3.create(dataModel)
     const ref = ctx.data.datasetRef;
     if (ref === undefined) return undefined;
 
-    const axis1Name = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1].name;
-    const isPeptide = axis1Name === "pl7.app/variantKey";
+    const keyAxis = ctx.resultPool.getPColumnSpecByRef(ref)?.axesSpec[1];
+    const axis1Name = keyAxis?.name;
+    const keyAxisDomain = keyAxis?.domain ?? {};
+
+    // Both peptide-extraction and synthetic-repertoire-profiler key sequences on
+    // the pl7.app/variantKey axis; the axis domain distinguishes the two modalities:
+    //   peptide-extraction           -> pl7.app/peptide/extractionRunId    (feature "peptide")
+    //   synthetic-repertoire-profiler -> pl7.app/repertoire/extractionRunId (feature "amplicon-sequence")
+    const isPeptide =
+      axis1Name === "pl7.app/variantKey" &&
+      keyAxisDomain["pl7.app/peptide/extractionRunId"] !== undefined;
+    const isAmplicon =
+      axis1Name === "pl7.app/variantKey" &&
+      keyAxisDomain["pl7.app/repertoire/extractionRunId"] !== undefined;
     const isSingleCell = axis1Name === "pl7.app/vdj/scClonotypeKey";
 
     const sequenceMatchers = [];
 
     if (isPeptide) {
-      // The variantKey axis is shared by two producers: peptide-extraction
-      // (feature "peptide") and synthetic-repertoire-profiler (feature
-      // "amplicon-sequence"). Offer both so either block's sequences are
-      // clusterable; getCanonicalOptions returns columns matching any matcher.
-      for (const feature of ["peptide", "amplicon-sequence"]) {
-        sequenceMatchers.push({
-          axes: [{ anchor: "main", idx: 1 }],
-          name: "pl7.app/sequence",
-          domain: {
-            "pl7.app/feature": feature,
-            "pl7.app/alphabet": ctx.data.sequenceType,
-          },
-        });
-      }
+      sequenceMatchers.push({
+        axes: [{ anchor: "main", idx: 1 }],
+        name: "pl7.app/sequence",
+        domain: {
+          "pl7.app/feature": "peptide",
+          "pl7.app/alphabet": ctx.data.sequenceType,
+        },
+      });
+    } else if (isAmplicon) {
+      // Feature-agnostic discovery (mirrors the VDJ branch below): match every
+      // pl7.app/sequence on the variant axis regardless of pl7.app/feature, so the
+      // whole-variant sequence (feature "amplicon-sequence") and each region
+      // subsequence (feature = region name) all surface as options. Each column
+      // carries a distinct feature in its derived id, so the workflow's
+      // addSingle(ref) resolves the picked sequence uniquely.
+      sequenceMatchers.push({
+        axes: [{ anchor: "main", idx: 1 }],
+        name: "pl7.app/sequence",
+        domain: {
+          "pl7.app/alphabet": ctx.data.sequenceType,
+        },
+      });
     } else {
       // const allowedFeatures = ['CDR1', 'CDR2', 'CDR3', 'FR1', 'FR2',
       //   'FR3', 'FR4', 'FR4InFrame', 'VDJRegion', 'VDJRegionInFrame'];
