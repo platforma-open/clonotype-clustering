@@ -1,5 +1,12 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.2.2
+
+### Patch Changes
+
+- 723023b: Adapt clustering to new variant (dms) data
+  SDK Update
+
 ## 4.2.1
 
 ### Patch Changes
