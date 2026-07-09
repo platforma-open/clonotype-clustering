@@ -102,6 +102,17 @@ def test_larger_cluster_breaks_distance_tie():
     assert cluster_of(out, "SNG") == "REP_BIG"
 
 
+def test_equal_distance_equal_size_tie_breaks_on_clusterid():
+    # SNG=BASE is 1 edit from each rep (A1 at pos 5, A2 at pos 1) and both clusters are
+    # size 2 -> equal norm_dist AND equal rep_size. Must deterministically pick the
+    # smaller clusterId ("REP_A"), regardless of the order the buckets are supplied.
+    for order in ([("REP_A", A1, 2), ("REP_B", A2, 2)],
+                  [("REP_B", A2, 2), ("REP_A", A1, 2)]):
+        clusters, cloneTable = build_frames(buckets=order, singletons=[("SNG", BASE)])
+        out = reassign_singletons(clusters, cloneTable, MIN_SEQ_ID)
+        assert cluster_of(out, "SNG") == "REP_A"
+
+
 def test_mixed_batch_of_singletons():
     clusters, cloneTable = build_frames(
         buckets=[("REP_BASE", BASE, 3)],
@@ -139,22 +150,46 @@ def test_no_sequence_column_is_noop():
 
 
 @pytest.mark.slow
-def test_scaled_runs_without_materializing_all_pairs():
-    """Many singletons x many centroids: must complete with bounded memory and
-    return a well-formed frame."""
+def test_scaled_matching_flows_through_all_stages_and_flush():
+    """At scale, with real matches driving every stage and the flush/reduction path.
+
+    200 families, each a centroid plus 10 singleton variants that are 1 edit from the
+    family base (same length, so the length band admits them). Every singleton matches
+    its own family's centroid, so ~2000 candidates flow through filter_by_levenshtein,
+    the exact recheck, and accumulation into `pending`; a small `flush_rows` forces
+    several reductions. Asserts each singleton is reassigned to its own family.
+    """
     rng = random.Random(0)
     aa = "ACDEFGHIKLMNPQRSTVWY"
+    L, n_families, per_family = 12, 200, 10
 
-    def rseq(n):
-        return "".join(rng.choice(aa) for _ in range(n))
+    def rseq():
+        return "".join(rng.choice(aa) for _ in range(L))
 
-    buckets = [(f"B{j}", rseq(12), 2) for j in range(2000)]
-    singletons = [(f"S{i}", rseq(9)) for i in range(2000)]
+    def one_edit(seq):
+        i = rng.randrange(L)
+        repl = rng.choice(aa)
+        while repl == seq[i]:
+            repl = rng.choice(aa)
+        return seq[:i] + repl + seq[i + 1:]
+
+    buckets, singletons, expected = [], [], {}
+    for f in range(n_families):
+        base = rseq()
+        buckets.append((f"C{f}", base, 2))
+        for k in range(per_family):
+            key = f"S{f}_{k}"
+            singletons.append((key, one_edit(base)))
+            expected[key] = f"C{f}"
     clusters, cloneTable = build_frames(buckets, singletons)
-    out = reassign_singletons(clusters, cloneTable, MIN_SEQ_ID)
-    # every original row is preserved (only clusterId may change)
+
+    # small flush_rows -> the 2000 matches trigger several running-best reductions
+    out = reassign_singletons(clusters, cloneTable, MIN_SEQ_ID, flush_rows=500)
+
     assert out.height == clusters.height
-    assert set(out.columns) == {"clusterId", "clonotypeKey"}
+    assign = dict(zip(out["clonotypeKey"].to_list(), out["clusterId"].to_list()))
+    for key, want in expected.items():
+        assert assign[key] == want
 
 
 @pytest.mark.parametrize("flush_rows", [1, 7, 25, 101, 10**9])

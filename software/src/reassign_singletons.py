@@ -97,10 +97,17 @@ def reassign_singletons(clusters: pl.DataFrame, cloneTable: pl.DataFrame,
     print(f"Singleton reassignment: checking {n_singletons} singletons against {n_centroids} centroids...")
 
     max_dist_frac = 1.0 - min_seq_id
+    # Largest singleton length overall, computed ONCE (not per centroid). Every band
+    # member is <= this, so it is a safe (generous) upper bound for the Levenshtein
+    # prefilter that never drops a true match -- and it avoids an eager .max().item()
+    # query inside the per-centroid loop.
+    max_len_all = int(singleton_df.select(pl.col("member_len").max()).item()) if singleton_df.height else 0
 
     def select_best(matches):
-        # Closest centroid (lowest normalized distance), then largest cluster; one row per singleton.
-        return (matches.sort(["norm_dist", "rep_size"], descending=[False, True])
+        # Closest centroid (lowest normalized distance), then largest cluster, then
+        # smallest clusterId as a deterministic tie-break (a singleton matches a given
+        # cluster at most once, so this key is unique per singleton -> reproducible pick).
+        return (matches.sort(["norm_dist", "rep_size", "clusterId"], descending=[False, True, False])
                 .group_by("member_key").first()
                 .select("member_key", "clusterId", "rep_size", "distance", "norm_dist"))
 
@@ -121,27 +128,29 @@ def reassign_singletons(clusters: pl.DataFrame, cloneTable: pl.DataFrame,
         if band.height == 0:
             continue
 
-        # (2) generous bounded prefilter: bound = largest allowed edits over the band, so it
-        # never drops a real match; a few extras are removed by the exact recheck below.
-        max_len_band = int(band.select(pl.col("member_len").max()).item())
-        bound = int(math.floor(max_dist_frac * max(max_len_band, Lc)))
+        # (2) generous bounded prefilter: bound from max_len_all (>= this band's max
+        # length), so it never drops a real match; extras are removed by the exact recheck.
+        bound = int(math.floor(max_dist_frac * max(max_len_all, Lc)))
+        # pl.lit(c_seq): filter_by_levenshtein treats a bare str as a COLUMN NAME (polars_ds
+        # 0.10.2), so the centroid must be a literal or it raises ColumnNotFoundError.
         pref = band.filter(pds.filter_by_levenshtein("member_seq", pl.lit(c_seq), bound, parallel=True))
         if pref.height == 0:
             continue
 
-        # (3) exact normalized recheck.
+        # (3) exact normalized recheck. Compute norm_dist once, then reuse it for both
+        # the filter and the output row (no redundant division / casting).
         exact = pref.with_columns(
             pds.str_leven(pl.col("member_seq"), pl.lit(c_seq), return_sim=False).alias("distance"),
             pl.max_horizontal(pl.col("member_len"), pl.lit(Lc)).alias("max_len"),
+        ).with_columns(
+            (pl.col("distance").cast(pl.Float64) / pl.col("max_len").cast(pl.Float64)).alias("norm_dist"),
         ).filter(
-            (pl.col("max_len") > 0) &
-            (pl.col("distance").cast(pl.Float64) / pl.col("max_len").cast(pl.Float64) <= max_dist_frac)
+            (pl.col("max_len") > 0) & (pl.col("norm_dist") <= max_dist_frac)
         )
         if exact.height == 0:
             continue
 
         cur = exact.with_columns(
-            (pl.col("distance").cast(pl.Float64) / pl.col("max_len").cast(pl.Float64)).alias("norm_dist"),
             pl.lit(c["clusterId"]).alias("clusterId"),
             pl.lit(c["rep_size"], dtype=rep_dtype).alias("rep_size"),
         ).select("member_key", "clusterId", "rep_size", "distance", "norm_dist")
