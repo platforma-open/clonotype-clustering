@@ -17,7 +17,7 @@ catalog:
   '@platforma-sdk/package-builder': 3.14.1
   '@platforma-sdk/block-tools': 2.12.2
   '@platforma-sdk/test': 1.79.31
-  '@milaboratories/helpers': 1.14.2
+  '@milaboratories/helpers': 1.14.3
   '@milaboratories/strings': 0.1.2
 
   # Block-specific dependencies
