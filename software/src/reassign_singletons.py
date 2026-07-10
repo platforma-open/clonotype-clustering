@@ -1,192 +1,213 @@
 """Singleton reassignment for high-precision clustering.
 
-Reassign singleton cluster representatives to nearby non-singleton clusters. For each
-centroid it prunes to length-compatible singletons, applies a bounded Levenshtein
-prefilter, then an exact recheck, keeping only a running best-per-singleton, so peak
-memory is O(#singletons). In its own module so it can be unit-tested without running
-the whole process_results.py pipeline.
+MMseqs2's k-mer prefilter (k=5) misses valid matches for short sequences (5-7 aa),
+leaving them as false singletons. This folds each singleton into the nearest
+non-singleton cluster whose representative is within the identity threshold.
+
+The old all-pairs cross join overflowed polars' 2^32 row cap on large repertoires.
+Instead this walks centroids one at a time through a three-stage funnel, keeping
+only a running best-per-singleton, so peak memory is O(#singletons).
 """
 import math
 
 import polars as pl
 import polars_ds as pds
 
-# Default cap on accumulated match rows before reducing to the running
-# best-per-singleton. Bounds peak memory; the reassignment result is identical
-# for any value (correctness is independent of it). Exposed as the `flush_rows`
-# argument so tests can force the reduction path on small inputs.
+# Preferred first: the trimmed sequence wins over untrimmed when both exist.
+SEQ_COLUMNS = ("trimmed_fullSequence", "fullSequence")
+
+# Memory bound only: candidate rows accumulated before reducing to the running
+# best. The result is identical for any value (see _RunningBest).
 FLUSH_ROWS = 2_000_000
 
 
 def reassign_singletons(clusters: pl.DataFrame, cloneTable: pl.DataFrame,
                         min_seq_id: float, flush_rows: int = FLUSH_ROWS) -> pl.DataFrame:
-    """Reassign singleton cluster representatives to nearby non-singleton clusters.
+    """Fold singleton clusters into a near-enough non-singleton cluster.
 
-    MMseqs2 kmer prefilter (k=5) can miss valid matches for short sequences (5-7 aa),
-    leaving them as incorrect singletons. This checks each singleton representative
-    against non-singleton centroids within the identity threshold.
-
-    For each centroid we
-      (1) keep only length-compatible singletons -- a match needs
-          |len_s - len_c| <= (1 - min_seq_id) * max_len, so others provably can't match;
-      (2) run pds.filter_by_levenshtein as a generous bounded prefilter (never drops a
-          true match; a fused, early-exiting distance check with no intermediate frame);
-      (3) apply the exact normalized recheck.
-    Only a RUNNING best-per-singleton is kept (periodically reduced), so peak memory is
-    O(#singletons) regardless of how many pairs match. Each singleton's best match is the
-    closest centroid, then the largest cluster.
-
-    `flush_rows` caps how many candidate rows accumulate before the running best is
-    reduced (a memory bound); it never changes the result.
-
-    Returns the (possibly updated) clusters DataFrame.
+    A singleton is reassigned to the centroid within `1 - min_seq_id` normalized
+    Levenshtein distance, preferring the closest, then the largest, then the
+    lowest-id cluster. Returns `clusters` with `clusterId` updated in place; a
+    no-op (with an explanatory print) when there is nothing to reassign.
     """
-    seq_col = 'trimmed_fullSequence' if 'trimmed_fullSequence' in cloneTable.columns else (
-        'fullSequence' if 'fullSequence' in cloneTable.columns else None)
-
-    if not seq_col:
+    seq_col = next((c for c in SEQ_COLUMNS if c in cloneTable.columns), None)
+    if seq_col is None:
         print("Singleton reassignment: skipped (no sequence columns available)")
         return clusters
 
-    # Count representatives per cluster (before dedup expansion)
-    rep_sizes = clusters.group_by("clusterId").agg(pl.len().alias("rep_size"))
-    singleton_ids = rep_sizes.filter(pl.col("rep_size") == 1)["clusterId"]
-    non_singleton_centroids = rep_sizes.filter(pl.col("rep_size") > 1)
-
-    if singleton_ids.len() == 0 or non_singleton_centroids.height == 0:
-        print(f"Singleton reassignment: skipped "
-              f"({'no singletons' if singleton_ids.len() == 0 else 'no non-singleton clusters to reassign to'})")
+    singletons, centroids = _split_by_size(clusters, cloneTable, seq_col)
+    if singletons.height == 0 or centroids.height == 0:
+        why = "no singletons" if singletons.height == 0 else "no non-singleton clusters to reassign to"
+        print(f"Singleton reassignment: skipped ({why})")
         return clusters
 
-    # Sequence lookup from cloneTable (keyed by clonotypeKey)
-    seq_df = (
-        cloneTable.select(["clonotypeKey", seq_col])
-        .unique("clonotypeKey", keep="first")
-    )
+    print(f"Singleton reassignment: checking {singletons.height} singletons "
+          f"against {centroids.height} centroids...")
 
-    # Singleton members with their sequences (length precomputed once for the band prefilter)
-    singleton_df = (
-        clusters.filter(pl.col("clusterId").is_in(singleton_ids))
-        .select(pl.col("clonotypeKey").alias("member_key"))
-        .join(
-            seq_df.select(
-                pl.col("clonotypeKey").alias("member_key"),
-                pl.col(seq_col).alias("member_seq")
-            ),
-            on="member_key", how="inner"
-        )
-        .with_columns(pl.col("member_seq").str.len_chars().cast(pl.Int64).alias("member_len"))
-    )
-
-    # Non-singleton centroids with their sequences and sizes
-    centroid_df = (
-        non_singleton_centroids
-        .select(["clusterId", "rep_size"])
-        .join(
-            seq_df.select(
-                pl.col("clonotypeKey").alias("clusterId"),
-                pl.col(seq_col).alias("centroid_seq")
-            ),
-            on="clusterId", how="inner"
-        )
-    )
-    rep_dtype = non_singleton_centroids.schema["rep_size"]
-
-    n_singletons = singleton_df.height
-    n_centroids = centroid_df.height
-    print(f"Singleton reassignment: checking {n_singletons} singletons against {n_centroids} centroids...")
-
-    max_dist_frac = 1.0 - min_seq_id
-    # Largest singleton length overall, computed ONCE (not per centroid). Every band
-    # member is <= this, so it is a safe (generous) upper bound for the Levenshtein
-    # prefilter that never drops a true match -- and it avoids an eager .max().item()
-    # query inside the per-centroid loop.
-    max_len_all = int(singleton_df.select(pl.col("member_len").max()).item()) if singleton_df.height else 0
-
-    def select_best(matches):
-        # Closest centroid (lowest normalized distance), then largest cluster, then
-        # smallest clusterId as a deterministic tie-break (a singleton matches a given
-        # cluster at most once, so this key is unique per singleton -> reproducible pick).
-        return (matches.sort(["norm_dist", "rep_size", "clusterId"], descending=[False, True, False])
-                .group_by("member_key").first()
-                .select("member_key", "clusterId", "rep_size", "distance", "norm_dist"))
-
-    best = None
-    pending = []
-    pending_rows = 0
-    for c in centroid_df.iter_rows(named=True):
-        c_seq = c["centroid_seq"]
-        Lc = len(c_seq)
-        if Lc == 0:
-            continue  # empty centroid can only "match" empty singletons (excluded by max_len>0)
-
-        # (1) length-band prefilter (exact necessary condition; can only over-keep).
-        band = singleton_df.filter(
-            (pl.col("member_len") - Lc).abs().cast(pl.Float64)
-            <= max_dist_frac * pl.max_horizontal(pl.col("member_len"), pl.lit(Lc)).cast(pl.Float64)
-        )
-        if band.height == 0:
-            continue
-
-        # (2) generous bounded prefilter: bound from max_len_all (>= this band's max
-        # length), so it never drops a real match; extras are removed by the exact recheck.
-        bound = int(math.floor(max_dist_frac * max(max_len_all, Lc)))
-        # pl.lit(c_seq): filter_by_levenshtein treats a bare str as a COLUMN NAME (polars_ds
-        # 0.10.2), so the centroid must be a literal or it raises ColumnNotFoundError.
-        pref = band.filter(pds.filter_by_levenshtein("member_seq", pl.lit(c_seq), bound, parallel=True))
-        if pref.height == 0:
-            continue
-
-        # (3) exact normalized recheck. Compute norm_dist once, then reuse it for both
-        # the filter and the output row (no redundant division / casting).
-        exact = pref.with_columns(
-            pds.str_leven(pl.col("member_seq"), pl.lit(c_seq), return_sim=False).alias("distance"),
-            pl.max_horizontal(pl.col("member_len"), pl.lit(Lc)).alias("max_len"),
-        ).with_columns(
-            (pl.col("distance").cast(pl.Float64) / pl.col("max_len").cast(pl.Float64)).alias("norm_dist"),
-        ).filter(
-            (pl.col("max_len") > 0) & (pl.col("norm_dist") <= max_dist_frac)
-        )
-        if exact.height == 0:
-            continue
-
-        cur = exact.with_columns(
-            pl.lit(c["clusterId"]).alias("clusterId"),
-            pl.lit(c["rep_size"], dtype=rep_dtype).alias("rep_size"),
-        ).select("member_key", "clusterId", "rep_size", "distance", "norm_dist")
-        pending.append(cur)
-        pending_rows += cur.height
-        if pending_rows >= flush_rows:
-            best = select_best(pl.concat(([best] if best is not None else []) + pending))
-            pending, pending_rows = [], 0
-    if pending:
-        best = select_best(pl.concat(([best] if best is not None else []) + pending))
-
-    if best is None or best.height == 0:
-        print(f"Singleton reassignment: 0 of {n_singletons} singletons matched "
+    best = _best_match_per_singleton(singletons, centroids, 1.0 - min_seq_id, flush_rows)
+    if best.height == 0:
+        print(f"Singleton reassignment: 0 of {singletons.height} singletons matched "
               f"any non-singleton centroid (min-seq-id={min_seq_id})")
         return clusters
 
-    best_matches = best
+    _log_reassignments(best)
+    print(f"Singleton reassignment: {best.height} of {singletons.height} singletons "
+          f"reassigned to existing clusters (min-seq-id={min_seq_id})")
+    return _apply_reassignments(clusters, best)
 
-    # Log reassignments (first 10)
-    for row in best_matches.head(10).iter_rows(named=True):
+
+def _split_by_size(clusters: pl.DataFrame, cloneTable: pl.DataFrame,
+                   seq_col: str) -> tuple[pl.DataFrame, pl.DataFrame]:
+    """Split representatives into singletons and centroids, joined to their sequence.
+
+    A cluster's representative is the clonotype whose key equals the clusterId.
+    Returns (singletons[member_key, member_seq, member_len],
+             centroids[clusterId, rep_size, centroid_seq]).
+    """
+    seq = cloneTable.select("clonotypeKey", seq_col).unique("clonotypeKey", keep="first")
+    rep_size = clusters.group_by("clusterId").agg(pl.len().alias("rep_size"))
+
+    singletons = (
+        clusters.join(rep_size.filter(pl.col("rep_size") == 1).select("clusterId"),
+                      on="clusterId", how="semi")
+        .join(seq, on="clonotypeKey", how="inner")
+        .select(
+            pl.col("clonotypeKey").alias("member_key"),
+            pl.col(seq_col).alias("member_seq"),
+            pl.col(seq_col).str.len_chars().cast(pl.Int64).alias("member_len"),
+        )
+    )
+    centroids = (
+        rep_size.filter(pl.col("rep_size") > 1)
+        .join(seq.rename({"clonotypeKey": "clusterId", seq_col: "centroid_seq"}),
+              on="clusterId", how="inner")
+    )
+    return singletons, centroids
+
+
+def _best_match_per_singleton(singletons: pl.DataFrame, centroids: pl.DataFrame,
+                              max_dist_frac: float, flush_rows: int) -> pl.DataFrame:
+    """Best qualifying centroid per singleton, or an empty frame if none match."""
+    # Loop-invariant upper bound for the per-centroid prefilter (see _match_centroid).
+    max_len_all = int(singletons.select(pl.col("member_len").max()).item())
+    rep_dtype = centroids.schema["rep_size"]
+
+    running = _RunningBest(flush_rows)
+    for centroid in centroids.iter_rows(named=True):
+        if (candidates := _match_centroid(singletons, centroid, max_dist_frac,
+                                          max_len_all, rep_dtype)) is not None:
+            running.add(candidates)
+    return running.result()
+
+
+def _match_centroid(singletons: pl.DataFrame, centroid: dict, max_dist_frac: float,
+                    max_len_all: int, rep_dtype: pl.DataType) -> pl.DataFrame | None:
+    """Singletons matching one centroid, or None if none do.
+
+    Three stages, each only over-keeps relative to the next, so survivors are exactly
+    the pairs the old cross-join-then-filter produced:
+      (1) length band       -- a match needs |Ls - Lc| <= frac * max(Ls, Lc);
+      (2) bounded Levenshtein -- generous prefilter, early-exiting, no full matrix;
+      (3) exact recheck      -- distance / max_len <= frac.
+    """
+    centroid_seq = centroid["centroid_seq"]
+    centroid_len = len(centroid_seq)
+    if centroid_len == 0:
+        return None  # empty centroid only matches empty singletons, dropped by max_len > 0
+
+    band = singletons.filter(
+        (pl.col("member_len") - centroid_len).abs()
+        <= max_dist_frac * pl.max_horizontal("member_len", pl.lit(centroid_len))
+    )
+    if band.height == 0:
+        return None
+
+    # bound uses max_len_all (>= this pair's max_len), so it never drops a true match.
+    # polars_ds 0.10.2 reads a bare str as a column name -> the centroid must be pl.lit.
+    bound = math.floor(max_dist_frac * max(max_len_all, centroid_len))
+    pref = band.filter(pds.filter_by_levenshtein("member_seq", pl.lit(centroid_seq), bound, parallel=True))
+    if pref.height == 0:
+        return None
+
+    matched = (
+        pref.with_columns(
+            pds.str_leven("member_seq", pl.lit(centroid_seq), return_sim=False).alias("distance"),
+            pl.max_horizontal("member_len", pl.lit(centroid_len)).alias("max_len"),
+        )
+        .with_columns((pl.col("distance") / pl.col("max_len")).alias("norm_dist"))
+        .filter((pl.col("max_len") > 0) & (pl.col("norm_dist") <= max_dist_frac))
+    )
+    if matched.height == 0:
+        return None
+
+    return matched.select(
+        "member_key",
+        pl.lit(centroid["clusterId"]).alias("clusterId"),
+        pl.lit(centroid["rep_size"], dtype=rep_dtype).alias("rep_size"),
+        "distance",
+        "norm_dist",
+    )
+
+
+class _RunningBest:
+    """Running best match per singleton, without holding every candidate.
+
+    Candidates accumulate until they exceed flush_rows, then collapse to one row per
+    singleton. Chunked reduction equals a single reduction because the ranking key is
+    a strict total order and each singleton matches a given cluster at most once.
+    """
+
+    def __init__(self, flush_rows: int):
+        self._flush_rows = flush_rows
+        self._best = None
+        self._pending = []
+        self._pending_rows = 0
+
+    def add(self, candidates: pl.DataFrame) -> None:
+        self._pending.append(candidates)
+        self._pending_rows += candidates.height
+        if self._pending_rows >= self._flush_rows:
+            self._reduce()
+
+    def result(self) -> pl.DataFrame:
+        self._reduce()
+        return self._best if self._best is not None else pl.DataFrame()
+
+    def _reduce(self) -> None:
+        if not self._pending:
+            return
+        frames = self._pending if self._best is None else [self._best, *self._pending]
+        self._best = _pick_best(pl.concat(frames))
+        self._pending, self._pending_rows = [], 0
+
+
+def _pick_best(candidates: pl.DataFrame) -> pl.DataFrame:
+    """One row per singleton: closest centroid, then largest, then lowest clusterId."""
+    return (
+        candidates
+        .sort(["norm_dist", "rep_size", "clusterId"], descending=[False, True, False])
+        .group_by("member_key").first()
+    )
+
+
+def _log_reassignments(best: pl.DataFrame, limit: int = 10) -> None:
+    # Sort for a stable log sample (group_by output order is not deterministic);
+    # closest reassignments first.
+    shown = best.sort(["norm_dist", "member_key"])
+    for row in shown.head(limit).iter_rows(named=True):
         print(f"  reassign {row['member_key']} -> centroid {row['clusterId']} "
               f"(dist={row['distance']}, norm_dist={row['norm_dist']:.4f}, "
               f"cluster_size={row['rep_size']})")
-    if best_matches.height > 10:
-        print(f"  ... and {best_matches.height - 10} more reassignments")
+    if best.height > limit:
+        print(f"  ... and {best.height - limit} more reassignments")
 
-    # Apply reassignments to clusters DataFrame
-    reassign_df = best_matches.select(
-        pl.col("member_key").alias("r_key"),
-        pl.col("clusterId").alias("new_clusterId")
+
+def _apply_reassignments(clusters: pl.DataFrame, best: pl.DataFrame) -> pl.DataFrame:
+    """Point every reassigned singleton's rows at its new clusterId."""
+    reassign = best.select("member_key", pl.col("clusterId").alias("new_clusterId"))
+    return (
+        clusters
+        .join(reassign, left_on="clonotypeKey", right_on="member_key", how="left")
+        .with_columns(pl.coalesce("new_clusterId", "clusterId").alias("clusterId"))
+        .drop("new_clusterId")
     )
-    clusters = clusters.join(reassign_df, left_on="clonotypeKey", right_on="r_key", how="left")
-    clusters = clusters.with_columns(
-        pl.coalesce(pl.col("new_clusterId"), pl.col("clusterId")).alias("clusterId")
-    ).drop("new_clusterId")
-
-    print(f"Singleton reassignment: {best_matches.height} of {n_singletons} singletons "
-          f"reassigned to existing clusters (min-seq-id={min_seq_id})")
-    return clusters
