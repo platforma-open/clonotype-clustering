@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.2.4
+
+### Patch Changes
+
+- d67bd8d: Export sequence length for the consensus centroid dataset so downstream peptide blocks accept it as input.
+
 ## 3.2.3
 
 ### Patch Changes
