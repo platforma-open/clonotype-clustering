@@ -733,6 +733,24 @@ wf.body(func(args) {
 				}, "Consensus Centroid " + dBaseLabel, true, "4500")
 			})
 
+			// Sequence length of the consensus centroid, mirroring the pl7.app/sequenceLength a
+			// real peptide dataset carries. Downstream peptide consumers (e.g. clonotype-space's
+			// short-peptide encoder tuning) reject peptide input that lacks it.
+			lengthAlphabet := dspec.domain["pl7.app/alphabet"]
+			lengthSuffix := (lengthAlphabet == "aminoacid" ? " (aa)" : (lengthAlphabet == "nucleotide" ? " (nt)" : ""))
+			datasetSeqColumns = append(datasetSeqColumns, {
+				column: "plurality_centroid_length_trim_sequence_" + string(nr),
+				spec: setTableProps({
+					name: "pl7.app/sequenceLength",
+					valueType: "Int",
+					domain: {
+						"pl7.app/feature": "peptide",
+						"pl7.app/alphabet": lengthAlphabet
+					},
+					annotations: {}
+				}, "Consensus Centroid length" + lengthSuffix, false, "4600", "Length of the consensus centroid peptide sequence.")
+			})
+
 			// Clusters-table column: drop the dataset/vdj markers (match the sibling centroid_*
 			// table columns), never an anchor.
 			tableAnn := maps.clone(dspec.annotations)
