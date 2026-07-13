@@ -469,6 +469,10 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
     for c in trim_cols:
         plurality_out[f"plurality_centroid_{c}"] = []
     plurality_out["plurality_centroid_trimmed_fullSequence"] = []
+    # Per-chain residue count of the plurality centroid (gap-free, X-free consensus),
+    # exported as the dataset's pl7.app/sequenceLength.
+    for c in trim_cols:
+        plurality_out[f"plurality_centroid_length_{c}"] = []
 
     dist_clusters = []
     dist_keys = []
@@ -524,10 +528,14 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
             plurality_out["plurality_centroid_trimmed_fullSequence"].append(
                 "====".join(plur_trim[c] for c in sorted_trim_cols)
             )
+            for c in trim_cols:
+                plurality_out[f"plurality_centroid_length_{c}"].append(len(plur_trim[c]))
         else:
             for c in trim_cols:
                 plurality_out[f"plurality_centroid_{c}"].append(None)
             plurality_out["plurality_centroid_trimmed_fullSequence"].append(None)
+            for c in trim_cols:
+                plurality_out[f"plurality_centroid_length_{c}"].append(None)
 
         # --- profile distance (§3) + medoid (§2) over the trimmed chains ---
         # weight is per clonotypeKey (constant across the cluster's chains).
@@ -600,6 +608,8 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
     for c in trim_cols:
         plurality_schema[f"plurality_centroid_{c}"] = pl.String
     plurality_schema["plurality_centroid_trimmed_fullSequence"] = pl.String
+    for c in trim_cols:
+        plurality_schema[f"plurality_centroid_length_{c}"] = pl.Int64
     plurality_df = pl.DataFrame(plurality_out, schema=plurality_schema)
 
     distance_df = pl.DataFrame(

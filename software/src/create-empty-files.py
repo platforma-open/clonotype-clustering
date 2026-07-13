@@ -110,6 +110,7 @@ def main():
     if num_sequences > 0:
         plurality_cols.extend([f"plurality_centroid_{c}" for c in trimmed_cols])
         plurality_cols.append("plurality_centroid_trimmed_fullSequence")
+        plurality_cols.extend([f"plurality_centroid_length_{c}" for c in trimmed_cols])
     pd.DataFrame(columns=plurality_cols).to_csv(
         "plurality-centroid.tsv", sep="\t", index=False
     )
