@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.2.5
+
+### Patch Changes
+
+- 7ce8605: SDK Update
+
 ## 4.2.4
 
 ### Patch Changes
