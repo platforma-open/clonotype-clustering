@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.2.6
+
+### Patch Changes
+
+- bc725ae: Release software
+- Updated dependencies [bc725ae]
+  - @platforma-open/milaboratories.clonotype-clustering.software@4.1.3
+
 ## 4.2.5
 
 ### Patch Changes

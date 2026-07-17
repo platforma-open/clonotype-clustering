@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.2.6
+
+### Patch Changes
+
+- bc725ae: Release software
+
 ## 3.2.5
 
 ### Patch Changes
