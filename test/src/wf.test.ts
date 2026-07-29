@@ -45,7 +45,12 @@ const EMITTED_COLUMNS = [
   "clusterRadius",
 ] as const;
 
-const CLI_ARGS = ["--consensus-threshold", "--centroid-type"] as const;
+const CLI_ARGS = [
+  "--consensus-threshold",
+  "--centroid-type",
+  "--gap-threshold",
+  "--keep-gaps",
+] as const;
 
 // ---------------------------------------------------------------------------
 // Plurality-centroid dataset contract surface (docs/centroid-dataset-plan.md).
@@ -75,48 +80,18 @@ const CENTROID_DATASET_EXPORT_KEY = "centroidDatasetPf"; // workflow export / mo
 // TS oracle: faithful re-implementation of the process_results.py helpers.
 // ---------------------------------------------------------------------------
 
-/**
- * Mirror of `_msa_consensus` (§1). `aligned` rows are equal-length, gap = "-".
- * Per column the highest-weight residue wins (tie-break: non-gap over gap, then
- * the lexically smaller letter). Gap-majority columns are dropped. A non-gap
- * winner is committed only when it holds >= threshold of the column weight,
- * otherwise the column emits "X".
- */
-function msaConsensus(aligned: string[], weights: number[], threshold: number): string {
-  const out: string[] = [];
-  const nCols = aligned[0].length;
-  for (let col = 0; col < nCols; col++) {
-    const tally = new Map<string, number>();
-    aligned.forEach((row, i) => tally.set(row[col], (tally.get(row[col]) ?? 0) + weights[i]));
-    // (weight, nonGap, -charCode) descending — same ordering as the Python max key.
-    let best = "";
-    let bestKey: [number, number, number] = [-Infinity, -Infinity, -Infinity];
-    for (const [a, w] of tally) {
-      const key: [number, number, number] = [w, a !== "-" ? 1 : 0, -a.charCodeAt(0)];
-      if (
-        key[0] > bestKey[0] ||
-        (key[0] === bestKey[0] && key[1] > bestKey[1]) ||
-        (key[0] === bestKey[0] && key[1] === bestKey[1] && key[2] > bestKey[2])
-      ) {
-        best = a;
-        bestKey = key;
-      }
-    }
-    if (best === "-") continue; // gap-majority column: not part of the centroid
-    const total = [...tally.values()].reduce((s, w) => s + w, 0);
-    out.push(total > 0 && tally.get(best)! / total >= threshold ? best : "X");
-  }
-  return out.join("");
-}
+import { DEFAULT_GAP_THRESHOLD, isAbsentColumn, msaConsensus } from "./msa-oracle";
 
 /**
  * Mirror of `_msa_profile_distances` (§3). Returns per-(gap-stripped)-member
- * profile distance D = Σ_j (1 - p_j(residue)) and L_cons = count of
- * non-gap-majority columns.
+ * profile distance D = Σ_j (1 - p_j(residue)) and L_cons = count of consensus
+ * positions, decided by the SAME `gapThreshold` the centroid uses so the two stay
+ * consistent. Independent of the `removeGaps` rendering flag.
  */
 function msaProfileDistances(
   aligned: string[],
   weights: number[],
+  gapThreshold: number = DEFAULT_GAP_THRESHOLD,
 ): { dBySeq: Map<string, number>; lCons: number } {
   const nCols = aligned[0].length;
   const W = weights.reduce((s, w) => s + w, 0);
@@ -128,20 +103,7 @@ function msaProfileDistances(
     const frac = new Map<string, number>();
     for (const [a, w] of tally) frac.set(a, W > 0 ? w / W : 0);
     colFracs.push(frac);
-    let best = "";
-    let bestKey: [number, number, number] = [-Infinity, -Infinity, -Infinity];
-    for (const [a, w] of tally) {
-      const key: [number, number, number] = [w, a !== "-" ? 1 : 0, -a.charCodeAt(0)];
-      if (
-        key[0] > bestKey[0] ||
-        (key[0] === bestKey[0] && key[1] > bestKey[1]) ||
-        (key[0] === bestKey[0] && key[1] === bestKey[1] && key[2] > bestKey[2])
-      ) {
-        best = a;
-        bestKey = key;
-      }
-    }
-    if (best !== "-") lCons += 1;
+    if (!isAbsentColumn(tally, gapThreshold)) lCons += 1;
   }
   const dBySeq = new Map<string, number>();
   for (const row of aligned) {
@@ -199,10 +161,33 @@ describe("§1 computed centroid: consensus threshold + X fallback", () => {
     expect(msaConsensus(["K", "R"], [1, 1], 0.5)).toBe("K");
   });
 
-  test("gap-majority column is dropped from the centroid", () => {
-    // col0 gap-majority (dropped), col1 unanimous K.
+  test("gap-dominated column yields '-', never a vanished position", () => {
+    // col0: gaps hold 2/3 >= 0.5 -> absent position. col1 unanimous K.
+    // One symbol per column, so the centroid stays in alignment coordinates.
     const t = msaConsensus(["-K", "-K", "AK"], [1, 1, 1], 0.6);
-    expect(t).toBe("K");
+    expect(t).toBe("-K");
+    expect(t).toHaveLength(2); // == alignment width
+  });
+
+  test("removeGaps strips '-' and nothing else", () => {
+    const aligned = ["-K", "-K", "AK"];
+    const kept = msaConsensus(aligned, [1, 1, 1], 0.6, 0.5, false);
+    const stripped = msaConsensus(aligned, [1, 1, 1], 0.6, 0.5, true);
+    expect(kept).toBe("-K");
+    expect(stripped).toBe("K");
+    expect(kept.replaceAll("-", "")).toBe(stripped);
+  });
+
+  test("residue vote uses the non-gap weight, so gaps are not charged twice", () => {
+    // col0: 2 gaps + 2 A. Gaps are exactly 0.5 -> absent, so this is about col1.
+    // col1: 3 gaps + 1 B would be absent; use 1 gap + 3 B instead.
+    // gaps 1/4 = 0.25 < 0.5 -> present; B holds 3/3 of the non-gap weight -> "B",
+    // whereas charging the gap too would give 3/4 = 0.75 and still pass, so pick a
+    // case where the two differ: 1 gap + 2 B + 1 C.
+    const t = msaConsensus(["-", "B", "B", "C"], [1, 1, 1, 1], 0.6);
+    // non-gap denominator: B = 2/3 = 0.667 >= 0.6 -> "B".
+    // whole-column denominator would give 2/4 = 0.5 < 0.6 -> "X".
+    expect(t).toBe("B");
   });
 
   test("X never appears for a confident column even when an unrelated residue is present", () => {
@@ -225,35 +210,46 @@ describe("plurality consensus (threshold 0): X-free centroid", () => {
   // Independent computation of the per-column weighted argmax, mirroring the
   // same (weight, nonGap, -charCode) ordering, to confirm threshold-0 consensus
   // equals plurality. Gap-majority columns are dropped (not part of the result).
-  function weightedArgmax(aligned: string[], weights: number[]): string {
+  // Independent oracle: per-column non-gap argmax over the columns that are present
+  // (gap fraction < gapThreshold), with absent columns rendered as "-". Written
+  // separately from msaConsensus so the two can disagree if either drifts.
+  function weightedArgmax(
+    aligned: string[],
+    weights: number[],
+    gapThreshold: number = DEFAULT_GAP_THRESHOLD,
+    removeGaps: boolean = true,
+  ): string {
     const out: string[] = [];
     const nCols = aligned[0].length;
     for (let col = 0; col < nCols; col++) {
       const tally = new Map<string, number>();
       aligned.forEach((row, i) => tally.set(row[col], (tally.get(row[col]) ?? 0) + weights[i]));
+      const total = [...tally.values()].reduce((sum, w) => sum + w, 0);
+      const gap = tally.get("-") ?? 0;
+      if (total <= 0 || gap / total >= gapThreshold) {
+        out.push("-");
+        continue;
+      }
       let best = "";
-      let bestKey: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+      let bestKey: [number, number] = [-Infinity, -Infinity];
       for (const [a, w] of tally) {
-        const key: [number, number, number] = [w, a !== "-" ? 1 : 0, -a.charCodeAt(0)];
-        if (
-          key[0] > bestKey[0] ||
-          (key[0] === bestKey[0] && key[1] > bestKey[1]) ||
-          (key[0] === bestKey[0] && key[1] === bestKey[1] && key[2] > bestKey[2])
-        ) {
+        if (a === "-") continue;
+        const key: [number, number] = [w, -a.charCodeAt(0)];
+        if (key[0] > bestKey[0] || (key[0] === bestKey[0] && key[1] > bestKey[1])) {
           best = a;
           bestKey = key;
         }
       }
-      if (best === "-") continue;
-      out.push(best);
+      out.push(best === "" ? "-" : best);
     }
-    return out.join("");
+    const joined = out.join("");
+    return removeGaps ? joined.replaceAll("-", "") : joined;
   }
 
   test("50/50 K/R column: X at 0.6, but threshold 0 commits the weighted argmax (no X)", () => {
     // §1 shows this column emits 'X' at 0.6; at threshold 0 it must not.
     expect(msaConsensus(["K", "R"], [1, 1], 0.6)).toBe("X");
-    const t0 = msaConsensus(["K", "R"], [1, 1], 0);
+    const t0 = msaConsensus(["K", "R"], [1, 1], 0, DEFAULT_GAP_THRESHOLD, true);
     expect(t0).not.toContain("X");
     expect(t0).toBe(weightedArgmax(["K", "R"], [1, 1]));
   });
@@ -261,7 +257,7 @@ describe("plurality consensus (threshold 0): X-free centroid", () => {
   test("70/30 column: threshold 0 equals the weighted argmax, no X", () => {
     const aligned = ["K", "K", "K", "R"];
     const weights = [1, 1, 1, 1];
-    const t0 = msaConsensus(aligned, weights, 0);
+    const t0 = msaConsensus(aligned, weights, 0, DEFAULT_GAP_THRESHOLD, true);
     expect(t0).not.toContain("X");
     expect(t0).toBe(weightedArgmax(aligned, weights));
     expect(t0).toBe("K");
@@ -273,17 +269,17 @@ describe("plurality consensus (threshold 0): X-free centroid", () => {
     const aligned = ["K", "K", "K", "R", "R", "W"];
     const weights = [1, 1, 1, 1, 1, 1];
     expect(msaConsensus(aligned, weights, 0.6)).toBe("X");
-    const t0 = msaConsensus(aligned, weights, 0);
+    const t0 = msaConsensus(aligned, weights, 0, DEFAULT_GAP_THRESHOLD, true);
     expect(t0).not.toContain("X");
     expect(t0).toBe(weightedArgmax(aligned, weights));
     expect(t0).toBe("K");
   });
 
-  test("gap-majority column is still dropped at threshold 0 (no X, no gap)", () => {
-    // Reuse the §1 gap-majority fixture: col0 gap-majority (dropped), col1 K.
+  test("absent column contributes nothing once gaps are stripped at threshold 0", () => {
+    // Reuse the §1 fixture: col0 is gap-dominated -> "-" -> stripped; col1 K.
     const aligned = ["-K", "-K", "AK"];
     const weights = [1, 1, 1];
-    const t0 = msaConsensus(aligned, weights, 0);
+    const t0 = msaConsensus(aligned, weights, 0, DEFAULT_GAP_THRESHOLD, true);
     expect(t0).not.toContain("X");
     expect(t0).not.toContain("-");
     expect(t0).toBe(weightedArgmax(aligned, weights));
@@ -314,7 +310,7 @@ describe("plurality consensus (threshold 0): X-free centroid", () => {
         aligned.push(row);
       }
       const weights = aligned.map(() => 1 + Math.floor(rng() * 5));
-      const t0 = msaConsensus(aligned, weights, 0);
+      const t0 = msaConsensus(aligned, weights, 0, DEFAULT_GAP_THRESHOLD, true);
       expect(t0).not.toContain("X");
       expect(t0).toBe(weightedArgmax(aligned, weights));
     }
@@ -482,6 +478,8 @@ describe("contract surface (column + CLI arg names)", () => {
   test("process_results.py accepts the consensus-threshold / centroid-type args", () => {
     expect(CLI_ARGS).toContain("--consensus-threshold");
     expect(CLI_ARGS).toContain("--centroid-type");
+    expect(CLI_ARGS).toContain("--gap-threshold");
+    expect(CLI_ARGS).toContain("--keep-gaps");
   });
 
   test("plurality-centroid dataset names are stable (payload schema DEFERRED)", () => {

@@ -210,6 +210,8 @@ wf.body(func(args) {
 		trimEnd: args.trimEnd,
 		clusteringTool: args.clusteringTool,
 		consensusThreshold: args.consensusThreshold,
+		gapThreshold: args.gapThreshold,
+		removeGaps: args.removeGaps,
 		weightByAbundance: args.weightByAbundance,
 		generateDataset: args.generateDataset
 	}, {
@@ -748,7 +750,10 @@ wf.body(func(args) {
 						"pl7.app/alphabet": lengthAlphabet
 					},
 					annotations: {}
-				}, "Consensus Centroid length" + lengthSuffix, false, "4600", "Length of the consensus centroid peptide sequence.")
+				// Visible by default: the centroid is a consensus over the cluster's alignment, so
+				// its length is the alignment's, not any member's. Surfacing the length makes that
+				// divergence apparent instead of something users discover by eyeballing sequences.
+				}, "Consensus Centroid length" + lengthSuffix, true, "4600", "Length of the consensus centroid peptide sequence. The centroid is a per-column consensus over the cluster's alignment, so this need not match the length of any individual member (see Reference Centroid).")
 			})
 
 			// Clusters-table column: drop the dataset/vdj markers (match the sibling centroid_*

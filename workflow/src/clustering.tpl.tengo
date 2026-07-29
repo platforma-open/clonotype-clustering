@@ -30,6 +30,8 @@ self.validateInputs({
     "trimEnd,?": "number",
     "clusteringTool,?": "string",
     "consensusThreshold,?": "number",
+    "gapThreshold,?": "number",
+    "removeGaps,?": "boolean",
     "weightByAbundance,?": "boolean",
     "generateDataset,?": "boolean",
     "mem,?": "number",
@@ -61,6 +63,16 @@ self.body(func(inputs) {
     // Min fraction of a column's weight the consensus winner must hold in the theoretical
     // (consensus) centroid; below it the column emits "X" (default 0.6).
     consensusThreshold := is_undefined(inputs.consensusThreshold) ? 0.6 : inputs.consensusThreshold
+
+    // Min fraction of a column's weight held by gaps for the position to count as absent
+    // from the cluster; such a column yields "-" instead of a residue. Mirrors HMMER
+    // hmmbuild --symfrac (same 0.5 default, stated in gap terms). Separate concern from
+    // consensusThreshold, which picks WHICH residue a present position carries.
+    gapThreshold := is_undefined(inputs.gapThreshold) ? 0.5 : inputs.gapThreshold
+
+    // Strip "-" from the centroid sequences (default true). Off keeps them in alignment
+    // coordinates, one symbol per MSA column, like EMBOSS cons / Jalview.
+    removeGaps := is_undefined(inputs.removeGaps) ? true : inputs.removeGaps
 
     // Whether the centroid (and the profile distance/medoid measured against it) is
     // weighted by clonotype abundance. When false, every clonotype counts equally and
@@ -260,7 +272,12 @@ self.body(func(inputs) {
             arg("--trim-start").arg(string(trimStart)).
             arg("--trim-end").arg(string(trimEnd)).
             arg("--min-seq-id").arg(string(identity)).
-            arg("--consensus-threshold").arg(string(consensusThreshold))
+            arg("--consensus-threshold").arg(string(consensusThreshold)).
+            arg("--gap-threshold").arg(string(gapThreshold))
+
+        if !removeGaps {
+            resultBuilder = resultBuilder.arg("--keep-gaps")
+        }
 
         if highPrecision {
             resultBuilder = resultBuilder.arg("--high-precision")

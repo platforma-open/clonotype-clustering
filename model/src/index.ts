@@ -89,6 +89,15 @@ export type BlockData = {
   // abundance-weighted fraction a residue must reach in an MSA column to be emitted,
   // otherwise "X". Range 0-1, default 0.6.
   consensusThreshold: number;
+  // Minimum fraction of an MSA column's abundance weight held by gaps for the position to
+  // count as absent from the cluster; such a column yields "-" instead of a residue.
+  // Mirrors HMMER hmmbuild --symfrac (same 0.5 default, stated in gap terms). Separate
+  // from consensusThreshold, which decides WHICH residue a present position carries.
+  gapThreshold: number;
+  // Strip "-" from the theoretical/consensus centroid sequences. Default true. When false
+  // they stay in alignment coordinates (one symbol per MSA column), like EMBOSS cons or
+  // Jalview — note "-" is not a valid residue for downstream sequence consumers.
+  removeGaps: boolean;
   // Whether the centroid (and the profile distance / reference centroid measured
   // against it) is weighted by clonotype abundance. When false every clonotype
   // counts equally and column ties break deterministically (alphabetically), so the
@@ -140,6 +149,8 @@ const dataModel = new DataModelBuilder()
     similarityType:
       (args.similarityType as string) === "alignment-score" ? "blosum62" : args.similarityType,
     consensusThreshold: 0.6,
+    gapThreshold: 0.5,
+    removeGaps: true,
     weightByAbundance: false,
     generateDataset: false,
     tableState: uiState.tableState,
@@ -168,6 +179,8 @@ const dataModel = new DataModelBuilder()
     trimEnd: 0, // default to no trimming from end
     clusteringTool: "easy-cluster",
     consensusThreshold: 0.6, // default majority threshold for the theoretical centroid
+    gapThreshold: 0.5, // HMMER --symfrac default, stated in gap terms
+    removeGaps: true, // strip "-" from centroid sequences by default
     weightByAbundance: false, // default to equal-weight centroid (abundance ignored)
     generateDataset: false, // off by default; peptide inputs only
     tableState: createPlDataTableStateV2(),
@@ -219,6 +232,8 @@ export const platforma = BlockModelV3.create(dataModel)
       trimEnd: data.trimEnd,
       clusteringTool: data.clusteringTool,
       consensusThreshold: data.consensusThreshold,
+      gapThreshold: data.gapThreshold,
+      removeGaps: data.removeGaps,
       weightByAbundance: data.weightByAbundance,
       generateDataset: data.generateDataset,
       mem: data.mem,

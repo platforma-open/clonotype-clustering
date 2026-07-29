@@ -38,6 +38,19 @@ parser.add_argument('--consensus-threshold', type=float, default=0.6,
                          'the winning residue must hold for the theoretical (consensus) centroid '
                          'to commit that residue; below it the position is ambiguous and emits "X". '
                          'Default 0.6.')
+parser.add_argument('--gap-threshold', type=float, default=0.5,
+                    help='Minimum fraction (0-1) of an MSA column\'s total abundance weight '
+                         'held by gaps for the position to count as absent from the cluster: '
+                         'the column then yields "-" instead of a residue. Mirrors HMMER '
+                         'hmmbuild --symfrac (same 0.5 default, stated in gap terms). '
+                         'Separate from --consensus-threshold, which decides WHICH residue a '
+                         'present position carries. Default 0.5.')
+parser.add_argument('--keep-gaps', action='store_true',
+                    help='Keep the "-" symbols in the centroid sequences, so they stay in '
+                         'alignment coordinates (one symbol per MSA column) like EMBOSS cons '
+                         'or Jalview. Off by default: gaps are stripped, which is required for '
+                         'the exported peptide dataset, since "-" is not a valid residue for '
+                         'downstream sequence consumers.')
 parser.add_argument('--emit-plurality-centroid', action='store_true',
                     help='Also emit plurality-centroid.tsv: per-cluster abundance-weighted per-column '
                          'majority residue (consensus at threshold 0.0, so no "X").')
@@ -54,6 +67,8 @@ trim_end = args.trim_end
 per_chain_trim = args.per_chain_trim
 min_seq_id = args.min_seq_id
 consensus_threshold = args.consensus_threshold
+gap_threshold = args.gap_threshold
+remove_gaps = not args.keep_gaps
 emit_plurality = args.emit_plurality_centroid
 no_abundance_weighting = args.no_abundance_weighting
 
@@ -226,18 +241,50 @@ def _sanitize_seq(seq: str) -> str:
     return _NON_ALPHA_RE.sub("X", seq)
 
 
-def _msa_consensus(aligned: list[str], weights: list[float], threshold: float) -> str:
-    """Abundance-weighted column-majority consensus over a kalign MSA.
+def _is_absent_column(tally: dict[str, float], gap_threshold: float) -> bool:
+    """Does this MSA column represent a position most cluster members do not have?
+
+    Mirrors HMMER's `hmmbuild --symfrac` (default 0.5): a column is a consensus
+    position when the abundance-weighted residue fraction clears the bar, and an
+    insertion — i.e. not a consensus position — otherwise. Stated in gap terms, the
+    position is absent when the weighted gap fraction reaches `gap_threshold`.
+
+    This replaces the earlier "gap wins the weighted argmax" rule, which was not a
+    threshold at all: on a diverse column where every residue appears once, two gaps
+    out of six already outvoted each residue, so a position present in 67% of members
+    was discarded. Terminal gaps count the same as internal ones — HMMER excludes
+    fragment-end gaps, but that only suits alignments of a shared domain; on clusters
+    whose members barely overlap it marks every column a consensus position.
+    """
+    total = sum(tally.values())
+    if total <= 0:
+        return True
+    return tally.get("-", 0.0) / total >= gap_threshold
+
+
+def _msa_consensus(aligned: list[str], weights: list[float], threshold: float,
+                   gap_threshold: float, remove_gaps: bool) -> str:
+    """Abundance-weighted column consensus over a kalign MSA, one symbol per column.
 
     `aligned` are equal-length gap-padded rows from kalign; `weights[i]` is the
-    abundance weight of row i. For each column the residue with the greatest total
-    weight wins (ties broken deterministically: non-gap over gap, then lexically).
-    Columns whose majority residue is a gap contribute nothing to the centroid.
+    abundance weight of row i. Every column yields exactly one symbol, so the result
+    lives in alignment coordinates and its length is the alignment width — the same
+    contract as EMBOSS `cons`, Jalview's consensus row and MiXCR's contigs. Columns
+    are never silently dropped.
 
-    A non-gap winner is only committed when it holds at least `threshold` of the
-    column's total weight; otherwise no residue dominates and the position emits
-    "X" (ambiguous). This stops a 51/49 column being reported as confidently as a
-    70/30 one.
+    Three outcomes per column, deliberately distinguishable:
+      "-"  the position is absent from most members (see _is_absent_column).
+      "X"  the position exists but no residue reaches `threshold`, so which residue
+           it carries is ambiguous.
+      else the winning residue.
+
+    `threshold` is measured against the NON-GAP weight only. The gaps already had
+    their say in deciding whether the position exists; charging them again here would
+    count the same evidence twice and flood a gappy-but-real column with "X".
+
+    `remove_gaps` strips the "-" symbols as an explicit last step. It changes only the
+    rendering of this string — never which columns are consensus positions — so the
+    profile distance and L_cons (see _msa_profile_distances) are unaffected by it.
     """
     out = []
     for col in range(len(aligned[0])):
@@ -245,14 +292,20 @@ def _msa_consensus(aligned: list[str], weights: list[float], threshold: float) -
         for row, w in zip(aligned, weights):
             c = row[col]
             tally[c] = tally.get(c, 0.0) + w
-        # Max total weight; on ties prefer a real residue, then the smaller letter.
-        best = max(tally.items(), key=lambda kv: (kv[1], kv[0] != "-", -ord(kv[0])))
-        if best[0] == "-":
-            continue  # gap-majority column: not part of the centroid
-        total = sum(tally.values())
+        if _is_absent_column(tally, gap_threshold):
+            out.append("-")
+            continue
+        non_gap = {a: w for a, w in tally.items() if a != "-"}
+        if not non_gap:
+            out.append("-")
+            continue
+        # Greatest non-gap weight; on ties prefer the smaller letter (deterministic).
+        best = max(non_gap.items(), key=lambda kv: (kv[1], -ord(kv[0])))
+        non_gap_total = sum(non_gap.values())
         # Commit the residue only when it clears the threshold, else mark ambiguous.
-        out.append(best[0] if total > 0 and best[1] / total >= threshold else "X")
-    return "".join(out)
+        out.append(best[0] if best[1] / non_gap_total >= threshold else "X")
+    consensus = "".join(out)
+    return consensus.replace("-", "") if remove_gaps else consensus
 
 
 def _align_chain(values: list[str], weights: list[float], cluster_id: str):
@@ -309,12 +362,15 @@ def _align_chain(values: list[str], weights: list[float], cluster_id: str):
     return ("msa", (aligned, member_weights))
 
 
-def derive_consensus(bundle, threshold: float) -> str:
-    """Abundance-weighted column-majority consensus from an _align_chain bundle.
+def derive_consensus(bundle, threshold: float, gap_threshold: float,
+                     remove_gaps: bool) -> str:
+    """Abundance-weighted column consensus from an _align_chain bundle.
 
-    0 members -> ""; a single distinct member -> that sequence unchanged; otherwise the
-    weighted consensus over the shared MSA (see _msa_consensus). At threshold 0.0 the "X"
-    branch is unreachable, giving the X-free plurality centroid.
+    0 members -> ""; a single distinct member -> that sequence unchanged (it has no
+    gaps, so `remove_gaps` is moot); otherwise the weighted consensus over the shared
+    MSA (see _msa_consensus). At threshold 0.0 the "X" branch is unreachable, giving
+    the X-free plurality centroid — "-" can still appear when `remove_gaps` is off,
+    since absence is decided by `gap_threshold`, not by `threshold`.
     """
     mode, payload = bundle
     if mode == "empty":
@@ -322,10 +378,11 @@ def derive_consensus(bundle, threshold: float) -> str:
     if mode == "single":
         return payload
     aligned, member_weights = payload
-    return _msa_consensus(aligned, member_weights, threshold)
+    return _msa_consensus(aligned, member_weights, threshold, gap_threshold, remove_gaps)
 
 
-def _msa_profile_distances(aligned: list[str], weights: list[float]) -> tuple[dict[str, float], int]:
+def _msa_profile_distances(aligned: list[str], weights: list[float],
+                           gap_threshold: float) -> tuple[dict[str, float], int]:
     """Positional profile distance of each aligned row to the column profile (§3).
 
     `aligned` are equal-length gap-padded rows from kalign; `weights[i]` is the
@@ -352,10 +409,9 @@ def _msa_profile_distances(aligned: list[str], weights: list[float]) -> tuple[di
             c = row[col]
             tally[c] = tally.get(c, 0.0) + w
         col_fracs.append({a: (wa / W if W > 0 else 0.0) for a, wa in tally.items()})
-        # Same column winner / tie-break as the consensus: non-gap over gap, then lexical.
-        best = max(tally.items(), key=lambda kv: (kv[1], kv[0] != "-", -ord(kv[0])))
-        if best[0] != "-":
-            l_cons += 1  # non-gap-majority column: part of the centroid length
+        # Same absence rule as the consensus, so centroid and distance stay consistent.
+        if not _is_absent_column(tally, gap_threshold):
+            l_cons += 1  # consensus position: part of the centroid length
 
     # Each member's distance is the sum over columns of 1 - p_j(its residue).
     d_by_seq: dict[str, float] = {}
@@ -367,7 +423,7 @@ def _msa_profile_distances(aligned: list[str], weights: list[float]) -> tuple[di
     return d_by_seq, l_cons
 
 
-def derive_distances(bundle) -> tuple[dict[str, float], int]:
+def derive_distances(bundle, gap_threshold: float) -> tuple[dict[str, float], int]:
     """Per-distinct-member profile distance (§3) from an _align_chain bundle.
 
     Because it reads the SAME alignment as derive_consensus, the distance is computed
@@ -376,7 +432,9 @@ def derive_distances(bundle) -> tuple[dict[str, float], int]:
       - D_by_seq maps each distinct (gap-stripped, sanitized) member sequence to its
         profile distance D^(s) for this chain. The caller looks up with the same
         sanitized form.
-      - L_cons is the number of non-gap-majority consensus columns for this chain.
+      - L_cons is the number of consensus positions for this chain, decided by the same
+        `gap_threshold` the centroid uses (see _is_absent_column). It is independent of
+        the `remove_gaps` rendering flag.
     Members dropped by the cap are not in D_by_seq; the caller charges them full length.
 
     Edge cases: 0 non-empty members -> ({}, 0); a single distinct member -> distance 0
@@ -389,7 +447,7 @@ def derive_distances(bundle) -> tuple[dict[str, float], int]:
         seq = payload
         return {seq: 0.0}, len(seq)
     aligned, member_weights = payload
-    return _msa_profile_distances(aligned, member_weights)
+    return _msa_profile_distances(aligned, member_weights, gap_threshold)
 
 
 def compute_centroid_and_distance(clusters_df: pl.DataFrame,
@@ -398,6 +456,8 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
                                   seq_cols: list[str],
                                   trim_cols: list[str],
                                   threshold: float,
+                                  gap_threshold: float,
+                                  remove_gaps: bool,
                                   emit_plurality: bool,
                                   no_trim: bool):
     """Single per-cluster pass: align each chain ONCE and derive everything from it.
@@ -498,9 +558,10 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
         for sc, tc in zip(seq_cols, trim_cols):
             # Align the trimmed chain ONCE; consensus, plurality and distance share it.
             bundle_t = _align_chain(row[f"__vals_{tc}"], wts, cluster_id)
-            cons_trim[tc] = derive_consensus(bundle_t, threshold)
-            plur_trim[tc] = derive_consensus(bundle_t, 0.0) if emit_plurality else None
-            d_by_seq_chain[tc], l_cons_chain[tc] = derive_distances(bundle_t)
+            cons_trim[tc] = derive_consensus(bundle_t, threshold, gap_threshold, remove_gaps)
+            plur_trim[tc] = (derive_consensus(bundle_t, 0.0, gap_threshold, remove_gaps)
+                             if emit_plurality else None)
+            d_by_seq_chain[tc], l_cons_chain[tc] = derive_distances(bundle_t, gap_threshold)
 
             # Untrimmed centroid: identical to the trimmed one when trimming is off (the
             # trim_ column is a byte copy of the original), else align separately.
@@ -508,7 +569,7 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
                 cons_seq[sc] = cons_trim[tc]
             else:
                 bundle_u = _align_chain(row[f"__vals_{sc}"], wts, cluster_id)
-                cons_seq[sc] = derive_consensus(bundle_u, threshold)
+                cons_seq[sc] = derive_consensus(bundle_u, threshold, gap_threshold, remove_gaps)
 
         # --- centroid row ---
         centroid_out["clusterId"].append(cluster_id)
@@ -648,7 +709,8 @@ reference_cluster_to_seq_cols = []
 if sequence_cols:
     centroid_df, plurality_df, distance_member_df, medoid_df = compute_centroid_and_distance(
         clusters, cloneTable, clonotype_weights,
-        sequence_cols, trimmed_cols, consensus_threshold, emit_plurality, no_trim,
+        sequence_cols, trimmed_cols, consensus_threshold, gap_threshold, remove_gaps,
+        emit_plurality, no_trim,
     )
 else:
     # No sequence columns: still write a header-only plurality file (the clustering
