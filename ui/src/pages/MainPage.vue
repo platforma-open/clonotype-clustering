@@ -147,6 +147,22 @@ watch(
   },
 );
 
+// Clear the dataset export when gap removal is turned off. The export needs a gap-free
+// residue string, so the model rejects the combination and the checkbox below is
+// disabled in that state — leaving generateDataset set would strand the block on a
+// validation error with no enabled control to clear it.
+// Safe against the args-replacement hazard described on onSequencesRefChange: this
+// watches a boolean, compared by value, so a server patch carrying the same value does
+// not re-fire (unlike a watcher on the sequencesRef array).
+watch(
+  () => app.model.data.removeGaps,
+  (removeGaps) => {
+    if (!removeGaps) {
+      app.model.data.generateDataset = false;
+    }
+  },
+);
+
 // Check if any selected sequence is CDR3
 const hasCDR3Sequences = computed(() => {
   if (!app.model.data.sequencesRef || !app.model.outputs.sequenceOptions) {
