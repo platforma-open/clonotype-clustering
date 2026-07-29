@@ -45,10 +45,14 @@ const EMITTED_COLUMNS = [
   "clusterRadius",
 ] as const;
 
+// --keep-gaps is deliberately NOT wired through the block: it exists for running
+// process_results.py by hand, since a centroid carrying "-" is not a valid sequence for
+// the exported dataset. Pinned here so it is not dropped from the script by accident.
 const CLI_ARGS = [
   "--consensus-threshold",
   "--centroid-type",
   "--gap-threshold",
+  "--alignment-model",
   "--keep-gaps",
 ] as const;
 
@@ -498,10 +502,11 @@ describe("contract surface (column + CLI arg names)", () => {
     expect(EMITTED_COLUMNS).toContain("clusterRadius");
   });
 
-  test("process_results.py accepts the consensus-threshold / centroid-type args", () => {
+  test("process_results.py accepts the centroid args the block relies on", () => {
     expect(CLI_ARGS).toContain("--consensus-threshold");
     expect(CLI_ARGS).toContain("--centroid-type");
     expect(CLI_ARGS).toContain("--gap-threshold");
+    expect(CLI_ARGS).toContain("--alignment-model");
     expect(CLI_ARGS).toContain("--keep-gaps");
   });
 

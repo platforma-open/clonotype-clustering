@@ -148,22 +148,6 @@ watch(
   },
 );
 
-// Clear the dataset export when gap removal is turned off. The export needs a gap-free
-// residue string, so the model rejects the combination and the checkbox below is
-// disabled in that state — leaving generateDataset set would strand the block on a
-// validation error with no enabled control to clear it.
-// Safe against the args-replacement hazard described on onSequencesRefChange: this
-// watches a boolean, compared by value, so a server patch carrying the same value does
-// not re-fire (unlike a watcher on the sequencesRef array).
-watch(
-  () => app.model.data.removeGaps,
-  (removeGaps) => {
-    if (!removeGaps) {
-      app.model.data.generateDataset = false;
-    }
-  },
-);
-
 // Check if any selected sequence is CDR3
 const hasCDR3Sequences = computed(() => {
   if (!app.model.data.sequencesRef || !app.model.outputs.sequenceOptions) {
@@ -370,43 +354,9 @@ const clusterAxis = computed<AxisId>(() => {
         </template>
       </PlNumberField>
 
-      <PlNumberField
-        v-model="app.model.data.gapThreshold"
-        label="Gap Threshold"
-        :minValue="0"
-        :step="0.05"
-        :maxValue="1.0"
-      >
-        <template #tooltip>
-          Fraction of an alignment column's vote that gaps must <b>exceed</b> for the position to
-          count as <b>absent</b> from the cluster: the column then yields <b>-</b> instead of a
-          residue. Mirrors HMMER's <b>--symfrac</b> stated in gap terms, same 0.5 default. A
-          separate question from the <b>Consensus Threshold</b> above, which decides
-          <i>which</i> residue a position that does exist carries. At <b>1.0</b> every column
-          holding a residue is kept; at <b>0.0</b> any column containing a gap is absent. Lower
-          values discard more positions and shorten the centroid.
-        </template>
-      </PlNumberField>
-      <PlCheckbox v-model="app.model.data.removeGaps">
-        Remove gaps from centroid sequences
-        <PlTooltip class="info" position="top">
-          <template #tooltip>
-            When on (default), <b>-</b> symbols are stripped from the
-            <b>Theoretical Centroid</b> and <b>Consensus Centroid</b> sequences, so they are plain
-            residue strings. When off, they stay in alignment coordinates — one symbol per alignment
-            column, like EMBOSS <b>cons</b> or Jalview — which makes absent positions visible but
-            means the length is the alignment width rather than a member's length. Turn it off to
-            inspect where positions were dropped; keep it on if the sequences feed downstream
-            analyses, since <b>-</b> is not a valid residue there. Turning it off disables the
-            consensus dataset export below, for the same reason.
-          </template>
-        </PlTooltip>
-      </PlCheckbox>
-
       <PlCheckbox
         v-if="app.model.outputs.modality === 'peptide'"
         v-model="app.model.data.generateDataset"
-        :disabled="!app.model.data.removeGaps"
       >
         Export consensus sequences as a dataset
         <PlTooltip class="info" position="top">
@@ -415,9 +365,7 @@ const clusterAxis = computed<AxisId>(() => {
             dataset you can feed into downstream analyses. The representative is the cluster's
             <b>consensus</b> — the most frequent amino acid at each aligned position (by the Residue
             Weighting chosen above) — so it summarizes the whole group and need not match any
-            individual observed clonotype. Available for peptide inputs only, and only while
-            <b>Remove gaps from centroid sequences</b> is on: the dataset carries sequence columns,
-            and <b>-</b> is not a valid residue for the analyses downstream of it.
+            individual observed clonotype. Available for peptide inputs only.
           </template>
         </PlTooltip>
       </PlCheckbox>
@@ -474,6 +422,26 @@ const clusterAxis = computed<AxisId>(() => {
         </PlCheckbox>
 
         <template v-if="hasCDR3Sequences">
+          <PlNumberField
+            v-model="app.model.data.gapThreshold"
+            label="Gap Threshold"
+            :minValue="0"
+            :step="0.05"
+            :maxValue="1.0"
+          >
+            <template #tooltip>
+              Fraction of an alignment column's vote that gaps must <b>exceed</b> for a position to
+              count as <b>absent</b> from the cluster, in which case it contributes no residue to
+              the centroid. Mirrors HMMER's <b>--symfrac</b> stated in gap terms, same 0.5 default,
+              and plays the role <b>--maxgap</b> does in pRESTO. A separate question from the
+              <b>Consensus Threshold</b>, which decides <i>which</i> residue a position that does
+              exist carries. At <b>1.0</b> every column holding a residue is kept; at <b>0.0</b> any
+              column containing a gap is absent. Lower values discard more positions and shorten the
+              centroid. Only bites when the alignment has gaps at all, so it has no effect on an
+              <b>Ungapped</b> layout of equal-length members.
+            </template>
+          </PlNumberField>
+
           <PlSectionSeparator>Trimming options</PlSectionSeparator>
           <PlNumberField
             v-model="app.model.data.trimStart"

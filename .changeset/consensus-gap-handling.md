@@ -22,17 +22,14 @@ contract as EMBOSS `cons`, Jalview's consensus row and MiXCR's contigs:
 - `X` the position exists but no residue is confident enough,
 - otherwise the winning residue.
 
-Two new settings:
+New settings:
 
-- **Gap Threshold** (default 0.5) — the weighted gap fraction a position must
+- **Gap Threshold** (default 0.5, under Advanced Settings) — the weighted gap fraction a position must
   *exceed* to count as absent. Mirrors HMMER `hmmbuild --symfrac` stated in gap
   terms (`gapThreshold = 1 - symfrac`), same default. The comparison is strict, so
   both endpoints stay usable: 1.0 keeps every column holding a residue, 0.0 treats
   any column containing a gap as absent. Separate from Consensus Threshold, which
   decides *which* residue a position that does exist carries.
-- **Remove gaps from centroid sequences** (default on) — strips `-` as an explicit
-  final step, so the exported dataset stays a valid residue string. Turn it off to
-  see where positions were dropped; the length is then the alignment width.
 
 The residue vote is now taken over the non-gap weight only. Gaps already decide
 whether the position exists, so charging them again flooded gappy-but-real columns
@@ -42,10 +39,12 @@ from `Reference Centroid` apparent instead of something to spot by eye.
 Centroid sequences, and therefore the `PC-XXXXX` ids derived from them, change for
 existing projects.
 
-Exporting the consensus dataset now requires gap removal to be on, and is rejected
-otherwise: the dataset carries sequence columns, so `-` would be misread downstream
-and would inflate the accompanying sequence length. The checkbox is disabled while
-gaps are kept rather than exporting something different from what the table shows.
+Centroid sequences are always emitted as plain residue strings: `-` is not a valid
+residue for the exported dataset or for anything downstream of it. The alignment
+coordinates remain inspectable in the MSA panel, which shows the real alignment rather
+than a dashed string, and `Consensus Centroid length` surfaces any divergence from
+`Reference Centroid`. `process_results.py` keeps a `--keep-gaps` flag for running the
+script by hand; the block does not set it.
 
 **Alignment Model** (default `Gapped (MSA)`) selects how a cluster's members are laid
 out in columns before the vote. `Ungapped (fixed length)` forbids internal gaps and

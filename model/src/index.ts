@@ -101,10 +101,6 @@ export type BlockData = {
   // containing a gap is absent. The comparison is strict so both endpoints stay usable.
   // Separate from consensusThreshold, which decides WHICH residue a present position has.
   gapThreshold: number;
-  // Strip "-" from the theoretical/consensus centroid sequences. Default true. When false
-  // they stay in alignment coordinates (one symbol per MSA column), like EMBOSS cons or
-  // Jalview — note "-" is not a valid residue for downstream sequence consumers.
-  removeGaps: boolean;
   // How a cluster's members are laid out in columns before the vote. "gapped" runs a
   // kalign MSA, which may insert internal gaps and widen the layout past the input
   // length. "ungapped" forbids internal gaps and allows only terminal offsets — the
@@ -164,7 +160,6 @@ const dataModel = new DataModelBuilder()
       (args.similarityType as string) === "alignment-score" ? "blosum62" : args.similarityType,
     consensusThreshold: 0.6,
     gapThreshold: 0.5,
-    removeGaps: true,
     centroidAlignment: "gapped",
     weightByAbundance: false,
     generateDataset: false,
@@ -195,7 +190,6 @@ const dataModel = new DataModelBuilder()
     clusteringTool: "easy-cluster",
     consensusThreshold: 0.6, // default majority threshold for the theoretical centroid
     gapThreshold: 0.5, // HMMER --symfrac 0.5 default, stated in gap terms
-    removeGaps: true, // strip "-" from centroid sequences by default
     centroidAlignment: "gapped", // kalign MSA; "ungapped" keeps the input length
     weightByAbundance: false, // default to equal-weight centroid (abundance ignored)
     generateDataset: false, // off by default; peptide inputs only
@@ -233,16 +227,6 @@ export const platforma = BlockModelV3.create(dataModel)
   .args((data) => {
     if (!data.datasetRef) throw new Error("Dataset is required");
     if (!data.sequencesRef.length) throw new Error("Sequences are required");
-    // The exported dataset carries pl7.app/sequence columns, so it has to be a valid
-    // residue string: "-" would be rejected or misread by downstream sequence
-    // consumers, and would inflate the accompanying sequenceLength. Rather than
-    // export something different from what the table shows, refuse the combination.
-    if (data.generateDataset && !data.removeGaps) {
-      throw new Error(
-        'Exporting consensus sequences as a dataset requires "Remove gaps from centroid ' +
-          'sequences" to be enabled: "-" is not a valid residue for downstream analyses.',
-      );
-    }
     return {
       defaultBlockLabel: data.defaultBlockLabel,
       customBlockLabel: data.customBlockLabel,
@@ -259,7 +243,6 @@ export const platforma = BlockModelV3.create(dataModel)
       clusteringTool: data.clusteringTool,
       consensusThreshold: data.consensusThreshold,
       gapThreshold: data.gapThreshold,
-      removeGaps: data.removeGaps,
       centroidAlignment: data.centroidAlignment,
       weightByAbundance: data.weightByAbundance,
       generateDataset: data.generateDataset,
