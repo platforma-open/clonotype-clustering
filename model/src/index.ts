@@ -28,6 +28,11 @@ export const similarityTypeOptions = [
   { label: "BLOSUM90", value: "blosum90" },
 ] as const;
 
+export const centroidAlignmentOptions = [
+  { label: "Gapped (MSA)", value: "gapped" },
+  { label: "Ungapped (fixed length)", value: "ungapped" },
+] as const;
+
 export const clusteringToolOptions = [
   { label: "Easy Cluster", value: "easy-cluster" },
   { label: "Easy Linclust", value: "easy-linclust" },
@@ -100,6 +105,13 @@ export type BlockData = {
   // they stay in alignment coordinates (one symbol per MSA column), like EMBOSS cons or
   // Jalview — note "-" is not a valid residue for downstream sequence consumers.
   removeGaps: boolean;
+  // How a cluster's members are laid out in columns before the vote. "gapped" runs a
+  // kalign MSA, which may insert internal gaps and widen the layout past the input
+  // length. "ungapped" forbids internal gaps and allows only terminal offsets — the
+  // model FaSTPACE uses for peptides and MEME for motifs. On a fixed-length library
+  // every offset is 0, so the centroid keeps the input length exactly and is the optimal
+  // median string under Hamming distance. Default "gapped".
+  centroidAlignment: "gapped" | "ungapped";
   // Whether the centroid (and the profile distance / reference centroid measured
   // against it) is weighted by clonotype abundance. When false every clonotype
   // counts equally and column ties break deterministically (alphabetically), so the
@@ -153,6 +165,7 @@ const dataModel = new DataModelBuilder()
     consensusThreshold: 0.6,
     gapThreshold: 0.5,
     removeGaps: true,
+    centroidAlignment: "gapped",
     weightByAbundance: false,
     generateDataset: false,
     tableState: uiState.tableState,
@@ -183,6 +196,7 @@ const dataModel = new DataModelBuilder()
     consensusThreshold: 0.6, // default majority threshold for the theoretical centroid
     gapThreshold: 0.5, // HMMER --symfrac 0.5 default, stated in gap terms
     removeGaps: true, // strip "-" from centroid sequences by default
+    centroidAlignment: "gapped", // kalign MSA; "ungapped" keeps the input length
     weightByAbundance: false, // default to equal-weight centroid (abundance ignored)
     generateDataset: false, // off by default; peptide inputs only
     tableState: createPlDataTableStateV2(),
@@ -246,6 +260,7 @@ export const platforma = BlockModelV3.create(dataModel)
       consensusThreshold: data.consensusThreshold,
       gapThreshold: data.gapThreshold,
       removeGaps: data.removeGaps,
+      centroidAlignment: data.centroidAlignment,
       weightByAbundance: data.weightByAbundance,
       generateDataset: data.generateDataset,
       mem: data.mem,

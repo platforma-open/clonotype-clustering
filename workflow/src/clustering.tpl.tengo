@@ -32,6 +32,7 @@ self.validateInputs({
     "consensusThreshold,?": "number",
     "gapThreshold,?": "number",
     "removeGaps,?": "boolean",
+    "centroidAlignment,?": "string",
     "weightByAbundance,?": "boolean",
     "generateDataset,?": "boolean",
     "mem,?": "number",
@@ -73,6 +74,12 @@ self.body(func(inputs) {
     // Strip "-" from the centroid sequences (default true). Off keeps them in alignment
     // coordinates, one symbol per MSA column, like EMBOSS cons / Jalview.
     removeGaps := is_undefined(inputs.removeGaps) ? true : inputs.removeGaps
+
+    // How members are laid out in columns before the vote. "gapped" runs a kalign MSA;
+    // "ungapped" forbids internal gaps and allows only terminal offsets — the model
+    // FaSTPACE uses for peptides and MEME for motifs. On a fixed-length library every
+    // offset is 0, so the centroid keeps the input length exactly.
+    centroidAlignment := is_undefined(inputs.centroidAlignment) ? "gapped" : inputs.centroidAlignment
 
     // Whether the centroid (and the profile distance/medoid measured against it) is
     // weighted by clonotype abundance. When false, every clonotype counts equally and
@@ -273,7 +280,8 @@ self.body(func(inputs) {
             arg("--trim-end").arg(string(trimEnd)).
             arg("--min-seq-id").arg(string(identity)).
             arg("--consensus-threshold").arg(string(consensusThreshold)).
-            arg("--gap-threshold").arg(string(gapThreshold))
+            arg("--gap-threshold").arg(string(gapThreshold)).
+            arg("--alignment-model").arg(centroidAlignment)
 
         if !removeGaps {
             resultBuilder = resultBuilder.arg("--keep-gaps")

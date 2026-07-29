@@ -52,6 +52,14 @@ parser.add_argument('--keep-gaps', action='store_true',
                          'or Jalview. Off by default: gaps are stripped, which is required for '
                          'the exported peptide dataset, since "-" is not a valid residue for '
                          'downstream sequence consumers.')
+parser.add_argument('--alignment-model', choices=['gapped', 'ungapped'], default='gapped',
+                    help='How a cluster\'s members are laid out in columns before the vote. '
+                         '"gapped" (default) runs a kalign MSA, which may insert internal gaps '
+                         'and widen the layout beyond the input length. "ungapped" forbids '
+                         'internal gaps and allows only terminal offsets, the model FaSTPACE '
+                         'uses for peptides and MEME for motifs; on a fixed-length library every '
+                         'offset is 0, so the centroid keeps the input length exactly and is the '
+                         'optimal median string under Hamming distance.')
 parser.add_argument('--emit-plurality-centroid', action='store_true',
                     help='Also emit plurality-centroid.tsv: per-cluster abundance-weighted per-column '
                          'majority residue (consensus at threshold 0.0, so no "X").')
@@ -70,6 +78,7 @@ min_seq_id = args.min_seq_id
 consensus_threshold = args.consensus_threshold
 gap_threshold = args.gap_threshold
 remove_gaps = not args.keep_gaps
+alignment_model = args.alignment_model
 emit_plurality = args.emit_plurality_centroid
 no_abundance_weighting = args.no_abundance_weighting
 
@@ -320,7 +329,62 @@ def _msa_consensus(aligned: list[str], weights: list[float], threshold: float,
     return consensus.replace("-", "") if remove_gaps else consensus
 
 
-def _align_chain(values: list[str], weights: list[float], cluster_id: str):
+def _ungapped_layout(seqs: list[str], weights: list[float]) -> list[str]:
+    """Column layout with NO internal gaps — only terminal offsets (FaSTPACE's model).
+
+    FaSTPACE, the current tool for peptide alignment and consensus extraction, performs
+    "ungapped global alignments between all pairs of sequences (external gaps are
+    permitted, but no gaps are added within either peptide)", on the grounds that
+    variable-length gaps cost exponential time and "would likely introduce more noise".
+    MEME likewise models fixed-length ungapped motifs and defers gapped motifs to a
+    separate tool. For a fixed-length peptide library that is the right model: position
+    i means position i, and a gapped MSA only invents shifts the chemistry does not have.
+
+    Two cases:
+
+    - All members the same length (a genuine fixed-length library): every offset is 0 and
+      the layout is the members stacked as-is. This is not a heuristic — for equal-length
+      strings under Hamming distance the per-column mode of that stack is EXACTLY the
+      optimal length-L median string, because the distance sum decomposes per position
+      and so the minimisation decomposes into an independent per-column argmax. Searching
+      windows or substrings cannot beat it.
+
+    - Lengths differ (mmseqs can cluster different lengths together at coverage < 1, and
+      upstream need not be perfectly uniform): place each member at the terminal offset
+      that best matches the profile built from the members placed before it, greedily, in
+      the caller's already-deterministic order (descending weight, then lexicographic).
+      Total width is capped at the longest member, so an ungapped layout can never widen
+      the way a gapped MSA does. Scoring is weighted identity, matching the column vote;
+      a substitution-matrix score would be the refinement here.
+    """
+    width = max(len(s) for s in seqs)
+    if min(len(s) for s in seqs) == width:
+        return list(seqs)  # equal length: offset 0 for all, exact
+
+    # counts[col][residue] -> accumulated weight of the members placed so far
+    counts: list[dict[str, float]] = [{} for _ in range(width)]
+    placed: list[str] = []
+    for seq, weight in zip(seqs, weights):
+        span = width - len(seq)
+        best_offset = 0
+        best_score = None
+        for offset in range(span + 1):
+            score = sum(
+                counts[offset + i].get(residue, 0.0) for i, residue in enumerate(seq)
+            )
+            # Strict >, so ties keep the smallest offset and the layout stays deterministic.
+            if best_score is None or score > best_score:
+                best_score, best_offset = score, offset
+        row = "-" * best_offset + seq + "-" * (span - best_offset)
+        placed.append(row)
+        for i, residue in enumerate(seq):
+            column = counts[best_offset + i]
+            column[residue] = column.get(residue, 0.0) + weight
+    return placed
+
+
+def _align_chain(values: list[str], weights: list[float], cluster_id: str,
+                 alignment_model: str = "gapped"):
     """Build one cluster's per-chain kalign MSA ONCE; everything else derives from it.
 
     The alignment is a pure function of the (deduplicated, ordered, capped) sequence
@@ -370,6 +434,8 @@ def _align_chain(values: list[str], weights: list[float], cluster_id: str):
 
     seqs = [s for s, _ in pairs]
     member_weights = [w for _, w in pairs]
+    if alignment_model == "ungapped":
+        return ("msa", (_ungapped_layout(seqs, member_weights), member_weights))
     aligned = kalign.align(seqs, seq_type="auto")
     return ("msa", (aligned, member_weights))
 
@@ -470,6 +536,7 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
                                   threshold: float,
                                   gap_threshold: float,
                                   remove_gaps: bool,
+                                  alignment_model: str,
                                   emit_plurality: bool,
                                   no_trim: bool):
     """Single per-cluster pass: align each chain ONCE and derive everything from it.
@@ -569,7 +636,7 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
 
         for sc, tc in zip(seq_cols, trim_cols):
             # Align the trimmed chain ONCE; consensus, plurality and distance share it.
-            bundle_t = _align_chain(row[f"__vals_{tc}"], wts, cluster_id)
+            bundle_t = _align_chain(row[f"__vals_{tc}"], wts, cluster_id, alignment_model)
             cons_trim[tc] = derive_consensus(bundle_t, threshold, gap_threshold, remove_gaps)
             plur_trim[tc] = (derive_consensus(bundle_t, 0.0, gap_threshold, remove_gaps)
                              if emit_plurality else None)
@@ -580,7 +647,7 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
             if no_trim:
                 cons_seq[sc] = cons_trim[tc]
             else:
-                bundle_u = _align_chain(row[f"__vals_{sc}"], wts, cluster_id)
+                bundle_u = _align_chain(row[f"__vals_{sc}"], wts, cluster_id, alignment_model)
                 cons_seq[sc] = derive_consensus(bundle_u, threshold, gap_threshold, remove_gaps)
 
         # --- centroid row ---
@@ -725,7 +792,7 @@ if sequence_cols:
     centroid_df, plurality_df, distance_member_df, medoid_df = compute_centroid_and_distance(
         clusters, cloneTable, clonotype_weights,
         sequence_cols, trimmed_cols, consensus_threshold, gap_threshold, remove_gaps,
-        emit_plurality, no_trim,
+        alignment_model, emit_plurality, no_trim,
     )
 else:
     # No sequence columns: still write a header-only plurality file (the clustering

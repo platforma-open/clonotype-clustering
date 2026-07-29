@@ -24,7 +24,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { DEFAULT_GAP_THRESHOLD, msaConsensus } from "./msa-oracle";
+import { DEFAULT_GAP_THRESHOLD, msaConsensus, ungappedLayout } from "./msa-oracle";
 
 const PY_SOURCE = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -235,12 +235,49 @@ describe.skipIf(!python)("TS oracle matches the real process_results.py", () => 
     expect(kept.replaceAll("-", "")).toBe(stripped);
   });
 
+  test("ungapped layout matches the real _ungapped_layout", () => {
+    const cases: { seqs: string[]; weights: number[] }[] = [
+      // Equal length: every offset 0, layout identical to the input.
+      { seqs: ["ACDEF", "ACDEG", "AGDEG"], weights: [1, 1, 1] },
+      // Mixed lengths: terminal offsets only.
+      { seqs: ["ABCDEFGH", "CDEFGH", "ABCDEF", "BCDEFG"], weights: [4, 3, 2, 1] },
+      { seqs: ["CASSLGQGAETQYFG", "GQGAETQYFG"], weights: [2, 1] },
+      // Weights decide which profile later members are matched against.
+      { seqs: ["AAAABBBB", "BBBB", "AAAA"], weights: [10, 1, 1] },
+      { seqs: ["AAAABBBB", "BBBB", "AAAA"], weights: [1, 10, 1] },
+      // A member as long as the widest has no freedom; the shorter ones do.
+      { seqs: ["KKWWKKWW", "WWKK", "KKWW"], weights: [3, 2, 1] },
+    ];
+
+    const source = readFileSync(PY_SOURCE, "utf8");
+    const driver = [
+      extractFunction(source, "_ungapped_layout"),
+      "import json, sys",
+      "cases = json.load(sys.stdin)",
+      "print(json.dumps([_ungapped_layout(c['seqs'], c['weights']) for c in cases]))",
+    ].join("\n\n");
+    const fromPython = JSON.parse(
+      execFileSync(python!, ["-c", driver], { input: JSON.stringify(cases), encoding: "utf8" }),
+    ) as string[][];
+
+    const fromTs = cases.map(({ seqs, weights }) => ungappedLayout(seqs, weights));
+    expect(fromTs).toEqual(fromPython);
+
+    // Whatever the offsets, the model's invariant must hold: no internal gaps.
+    for (const rows of fromPython) {
+      for (const row of rows) {
+        expect(row.replace(/^-+/, "").replace(/-+$/, "")).not.toContain("-");
+      }
+    }
+  });
+
   test("the Python source still exposes the helpers this test extracts", () => {
     // Guards the skip path above from hiding a rename: if the functions move,
     // extraction throws rather than the suite quietly covering nothing.
     const source = readFileSync(PY_SOURCE, "utf8");
     expect(() => extractFunction(source, "_is_absent_column")).not.toThrow();
     expect(() => extractFunction(source, "_msa_consensus")).not.toThrow();
+    expect(() => extractFunction(source, "_ungapped_layout")).not.toThrow();
     expect(DEFAULT_GAP_THRESHOLD).toBe(0.5); // must track the Python default
   });
 });

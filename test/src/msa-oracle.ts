@@ -72,3 +72,38 @@ export function msaConsensus(
   const consensus = out.join("");
   return removeGaps ? consensus.replaceAll("-", "") : consensus;
 }
+
+/**
+ * Mirror of `_ungapped_layout`. No internal gaps — only terminal offsets, the model
+ * FaSTPACE uses for peptides and MEME for motifs. Equal-length members stack at offset
+ * 0, which for Hamming distance makes the per-column mode the optimal median string.
+ * Otherwise each member takes the terminal offset best matching the profile of the
+ * members placed before it, greedily, in the given (deterministic) order.
+ */
+export function ungappedLayout(seqs: string[], weights: number[]): string[] {
+  const width = Math.max(...seqs.map((s) => s.length));
+  if (Math.min(...seqs.map((s) => s.length)) === width) return [...seqs];
+
+  const counts: Map<string, number>[] = Array.from({ length: width }, () => new Map());
+  const placed: string[] = [];
+  seqs.forEach((seq, index) => {
+    const span = width - seq.length;
+    let bestOffset = 0;
+    let bestScore: number | undefined;
+    for (let offset = 0; offset <= span; offset++) {
+      let score = 0;
+      for (let i = 0; i < seq.length; i++) score += counts[offset + i].get(seq[i]) ?? 0;
+      // Strict >, so ties keep the smallest offset and the layout stays deterministic.
+      if (bestScore === undefined || score > bestScore) {
+        bestScore = score;
+        bestOffset = offset;
+      }
+    }
+    placed.push("-".repeat(bestOffset) + seq + "-".repeat(span - bestOffset));
+    for (let i = 0; i < seq.length; i++) {
+      const column = counts[bestOffset + i];
+      column.set(seq[i], (column.get(seq[i]) ?? 0) + weights[index]);
+    }
+  });
+  return placed;
+}

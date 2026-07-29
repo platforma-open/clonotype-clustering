@@ -212,6 +212,7 @@ wf.body(func(args) {
 		consensusThreshold: args.consensusThreshold,
 		gapThreshold: args.gapThreshold,
 		removeGaps: args.removeGaps,
+		centroidAlignment: args.centroidAlignment,
 		weightByAbundance: args.weightByAbundance,
 		generateDataset: args.generateDataset
 	}, {

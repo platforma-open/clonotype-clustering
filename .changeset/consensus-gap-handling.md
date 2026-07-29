@@ -46,3 +46,24 @@ Exporting the consensus dataset now requires gap removal to be on, and is reject
 otherwise: the dataset carries sequence columns, so `-` would be misread downstream
 and would inflate the accompanying sequence length. The checkbox is disabled while
 gaps are kept rather than exporting something different from what the table shows.
+
+**Alignment Model** (default `Gapped (MSA)`) selects how a cluster's members are laid
+out in columns before the vote. `Ungapped (fixed length)` forbids internal gaps and
+allows only terminal offsets — the model FaSTPACE uses for peptides and MEME for
+motifs, both on the grounds that gapped motifs cost exponential search and add noise.
+On a library where every member has the same length each offset is 0, so the centroid
+keeps the input length exactly, and the per-column mode is then provably the optimal
+median string under Hamming distance: the distance sum decomposes per position, so no
+window search or substring enumeration can improve on it. Mixed-length clusters, which
+mmseqs can produce at coverage below 1, get terminal offsets chosen against the profile
+of the heavier members.
+
+The contrast on a poorly-conserved cluster of six 15-mers:
+
+```
+gapped     theoretical 'YSVI'            len=4    reference len=15
+ungapped   theoretical 'XXVXXXXXXXXXXXX' len=15   reference len=15
+```
+
+Gapped collapses to four residues; ungapped keeps the length and reports the absent
+consensus honestly as `X`.

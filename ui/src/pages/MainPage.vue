@@ -2,6 +2,7 @@
 import { PlMultiSequenceAlignment } from "@milaboratories/multi-sequence-alignment";
 import strings from "@milaboratories/strings";
 import {
+  centroidAlignmentOptions,
   clusteringToolOptions,
   similarityTypeOptions,
 } from "@platforma-open/milaboratories.clonotype-clustering.model";
@@ -319,6 +320,23 @@ const clusterAxis = computed<AxisId>(() => {
       </PlNumberField>
 
       <PlSectionSeparator>Centroid</PlSectionSeparator>
+      <PlDropdown
+        v-model="app.model.data.centroidAlignment"
+        :options="centroidAlignmentOptions"
+        label="Alignment Model"
+      >
+        <template #tooltip>
+          How a cluster's members are laid out in columns before the residue vote.
+          <b>Gapped (MSA)</b> runs a kalign alignment, which can insert internal gaps and make the
+          layout wider than the input — the centroid then lives in alignment coordinates and its
+          length need not match any member's. <b>Ungapped (fixed length)</b> forbids internal gaps
+          and allows only terminal offsets, the model <b>FaSTPACE</b> uses for peptides and
+          <b>MEME</b> for motifs; on a library where every member has the same length each offset is
+          0, so the centroid keeps the input length exactly and is provably the closest possible
+          sequence to the whole cluster. Choose it when a shared position number means the same
+          thing across members, as in a fixed-length peptide library.
+        </template>
+      </PlDropdown>
       <PlBtnGroup
         :model-value="app.model.data.weightByAbundance ?? false"
         @update:model-value="app.model.data.weightByAbundance = $event"

@@ -80,7 +80,7 @@ const CENTROID_DATASET_EXPORT_KEY = "centroidDatasetPf"; // workflow export / mo
 // TS oracle: faithful re-implementation of the process_results.py helpers.
 // ---------------------------------------------------------------------------
 
-import { DEFAULT_GAP_THRESHOLD, isAbsentColumn, msaConsensus } from "./msa-oracle";
+import { DEFAULT_GAP_THRESHOLD, isAbsentColumn, msaConsensus, ungappedLayout } from "./msa-oracle";
 
 /**
  * Mirror of `_msa_profile_distances` (§3). Returns per-(gap-stripped)-member
@@ -521,5 +521,77 @@ describe("contract surface (column + CLI arg names)", () => {
     expect(PLURALITY_CLI_ARG).toContain("--emit-plurality-centroid");
     expect(PLURALITY_FILE).toContain("plurality-centroid.tsv");
     expect(CENTROID_DATASET_EXPORT_KEY).toContain("centroidDatasetPf");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ungapped centroid alignment (FaSTPACE's model: no internal gaps, terminal
+// offsets only). The point of the mode is a length guarantee the gapped MSA
+// cannot give, so that is what these pin.
+// ---------------------------------------------------------------------------
+
+describe("ungapped centroid alignment", () => {
+  const sumHamming = (candidate: string, seqs: string[]): number =>
+    seqs.reduce(
+      (total, seq) =>
+        total + [...seq].reduce((d, residue, i) => d + (residue === candidate[i] ? 0 : 1), 0),
+      0,
+    );
+
+  test("equal-length members stack unchanged, so the centroid keeps the input length", () => {
+    const seqs = ["CASSLGQGAETQYFG", "CASSLGTGAETQYFG", "CASSPRQGSYEQYFG"];
+    const rows = ungappedLayout(seqs, [1, 1, 1]);
+    expect(rows).toEqual(seqs); // offset 0 for all, no padding
+    const centroid = msaConsensus(rows, [1, 1, 1], 0, DEFAULT_GAP_THRESHOLD, true);
+    expect(centroid).toHaveLength(seqs[0].length);
+  });
+
+  test("the centroid is the optimal median string under Hamming distance", () => {
+    // Hamming decomposes per position, so the per-column mode minimises the distance
+    // sum — no window search or substring enumeration can beat it. Checked here
+    // against an exhaustive search over the residues actually present per column.
+    const seqs = ["ACDEF", "ACDEG", "AGDEG", "ACHEG"];
+    const weights = [1, 1, 1, 1];
+    const centroid = msaConsensus(
+      ungappedLayout(seqs, weights),
+      weights,
+      0,
+      DEFAULT_GAP_THRESHOLD,
+      true,
+    );
+
+    const alphabets = Array.from({ length: seqs[0].length }, (_unused, i) => [
+      ...new Set(seqs.map((s) => s[i])),
+    ]);
+    let best = Infinity;
+    const walk = (position: number, prefix: string): void => {
+      if (position === alphabets.length) {
+        best = Math.min(best, sumHamming(prefix, seqs));
+        return;
+      }
+      for (const residue of alphabets[position]) walk(position + 1, prefix + residue);
+    };
+    walk(0, "");
+
+    expect(sumHamming(centroid, seqs)).toBe(best);
+  });
+
+  test("mixed lengths get terminal offsets only — never an internal gap", () => {
+    const seqs = ["ABCDEFGH", "CDEFGH", "ABCDEF", "BCDEFG"];
+    const rows = ungappedLayout(seqs, [4, 3, 2, 1]);
+    expect(new Set(rows.map((r) => r.length))).toEqual(new Set([8])); // width == longest member
+    for (const row of rows) {
+      // Strip the terminal padding; whatever remains must be gap-free.
+      expect(row.replace(/^-+/, "").replace(/-+$/, "")).not.toContain("-");
+    }
+    // Each member keeps its residues contiguous and in order.
+    rows.forEach((row, i) => expect(row.replaceAll("-", "")).toBe(seqs[i]));
+  });
+
+  test("the offset actually aligns a shared suffix rather than defaulting to 0", () => {
+    const seqs = ["CASSLGQGAETQYFG", "GQGAETQYFG"];
+    const [first, second] = ungappedLayout(seqs, [2, 1]);
+    expect(first).toBe(seqs[0]);
+    expect(second).toBe("-----GQGAETQYFG"); // slid right onto the suffix
   });
 });
