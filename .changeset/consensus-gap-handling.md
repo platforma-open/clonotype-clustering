@@ -24,10 +24,12 @@ contract as EMBOSS `cons`, Jalview's consensus row and MiXCR's contigs:
 
 Two new settings:
 
-- **Gap Threshold** (default 0.5) — the weighted gap fraction at which a position
-  counts as absent. Mirrors HMMER `hmmbuild --symfrac`, same default, stated in
-  gap terms. Separate from Consensus Threshold, which decides *which* residue a
-  position that does exist carries.
+- **Gap Threshold** (default 0.5) — the weighted gap fraction a position must
+  *exceed* to count as absent. Mirrors HMMER `hmmbuild --symfrac` stated in gap
+  terms (`gapThreshold = 1 - symfrac`), same default. The comparison is strict, so
+  both endpoints stay usable: 1.0 keeps every column holding a residue, 0.0 treats
+  any column containing a gap as absent. Separate from Consensus Threshold, which
+  decides *which* residue a position that does exist carries.
 - **Remove gaps from centroid sequences** (default on) — strips `-` as an explicit
   final step, so the exported dataset stays a valid residue string. Turn it off to
   see where positions were dropped; the length is then the alignment width.
@@ -39,3 +41,8 @@ from `Reference Centroid` apparent instead of something to spot by eye.
 
 Centroid sequences, and therefore the `PC-XXXXX` ids derived from them, change for
 existing projects.
+
+Exporting the consensus dataset now requires gap removal to be on, and is rejected
+otherwise: the dataset carries sequence columns, so `-` would be misread downstream
+and would inflate the accompanying sequence length. The checkbox is disabled while
+gaps are kept rather than exporting something different from what the table shows.

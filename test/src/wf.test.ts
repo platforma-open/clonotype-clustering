@@ -169,6 +169,29 @@ describe("§1 computed centroid: consensus threshold + X fallback", () => {
     expect(t).toHaveLength(2); // == alignment width
   });
 
+  test("gapThreshold endpoints stay meaningful, and 0 does not empty the centroid", () => {
+    // Regression: a non-strict comparison made 0 mark EVERY column absent, gap-free
+    // ones included, so the whole centroid came out empty.
+    const aligned = ["AK", "AK", "-K"]; // col0: 1/3 gaps, col1: gap-free
+    const weights = [1, 1, 1];
+    // 0.0 -> any column containing a gap is absent (HMMER --symfrac 1.0).
+    expect(msaConsensus(aligned, weights, 0.6, 0, false)).toBe("-K");
+    expect(msaConsensus(aligned, weights, 0.6, 0, true)).toBe("K");
+    // 1.0 -> every column holding a residue is kept (HMMER --symfrac 0.0).
+    expect(msaConsensus(aligned, weights, 0.6, 1, false)).toBe("AK");
+    // The gap-free column survives at every threshold, so the centroid is never empty.
+    for (const gapThreshold of [0, 0.25, 0.5, 0.75, 1]) {
+      expect(msaConsensus(aligned, weights, 0.6, gapThreshold, true)).not.toBe("");
+    }
+  });
+
+  test("a half-gap column is a consensus position, as the old tie-break also had it", () => {
+    // 2 gaps vs 2 A at gapThreshold 0.5: the fraction equals the bar but does not
+    // exceed it, so the position exists. The previous rule likewise gave the residue
+    // the win on an exact tie.
+    expect(msaConsensus(["A", "A", "-", "-"], [1, 1, 1, 1], 0.6, 0.5, false)).toBe("A");
+  });
+
   test("removeGaps strips '-' and nothing else", () => {
     const aligned = ["-K", "-K", "AK"];
     const kept = msaConsensus(aligned, [1, 1, 1], 0.6, 0.5, false);
@@ -226,7 +249,7 @@ describe("plurality consensus (threshold 0): X-free centroid", () => {
       aligned.forEach((row, i) => tally.set(row[col], (tally.get(row[col]) ?? 0) + weights[i]));
       const total = [...tally.values()].reduce((sum, w) => sum + w, 0);
       const gap = tally.get("-") ?? 0;
-      if (total <= 0 || gap / total >= gapThreshold) {
+      if (total <= 0 || gap / total > gapThreshold) {
         out.push("-");
         continue;
       }

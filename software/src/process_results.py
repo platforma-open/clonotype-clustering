@@ -39,12 +39,13 @@ parser.add_argument('--consensus-threshold', type=float, default=0.6,
                          'to commit that residue; below it the position is ambiguous and emits "X". '
                          'Default 0.6.')
 parser.add_argument('--gap-threshold', type=float, default=0.5,
-                    help='Minimum fraction (0-1) of an MSA column\'s total abundance weight '
-                         'held by gaps for the position to count as absent from the cluster: '
-                         'the column then yields "-" instead of a residue. Mirrors HMMER '
-                         'hmmbuild --symfrac (same 0.5 default, stated in gap terms). '
-                         'Separate from --consensus-threshold, which decides WHICH residue a '
-                         'present position carries. Default 0.5.')
+                    help='Fraction (0-1) of an MSA column\'s total abundance weight that gaps '
+                         'must EXCEED for the position to count as absent from the cluster: the '
+                         'column then yields "-" instead of a residue. Mirrors HMMER hmmbuild '
+                         '--symfrac stated in gap terms (gap-threshold = 1 - symfrac), same 0.5 '
+                         'default. At 1.0 every column holding a residue is kept; at 0.0 any '
+                         'column containing a gap is absent. Separate from --consensus-threshold, '
+                         'which decides WHICH residue a present position carries. Default 0.5.')
 parser.add_argument('--keep-gaps', action='store_true',
                     help='Keep the "-" symbols in the centroid sequences, so they stay in '
                          'alignment coordinates (one symbol per MSA column) like EMBOSS cons '
@@ -246,8 +247,19 @@ def _is_absent_column(tally: dict[str, float], gap_threshold: float) -> bool:
 
     Mirrors HMMER's `hmmbuild --symfrac` (default 0.5): a column is a consensus
     position when the abundance-weighted residue fraction clears the bar, and an
-    insertion — i.e. not a consensus position — otherwise. Stated in gap terms, the
-    position is absent when the weighted gap fraction reaches `gap_threshold`.
+    insertion — i.e. not a consensus position — otherwise. `gap_threshold` states the
+    same bar in gap terms (gap_threshold = 1 - symfrac), so the position is absent
+    when the weighted gap fraction EXCEEDS it.
+
+    The comparison is strict, which is what makes both endpoints meaningful and
+    matches HMMER at each of them:
+      1.0 — absent needs > 100% gaps, so every column holding a residue is a
+            consensus position (HMMER --symfrac 0.0).
+      0.5 — the default. A half-gap column is still a consensus position, the same
+            way the previous rule let a residue win a tie against the gap.
+      0.0 — any column containing a gap at all is absent (HMMER --symfrac 1.0).
+    A non-strict comparison would instead make 0.0 mark EVERY column absent, gap-free
+    ones included, and empty the centroid outright.
 
     This replaces the earlier "gap wins the weighted argmax" rule, which was not a
     threshold at all: on a diverse column where every residue appears once, two gaps
@@ -259,7 +271,7 @@ def _is_absent_column(tally: dict[str, float], gap_threshold: float) -> bool:
     total = sum(tally.values())
     if total <= 0:
         return True
-    return tally.get("-", 0.0) / total >= gap_threshold
+    return tally.get("-", 0.0) / total > gap_threshold
 
 
 def _msa_consensus(aligned: list[str], weights: list[float], threshold: float,
@@ -590,7 +602,10 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
                 "====".join(plur_trim[c] for c in sorted_trim_cols)
             )
             for c in trim_cols:
-                plurality_out[f"plurality_centroid_length_{c}"].append(len(plur_trim[c]))
+                # Residue count, never the gap-padded width. The model forbids exporting the
+                # dataset with gaps kept, so this is belt-and-braces for a hand-built args set.
+                plurality_out[f"plurality_centroid_length_{c}"].append(
+                    len(plur_trim[c].replace("-", "")))
         else:
             for c in trim_cols:
                 plurality_out[f"plurality_centroid_{c}"].append(None)

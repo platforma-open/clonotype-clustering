@@ -146,6 +146,36 @@ describe.skipIf(!python)("TS oracle matches the real process_results.py", () => 
         gapThreshold: 1.0,
         removeGaps: false,
       },
+      // gapThreshold endpoints: 0 must not empty the centroid, 1 keeps every column.
+      {
+        aligned: ["AK", "AK", "-K"],
+        weights: [1, 1, 1],
+        threshold: 0.6,
+        gapThreshold: 0,
+        removeGaps: false,
+      },
+      {
+        aligned: ["AK", "AK", "-K"],
+        weights: [1, 1, 1],
+        threshold: 0.6,
+        gapThreshold: 0,
+        removeGaps: true,
+      },
+      {
+        aligned: ["AK", "AK", "-K"],
+        weights: [1, 1, 1],
+        threshold: 0.6,
+        gapThreshold: 1,
+        removeGaps: false,
+      },
+      // Exact-tie column: the fraction equals the bar but does not exceed it.
+      {
+        aligned: ["A", "A", "-", "-"],
+        weights: [1, 1, 1, 1],
+        threshold: 0.6,
+        gapThreshold: 0.5,
+        removeGaps: false,
+      },
       // Tie between residues breaks to the lexically smaller letter.
       { aligned: ["A", "B"], weights: [1, 1], threshold: 0, gapThreshold: 0.5, removeGaps: false },
     ];
@@ -182,7 +212,7 @@ describe.skipIf(!python)("TS oracle matches the real process_results.py", () => 
         aligned,
         weights: aligned.map(() => 1 + Math.floor(rng() * 20)),
         threshold: [0, 0.4, 0.5, 0.6, 0.8, 1][Math.floor(rng() * 6)],
-        gapThreshold: [0.2, 0.5, 0.8, 1][Math.floor(rng() * 4)],
+        gapThreshold: [0, 0.2, 0.5, 0.8, 1][Math.floor(rng() * 5)],
         removeGaps: rng() < 0.5,
       });
     }

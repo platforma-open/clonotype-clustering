@@ -287,7 +287,11 @@ self.body(func(inputs) {
             resultBuilder = resultBuilder.arg("--per-chain-trim")
         }
 
+        // The dataset carries pl7.app/sequence columns, so the centroid must be a valid
+        // residue string. The model rejects generateDataset with removeGaps off; fail loudly
+        // here too rather than exporting gap-bearing sequences from a hand-built args set.
         if generateDataset {
+            ll.assert(removeGaps, "clonotype-clustering: cannot export the consensus dataset while gaps are kept — \"-\" is not a valid residue")
             resultBuilder = resultBuilder.arg("--emit-plurality-centroid")
         }
 

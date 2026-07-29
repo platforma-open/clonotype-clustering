@@ -344,12 +344,13 @@ const clusterAxis = computed<AxisId>(() => {
         :maxValue="1.0"
       >
         <template #tooltip>
-          Fraction of an alignment column's vote held by gaps at which the position counts as
-          <b>absent</b> from the cluster: the column then yields <b>-</b> instead of a residue.
-          Mirrors HMMER's <b>--symfrac</b> (same 0.5 default, stated in gap terms). This is a
+          Fraction of an alignment column's vote that gaps must <b>exceed</b> for the position to
+          count as <b>absent</b> from the cluster: the column then yields <b>-</b> instead of a
+          residue. Mirrors HMMER's <b>--symfrac</b> stated in gap terms, same 0.5 default. A
           separate question from the <b>Consensus Threshold</b> above, which decides
-          <i>which</i> residue a position that does exist carries. Lower values discard more
-          positions and shorten the centroid; 1.0 keeps every column that has at least one residue.
+          <i>which</i> residue a position that does exist carries. At <b>1.0</b> every column
+          holding a residue is kept; at <b>0.0</b> any column containing a gap is absent. Lower
+          values discard more positions and shorten the centroid.
         </template>
       </PlNumberField>
       <PlCheckbox v-model="app.model.data.removeGaps">
@@ -362,7 +363,8 @@ const clusterAxis = computed<AxisId>(() => {
             column, like EMBOSS <b>cons</b> or Jalview — which makes absent positions visible but
             means the length is the alignment width rather than a member's length. Turn it off to
             inspect where positions were dropped; keep it on if the sequences feed downstream
-            analyses, since <b>-</b> is not a valid residue there.
+            analyses, since <b>-</b> is not a valid residue there. Turning it off disables the
+            consensus dataset export below, for the same reason.
           </template>
         </PlTooltip>
       </PlCheckbox>
@@ -370,6 +372,7 @@ const clusterAxis = computed<AxisId>(() => {
       <PlCheckbox
         v-if="app.model.outputs.modality === 'peptide'"
         v-model="app.model.data.generateDataset"
+        :disabled="!app.model.data.removeGaps"
       >
         Export consensus sequences as a dataset
         <PlTooltip class="info" position="top">
@@ -378,7 +381,9 @@ const clusterAxis = computed<AxisId>(() => {
             dataset you can feed into downstream analyses. The representative is the cluster's
             <b>consensus</b> — the most frequent amino acid at each aligned position (by the Residue
             Weighting chosen above) — so it summarizes the whole group and need not match any
-            individual observed clonotype. Available for peptide inputs only.
+            individual observed clonotype. Available for peptide inputs only, and only while
+            <b>Remove gaps from centroid sequences</b> is on: the dataset carries sequence columns,
+            and <b>-</b> is not a valid residue for the analyses downstream of it.
           </template>
         </PlTooltip>
       </PlCheckbox>

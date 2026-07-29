@@ -10,14 +10,17 @@
 export const DEFAULT_GAP_THRESHOLD = 0.5; // must match process_results.py --gap-threshold default
 
 /**
- * Mirror of `_is_absent_column`. The position is absent from the cluster when the
- * weighted gap fraction reaches `gapThreshold` — HMMER `hmmbuild --symfrac` stated
- * in gap terms, same 0.5 default.
+ * Mirror of `_is_absent_column`. The position is absent when the weighted gap
+ * fraction EXCEEDS `gapThreshold` — HMMER `hmmbuild --symfrac` stated in gap terms
+ * (gapThreshold = 1 - symfrac), same 0.5 default.
  */
 export function isAbsentColumn(tally: Map<string, number>, gapThreshold: number): boolean {
   const total = [...tally.values()].reduce((s, w) => s + w, 0);
   if (total <= 0) return true;
-  return (tally.get("-") ?? 0) / total >= gapThreshold;
+  // Strict, so both endpoints stay meaningful: 1.0 keeps every column holding a
+  // residue, 0.0 marks any column containing a gap absent. A non-strict comparison
+  // would make 0.0 mark EVERY column absent and empty the centroid.
+  return (tally.get("-") ?? 0) / total > gapThreshold;
 }
 
 /**
