@@ -133,6 +133,10 @@ export function getDefaultBlockLabel(data: {
   coverageThreshold: number;
   trimStart: number;
   trimEnd: number;
+  // Included so two blocks placed side by side to compare centroid settings do not end up
+  // with identical auto-labels. Only the non-default values are appended, keeping the label
+  // short for the common case.
+  centroidAlignment?: BlockData["centroidAlignment"];
 }) {
   const parts: string[] = [];
   parts.push(data.sequenceLabels.join(" - "));
@@ -146,6 +150,9 @@ export function getDefaultBlockLabel(data: {
   }
   if (data.trimEnd > 0) {
     parts.push(`trimEnd: ${data.trimEnd}`);
+  }
+  if (data.centroidAlignment === "ungapped") {
+    parts.push("ungapped");
   }
   return parts.filter(Boolean).join(", ");
 }
@@ -176,6 +183,7 @@ const dataModel = new DataModelBuilder()
       coverageThreshold: 0.8,
       trimStart: 0,
       trimEnd: 0,
+      centroidAlignment: "gapped",
     }),
     customBlockLabel: "",
     sequencesRef: [],

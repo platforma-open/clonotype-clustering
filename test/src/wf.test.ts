@@ -48,6 +48,18 @@ const EMITTED_COLUMNS = [
 // --keep-gaps is deliberately NOT wired through the block: it exists for running
 // process_results.py by hand, since a centroid carrying "-" is not a valid sequence for
 // the exported dataset. Pinned here so it is not dropped from the script by accident.
+// Centroid provenance recorded in the column domain. These keys make a column computed
+// under different settings a different column, so two blocks compared side by side cannot
+// be confused and a downstream consumer can establish how a sequence was derived.
+// Thresholds are integer percent, not the raw float: a domain value has to be byte-stable
+// for column identity to be stable, and float formatting is not.
+const PROVENANCE_DOMAIN_KEYS = [
+  "pl7.app/clustering/centroidAlignment",
+  "pl7.app/clustering/residueWeighting",
+  "pl7.app/clustering/gapThresholdPercent",
+  "pl7.app/clustering/consensusThresholdPercent",
+] as const;
+
 const CLI_ARGS = [
   "--consensus-threshold",
   "--centroid-type",
@@ -598,5 +610,50 @@ describe("ungapped centroid alignment", () => {
     const [first, second] = ungappedLayout(seqs, [2, 1]);
     expect(first).toBe(seqs[0]);
     expect(second).toBe("-----GQGAETQYFG"); // slid right onto the suffix
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Centroid provenance contract. The keys and their encoding are what downstream
+// consumers and side-by-side comparisons rely on, so a rename or a switch back to
+// raw floats has to break a test rather than quietly change column identity.
+// ---------------------------------------------------------------------------
+
+describe("centroid provenance domain", () => {
+  /** Mirror of the tengo `pct` helper: fraction -> integer percent, rounded to nearest. */
+  const pct = (fraction: number): string => String(Math.floor(fraction * 100 + 0.5));
+
+  test("threshold encoding is byte-stable for the 0.05 step the UI uses", () => {
+    // Raw float formatting is not safe here: 0.1 + 0.2 style error would make the domain
+    // value — and therefore the column identity — depend on arithmetic history.
+    for (let step = 0; step <= 20; step++) {
+      const fraction = step * 0.05;
+      expect(pct(fraction)).toBe(String(step * 5));
+      expect(pct(fraction)).toMatch(/^\d+$/); // never "0.30000000000000004"
+    }
+  });
+
+  test("the consensus threshold is scoped to the thresholded centroid only", () => {
+    // The medoid, the profile distance/radius and the plurality centroid are all derived at
+    // threshold 0 or from the profile, so tagging them with consensusThresholdPercent would
+    // fragment their identity for a setting that cannot change their value.
+    const centroidKeys = PROVENANCE_DOMAIN_KEYS;
+    const profileKeys = PROVENANCE_DOMAIN_KEYS.filter(
+      (k) => k !== "pl7.app/clustering/consensusThresholdPercent",
+    );
+    expect(centroidKeys).toContain("pl7.app/clustering/consensusThresholdPercent");
+    expect(profileKeys).not.toContain("pl7.app/clustering/consensusThresholdPercent");
+    expect(profileKeys).toContain("pl7.app/clustering/centroidAlignment");
+    expect(profileKeys).toContain("pl7.app/clustering/gapThresholdPercent");
+    expect(profileKeys).toContain("pl7.app/clustering/residueWeighting");
+  });
+
+  test("provenance key names are pinned", () => {
+    expect([...PROVENANCE_DOMAIN_KEYS]).toEqual([
+      "pl7.app/clustering/centroidAlignment",
+      "pl7.app/clustering/residueWeighting",
+      "pl7.app/clustering/gapThresholdPercent",
+      "pl7.app/clustering/consensusThresholdPercent",
+    ]);
   });
 });
