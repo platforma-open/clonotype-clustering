@@ -24,7 +24,14 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
-import { DEFAULT_GAP_THRESHOLD, msaConsensus, ungappedLayout } from "./msa-oracle";
+import {
+  AUTO_UNIFORM_LENGTH_SHARE,
+  chooseAlignmentModel,
+  DEFAULT_GAP_THRESHOLD,
+  modalLengthShare,
+  msaConsensus,
+  ungappedLayout,
+} from "./msa-oracle";
 
 const PY_SOURCE = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -271,6 +278,87 @@ describe.skipIf(!python)("TS oracle matches the real process_results.py", () => 
     }
   });
 
+  test("auto alignment-model rule matches the real _choose_alignment_model", () => {
+    const cases: { shares: number[]; peptide: boolean }[] = [];
+    // Both sides of the threshold on every chain count, and the tolerance is exact at
+    // the boundary (>=, so 0.9 itself qualifies).
+    for (const shares of [
+      [],
+      [0],
+      [1],
+      [0.9],
+      [0.89],
+      [0.9000001],
+      [0.5],
+      [1, 0.9],
+      [1, 0.89], // one bad chain is enough to fall back
+      [0.95, 0.92, 0.91],
+      [0.95, 0.92, 0.5],
+    ]) {
+      cases.push({ shares, peptide: true }, { shares, peptide: false });
+    }
+
+    const source = readFileSync(PY_SOURCE, "utf8");
+    const driver = [
+      // The constant lives outside any def, so it is lifted separately.
+      `AUTO_UNIFORM_LENGTH_SHARE = ${
+        /^AUTO_UNIFORM_LENGTH_SHARE = (\S+)$/m.exec(source)?.[1] ?? "None"
+      }`,
+      extractFunction(source, "_choose_alignment_model"),
+      "import json, sys",
+      "cases = json.load(sys.stdin)",
+      "print(json.dumps([_choose_alignment_model(c['shares'], c['peptide']) for c in cases]))",
+    ].join("\n\n");
+    const fromPython = JSON.parse(
+      execFileSync(python!, ["-c", driver], { input: JSON.stringify(cases), encoding: "utf8" }),
+    ) as string[];
+
+    expect(cases.map((c) => chooseAlignmentModel(c.shares, c.peptide))).toEqual(fromPython);
+    // A non-peptide input must never reach ungapped, whatever the lengths look like.
+    const nonPeptideVerdicts = fromPython.filter((_verdict, i) => !cases[i].peptide);
+    expect(nonPeptideVerdicts).not.toHaveLength(0);
+    expect([...new Set(nonPeptideVerdicts)]).toEqual(["gapped"]);
+  });
+
+  test("modal length share matches the real _modal_length_share", () => {
+    // The Python side uses polars, which the test environment does not have, so parity
+    // here is asserted against a stdlib transcription of the same three lines. The
+    // extraction below still fails loudly if the real helper is renamed or reshaped.
+    const source = readFileSync(PY_SOURCE, "utf8");
+    const real = extractFunction(source, "_modal_length_share");
+    expect(real).toContain("str.len_chars()");
+    expect(real).toContain('filter(pl.col("length") > 0)');
+    expect(real).toContain("modal_count / n");
+
+    const cases: string[][] = [
+      [],
+      ["", ""],
+      ["ACDEF", "ACDEG", "ACDEH"], // one length, share 1
+      ["ACDEF", "ACDE", "ACDEG"], // 2 of 3
+      ["ACDEF", "", "ACDEG"], // empties excluded, so share 1 not 2/3
+      Array.from({ length: 10 }, (_, i) => "A".repeat(i < 9 ? 9 : 8)), // exactly 0.9
+      Array.from({ length: 10 }, (_, i) => "A".repeat(i < 8 ? 9 : 8)), // 0.8
+    ];
+    const driver = [
+      "import json, sys",
+      "def share(values):",
+      "    lengths = [len(v) for v in values if len(v) > 0]",
+      "    if not lengths: return 0.0",
+      "    counts = {}",
+      "    for l in lengths: counts[l] = counts.get(l, 0) + 1",
+      "    return max(counts.values()) / len(lengths)",
+      "print(json.dumps([share(c) for c in json.load(sys.stdin)]))",
+    ].join("\n");
+    const fromPython = JSON.parse(
+      execFileSync(python!, ["-c", driver], { input: JSON.stringify(cases), encoding: "utf8" }),
+    ) as number[];
+
+    expect(cases.map(modalLengthShare)).toEqual(fromPython);
+    // The two boundary cases decide opposite ways, which is the point of the constant.
+    expect(chooseAlignmentModel([fromPython[5]], true)).toBe("ungapped");
+    expect(chooseAlignmentModel([fromPython[6]], true)).toBe("gapped");
+  });
+
   test("the Python source still exposes the helpers this test extracts", () => {
     // Guards the skip path above from hiding a rename: if the functions move,
     // extraction throws rather than the suite quietly covering nothing.
@@ -278,6 +366,9 @@ describe.skipIf(!python)("TS oracle matches the real process_results.py", () => 
     expect(() => extractFunction(source, "_is_absent_column")).not.toThrow();
     expect(() => extractFunction(source, "_msa_consensus")).not.toThrow();
     expect(() => extractFunction(source, "_ungapped_layout")).not.toThrow();
+    expect(() => extractFunction(source, "_choose_alignment_model")).not.toThrow();
+    expect(() => extractFunction(source, "_modal_length_share")).not.toThrow();
     expect(DEFAULT_GAP_THRESHOLD).toBe(0.5); // must track the Python default
+    expect(source).toContain(`AUTO_UNIFORM_LENGTH_SHARE = ${AUTO_UNIFORM_LENGTH_SHARE}`);
   });
 });

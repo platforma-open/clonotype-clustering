@@ -73,8 +73,15 @@ self.body(func(inputs) {
     // How members are laid out in columns before the vote. "gapped" runs a kalign MSA;
     // "ungapped" forbids internal gaps and allows only terminal offsets — the model
     // FaSTPACE uses for peptides and MEME for motifs. On a fixed-length library every
-    // offset is 0, so the centroid keeps the input length exactly.
-    centroidAlignment := is_undefined(inputs.centroidAlignment) ? "gapped" : inputs.centroidAlignment
+    // offset is 0, so the centroid keeps the input length exactly. "auto" (the default,
+    // mirroring the model's init) hands the decision to process_results.py, which picks
+    // ungapped only for a peptide library whose lengths sit at one value; it needs the
+    // sequences to decide, which is why it cannot be resolved here.
+    centroidAlignment := is_undefined(inputs.centroidAlignment) ? "auto" : inputs.centroidAlignment
+
+    // Peptide libraries have no junctional indels; VDJ repertoires do. Consumed by the
+    // mmseqs2 short-peptide guard below and by --alignment-model auto.
+    isPeptide := is_undefined(inputs.isPeptide) ? false : inputs.isPeptide
 
     // Whether the centroid (and the profile distance/medoid measured against it) is
     // weighted by clonotype abundance. When false, every clonotype counts equally and
@@ -219,7 +226,6 @@ self.body(func(inputs) {
             // Peptide guard: mmseqs2 auto-tunes k with a floor of ~6, so peptides
             // shorter than that get silently empty results. Force -k 5 when the
             // shortest peptide is below 10 aa (small buffer above the floor).
-            isPeptide := is_undefined(inputs.isPeptide) ? false : inputs.isPeptide
             if isPeptide && !is_undefined(inputs.minPeptideLength) {
                 ml := int(json.decode(string(inputs.minPeptideLength.getData())).min_len)
                 if ml < 10 {
@@ -277,6 +283,12 @@ self.body(func(inputs) {
             arg("--consensus-threshold").arg(string(consensusThreshold)).
             arg("--gap-threshold").arg(string(gapThreshold)).
             arg("--alignment-model").arg(centroidAlignment)
+
+        // Only --alignment-model auto reads it, but pass it unconditionally so the
+        // recorded command line states what the input is either way.
+        if isPeptide {
+            resultBuilder = resultBuilder.arg("--peptide-input")
+        }
 
         if highPrecision {
             resultBuilder = resultBuilder.arg("--high-precision")

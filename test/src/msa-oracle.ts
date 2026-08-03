@@ -8,6 +8,35 @@
 */
 
 export const DEFAULT_GAP_THRESHOLD = 0.5; // must match process_results.py --gap-threshold default
+export const AUTO_UNIFORM_LENGTH_SHARE = 0.9; // must match process_results.py
+
+/**
+ * Mirror of `_modal_length_share`: the share of non-empty sequences sitting at the single
+ * most common length. Empty strings are excluded — a member missing this chain says
+ * nothing about the library's length design. Returns 0 when nothing is left to measure.
+ */
+export function modalLengthShare(values: string[]): number {
+  const lengths = values.map((v) => v.length).filter((l) => l > 0);
+  if (lengths.length === 0) return 0;
+  const histogram = new Map<number, number>();
+  for (const l of lengths) histogram.set(l, (histogram.get(l) ?? 0) + 1);
+  return Math.max(...histogram.values()) / lengths.length;
+}
+
+/**
+ * Mirror of `_choose_alignment_model`: the whole `--alignment-model auto` rule.
+ * Ungapped needs both a peptide library (VDJ junctions carry real indels) and every
+ * chain's lengths dominated by one value; anything else, empty evidence included, is
+ * gapped. Deliberately not evidence: how far the gapped MSA widened past the input,
+ * which measurement shows scales with cluster size rather than with real indels.
+ */
+export function chooseAlignmentModel(
+  modalShares: number[],
+  peptideInput: boolean,
+): "gapped" | "ungapped" {
+  if (!peptideInput || modalShares.length === 0) return "gapped";
+  return Math.min(...modalShares) >= AUTO_UNIFORM_LENGTH_SHARE ? "ungapped" : "gapped";
+}
 
 /**
  * Mirror of `_is_absent_column`. The position is absent when the weighted gap

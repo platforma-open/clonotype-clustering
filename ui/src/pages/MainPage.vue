@@ -304,23 +304,6 @@ const clusterAxis = computed<AxisId>(() => {
       </PlNumberField>
 
       <PlSectionSeparator>Centroid</PlSectionSeparator>
-      <PlDropdown
-        v-model="app.model.data.centroidAlignment"
-        :options="centroidAlignmentOptions"
-        label="Alignment Model"
-      >
-        <template #tooltip>
-          How a cluster's members are laid out in columns before the residue vote.
-          <b>Gapped (MSA)</b> runs a kalign alignment, which can insert internal gaps and make the
-          layout wider than the input — the centroid then lives in alignment coordinates and its
-          length need not match any member's. <b>Ungapped (fixed length)</b> forbids internal gaps
-          and allows only terminal offsets, the model <b>FaSTPACE</b> uses for peptides and
-          <b>MEME</b> for motifs; on a library where every member has the same length each offset is
-          0, so the centroid keeps the input length exactly and is provably the closest possible
-          sequence to the whole cluster. Choose it when a shared position number means the same
-          thing across members, as in a fixed-length peptide library.
-        </template>
-      </PlDropdown>
       <PlBtnGroup
         :model-value="app.model.data.weightByAbundance ?? false"
         @update:model-value="app.model.data.weightByAbundance = $event"
@@ -421,27 +404,50 @@ const clusterAxis = computed<AxisId>(() => {
           </PlTooltip>
         </PlCheckbox>
 
-        <template v-if="hasCDR3Sequences">
-          <PlNumberField
-            v-model="app.model.data.gapThreshold"
-            label="Gap Threshold"
-            :minValue="0"
-            :step="0.05"
-            :maxValue="1.0"
-          >
-            <template #tooltip>
-              Fraction of an alignment column's vote that gaps must <b>exceed</b> for a position to
-              count as <b>absent</b> from the cluster, in which case it contributes no residue to
-              the centroid. Mirrors HMMER's <b>--symfrac</b> stated in gap terms, same 0.5 default,
-              and plays the role <b>--maxgap</b> does in pRESTO. A separate question from the
-              <b>Consensus Threshold</b>, which decides <i>which</i> residue a position that does
-              exist carries. At <b>1.0</b> every column holding a residue is kept; at <b>0.0</b> any
-              column containing a gap is absent. Lower values discard more positions and shorten the
-              centroid. Only bites when the alignment has gaps at all, so it has no effect on an
-              <b>Ungapped</b> layout of equal-length members.
-            </template>
-          </PlNumberField>
+        <PlSectionSeparator>Centroid</PlSectionSeparator>
+        <PlDropdown
+          v-model="app.model.data.centroidAlignment"
+          :options="centroidAlignmentOptions"
+          label="Alignment Model"
+        >
+          <template #tooltip>
+            How a cluster's members are laid out in columns before the residue vote.
+            <b>Automatic</b> (default) picks <b>Ungapped</b> for a peptide library whose sequences
+            share one length — where a shared position number means the same thing across members
+            and indels cannot occur by design — and <b>Gapped</b> for everything else, VDJ
+            repertoires included, since junctional indels are real there.<br />
+            <b>Gapped (MSA)</b> runs a kalign alignment, which can insert internal gaps and make the
+            layout wider than the input — the centroid then lives in alignment coordinates and its
+            length need not match any member's. <b>Ungapped (fixed length)</b> forbids internal gaps
+            and allows only terminal offsets, the model <b>FaSTPACE</b> uses for peptides and
+            <b>MEME</b> for motifs; on a library where every member has the same length each offset
+            is 0, so the centroid keeps the input length exactly and is provably the closest
+            possible sequence to the whole cluster. The resolved model is reported in the run log.
+          </template>
+        </PlDropdown>
 
+        <PlNumberField
+          v-model="app.model.data.gapThreshold"
+          label="Gap Threshold"
+          :minValue="0"
+          :step="0.05"
+          :maxValue="1.0"
+        >
+          <template #tooltip>
+            Fraction of an alignment column's vote that gaps must <b>exceed</b> for a position to
+            count as <b>absent</b> from the cluster, in which case it contributes no residue to the
+            centroid. Mirrors HMMER's <b>--symfrac</b> stated in gap terms, same 0.5 default, and
+            plays the role <b>--maxgap</b> does in pRESTO. A separate question from the
+            <b>Consensus Threshold</b>, which decides <i>which</i> residue a position that does
+            exist carries. At <b>1.0</b> every column holding a residue is kept; at <b>0.0</b> any
+            column containing a gap is absent. Lower values discard more positions and shorten the
+            centroid. Only bites when the alignment has gaps at all, so it has no effect on an
+            <b>Ungapped</b>
+            layout of equal-length members.
+          </template>
+        </PlNumberField>
+
+        <template v-if="hasCDR3Sequences">
           <PlSectionSeparator>Trimming options</PlSectionSeparator>
           <PlNumberField
             v-model="app.model.data.trimStart"

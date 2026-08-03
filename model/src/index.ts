@@ -29,6 +29,7 @@ export const similarityTypeOptions = [
 ] as const;
 
 export const centroidAlignmentOptions = [
+  { label: "Automatic", value: "auto" },
   { label: "Gapped (MSA)", value: "gapped" },
   { label: "Ungapped (fixed length)", value: "ungapped" },
 ] as const;
@@ -106,8 +107,11 @@ export type BlockData = {
   // length. "ungapped" forbids internal gaps and allows only terminal offsets — the
   // model FaSTPACE uses for peptides and MEME for motifs. On a fixed-length library
   // every offset is 0, so the centroid keeps the input length exactly and is the optimal
-  // median string under Hamming distance. Default "gapped".
-  centroidAlignment: "gapped" | "ungapped";
+  // median string under Hamming distance. "auto" (the default) leaves the pick to the
+  // workflow, which chooses ungapped only for a peptide library whose sequence lengths sit
+  // at one value — a fact about the library, which only the data can answer, so the
+  // resolved value is not known here.
+  centroidAlignment: "auto" | "gapped" | "ungapped";
   // Whether the centroid (and the profile distance / reference centroid measured
   // against it) is weighted by clonotype abundance. When false every clonotype
   // counts equally and column ties break deterministically (alphabetically), so the
@@ -151,8 +155,8 @@ export function getDefaultBlockLabel(data: {
   if (data.trimEnd > 0) {
     parts.push(`trimEnd: ${data.trimEnd}`);
   }
-  if (data.centroidAlignment === "ungapped") {
-    parts.push("ungapped");
+  if (data.centroidAlignment !== undefined && data.centroidAlignment !== "auto") {
+    parts.push(data.centroidAlignment);
   }
   return parts.filter(Boolean).join(", ");
 }
@@ -167,6 +171,8 @@ const dataModel = new DataModelBuilder()
       (args.similarityType as string) === "alignment-score" ? "blosum62" : args.similarityType,
     consensusThreshold: 0.6,
     gapThreshold: 0.5,
+    // Not "auto": a project made before this setting existed ran the gapped layout, and
+    // reopening it should not silently switch the model underneath its results.
     centroidAlignment: "gapped",
     weightByAbundance: false,
     generateDataset: false,
@@ -183,7 +189,7 @@ const dataModel = new DataModelBuilder()
       coverageThreshold: 0.8,
       trimStart: 0,
       trimEnd: 0,
-      centroidAlignment: "gapped",
+      centroidAlignment: "auto",
     }),
     customBlockLabel: "",
     sequencesRef: [],
@@ -198,7 +204,8 @@ const dataModel = new DataModelBuilder()
     clusteringTool: "easy-cluster",
     consensusThreshold: 0.6, // default majority threshold for the theoretical centroid
     gapThreshold: 0.5, // HMMER --symfrac 0.5 default, stated in gap terms
-    centroidAlignment: "gapped", // kalign MSA; "ungapped" keeps the input length
+    // Resolved in the workflow: ungapped for a peptide library of one length, else gapped
+    centroidAlignment: "auto",
     weightByAbundance: false, // default to equal-weight centroid (abundance ignored)
     generateDataset: false, // off by default; peptide inputs only
     tableState: createPlDataTableStateV2(),

@@ -452,7 +452,15 @@ wf.body(func(args) {
 	//                     distance and radius, and the plurality centroid (whose threshold is
 	//                     forced to 0). These follow the layout, the gap rule and the weighting,
 	//                     but never the consensus threshold.
-	centroidAlignment := is_undefined(args.centroidAlignment) ? "gapped" : args.centroidAlignment
+	//
+	// centroidAlignment is recorded as chosen, so it reads "auto" on the default setting rather
+	// than the model auto resolved to. That resolution needs the sequences, which only
+	// process_results.py has (a workflow body cannot await column data), so the concrete value
+	// is not knowable at spec-building time. Identity stays sound regardless: the resolution is
+	// a deterministic function of the input data, and the input data is already part of this
+	// column's lineage, so two "auto" columns over the same input always agree. The resolved
+	// model and the length distribution behind it are printed in the step's log.
+	centroidAlignment := is_undefined(args.centroidAlignment) ? "auto" : args.centroidAlignment
 	consensusThreshold := is_undefined(args.consensusThreshold) ? 0.6 : args.consensusThreshold
 	gapThreshold := is_undefined(args.gapThreshold) ? 0.5 : args.gapThreshold
 	weightByAbundance := is_undefined(args.weightByAbundance) ? false : args.weightByAbundance
@@ -473,7 +481,10 @@ wf.body(func(args) {
 
 	// Same facts in prose on the columns that carry them, so the table's hover text answers
 	// "how was this computed" without the reader decoding domain keys.
-	provenanceDesc := " Computed with the " + centroidAlignment + " alignment model, " +
+	alignmentDesc := centroidAlignment == "auto" ?
+		"automatically chosen (ungapped for a peptide library whose sequences share one length, gapped otherwise)" :
+		centroidAlignment
+	provenanceDesc := " Computed with the " + alignmentDesc + " alignment model, " +
 		(weightByAbundance ? "abundance" : "equal") + " residue weighting, gap threshold " +
 		pct(gapThreshold) + "%."
 

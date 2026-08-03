@@ -27,6 +27,22 @@ from reassign_singletons import reassign_singletons
 # same confidence as a 70/30 one.
 MSA_MAX_MEMBERS = 1000
 
+# --alignment-model auto: share of input sequences that must sit at one single length
+# before the input counts as a fixed-length library and the ungapped layout is chosen.
+# Exact uniformity is deliberately not demanded — a handful of odd lengths is normal —
+# but the tolerance is narrow, because it is calibrated against how fast the ungapped
+# layout degrades once members genuinely differ in length. On 15-mers at a 0.15
+# substitution rate, with a fraction of the members carrying one deletion, the mean edit
+# distance from the centroid to the true parent goes:
+#
+#   off-modal members   0%     12%    25%    38%    50%
+#   gapped              0.27   0.29   0.36   0.47   0.46
+#   ungapped            0.26   0.44   0.86   1.58   2.72
+#
+# At 12% off-modal (this constant) ungapped costs ~0.15 of an edit on average, which is
+# the "a little spread is fine" range. By 25% it has more than doubled the error.
+AUTO_UNIFORM_LENGTH_SHARE = 0.9
+
 parser = argparse.ArgumentParser(description='Process clustering results and compute summaries')
 parser.add_argument('--trim-start', type=int, default=0, help='Number of amino acids to remove from start')
 parser.add_argument('--trim-end', type=int, default=0, help='Number of amino acids to remove from end')
@@ -52,14 +68,21 @@ parser.add_argument('--keep-gaps', action='store_true',
                          'or Jalview. Off by default: gaps are stripped, which is required for '
                          'the exported peptide dataset, since "-" is not a valid residue for '
                          'downstream sequence consumers.')
-parser.add_argument('--alignment-model', choices=['gapped', 'ungapped'], default='gapped',
+parser.add_argument('--alignment-model', choices=['auto', 'gapped', 'ungapped'],
+                    default='gapped',
                     help='How a cluster\'s members are laid out in columns before the vote. '
                          '"gapped" (default) runs a kalign MSA, which may insert internal gaps '
                          'and widen the layout beyond the input length. "ungapped" forbids '
                          'internal gaps and allows only terminal offsets, the model FaSTPACE '
                          'uses for peptides and MEME for motifs; on a fixed-length library every '
                          'offset is 0, so the centroid keeps the input length exactly and is the '
-                         'optimal median string under Hamming distance.')
+                         'optimal median string under Hamming distance. "auto" picks ungapped '
+                         'only for a --peptide-input whose lengths are dominated by one value '
+                         '(see _resolve_alignment_model), gapped otherwise.')
+parser.add_argument('--peptide-input', action='store_true',
+                    help='The clustered sequences are a peptide library rather than a VDJ '
+                         'repertoire. Only consulted by --alignment-model auto: VDJ junctions '
+                         'carry real indels, so they always resolve to the gapped model.')
 parser.add_argument('--emit-plurality-centroid', action='store_true',
                     help='Also emit plurality-centroid.tsv: per-cluster abundance-weighted per-column '
                          'majority residue (consensus at threshold 0.0, so no "X").')
@@ -78,7 +101,10 @@ min_seq_id = args.min_seq_id
 consensus_threshold = args.consensus_threshold
 gap_threshold = args.gap_threshold
 remove_gaps = not args.keep_gaps
-alignment_model = args.alignment_model
+# Requested model; "auto" is resolved once the clone table is loaded and the clustered
+# chains are known (see _resolve_alignment_model at the call site).
+requested_alignment_model = args.alignment_model
+peptide_input = args.peptide_input
 emit_plurality = args.emit_plurality_centroid
 no_abundance_weighting = args.no_abundance_weighting
 
@@ -381,6 +407,90 @@ def _ungapped_layout(seqs: list[str], weights: list[float]) -> list[str]:
             column = counts[best_offset + i]
             column[residue] = column.get(residue, 0.0) + weight
     return placed
+
+
+def _modal_length_share(values: pl.Series) -> tuple[float, int, int]:
+    """(share of sequences at the single most common length, that length, n measured).
+
+    Empty strings are excluded: a member missing this chain says nothing about the
+    library's length design. Returns (0.0, 0, 0) when nothing is left to measure.
+    """
+    lengths = (
+        values.fill_null("").str.len_chars()
+        .to_frame("length").filter(pl.col("length") > 0)
+    )
+    n = lengths.height
+    if n == 0:
+        return (0.0, 0, 0)
+    histogram = lengths.group_by("length").len().sort(["len", "length"],
+                                                     descending=[True, False])
+    modal_length = int(histogram.item(0, "length"))
+    modal_count = int(histogram.item(0, "len"))
+    return (modal_count / n, modal_length, n)
+
+
+def _choose_alignment_model(modal_shares: list[float], peptide_input: bool) -> str:
+    """The whole auto rule, as a pure function of measured evidence.
+
+    "ungapped" is only correct when the input CANNOT contain indels, and that is a fact
+    about how the library was made, not something a cluster's residues can be asked. Two
+    conditions stand in for it, both cheap:
+
+    1. The input is a peptide library (`peptide_input`). VDJ repertoires have real
+       junctional indels, so a gapped MSA is the right model there regardless of how the
+       lengths happen to fall.
+    2. Every clustered chain's length distribution is dominated by ONE length, at or above
+       AUTO_UNIFORM_LENGTH_SHARE. Exact uniformity is not required — see the constant. All
+       chains must qualify: peptide input is single-chain in practice, but a chain with
+       mixed lengths is exactly where an unwarranted ungapped layout does damage.
+
+    Anything else is "gapped", including a peptide input with no measurable length
+    (`modal_shares` empty). Deliberately NOT used as evidence: how far the gapped MSA
+    widened past the input length. That is the one signal that looks like it separates
+    "kalign inserted gaps because there are real indels" from "kalign inserted gaps
+    because of substitution noise", and measurement shows it does not — the artefact
+    scales with cluster size, so substitution-only clusters (zero indels) widen by up to
+    +11 columns at 128 members while genuinely offset clusters can widen by as little as
+    +0..+2. The ranges overlap, absolutely and relative to the sequence length alike.
+    """
+    if not peptide_input or not modal_shares:
+        return "gapped"
+    return "ungapped" if min(modal_shares) >= AUTO_UNIFORM_LENGTH_SHARE else "gapped"
+
+
+def _resolve_alignment_model(clone_table: pl.DataFrame, trim_cols: list[str],
+                             requested: str, peptide_input: bool) -> str:
+    """Turn --alignment-model auto into a concrete "gapped" / "ungapped", with a log.
+
+    Gathers the evidence _choose_alignment_model needs — one vectorized length pass per
+    chain over a table already in memory — and prints what was measured, so the resolved
+    model can be checked against the input rather than taken on faith.
+    """
+    if requested != "auto":
+        return requested
+    if not peptide_input:
+        print("  alignment model: auto -> gapped (input is not a peptide library)")
+        return "gapped"
+    modal_shares = []
+    for col in trim_cols:
+        share, modal_length, n = _modal_length_share(clone_table[col])
+        if n == 0:
+            print(f"  alignment model: no measurable length in {col}")
+            continue
+        print(f"  alignment model: {col} — {share:.1%} of {n} sequences are "
+              f"{modal_length} aa")
+        modal_shares.append(share)
+    resolved = _choose_alignment_model(modal_shares, peptide_input)
+    if not modal_shares:
+        print("  alignment model: auto -> gapped (no measurable peptide length)")
+    elif resolved == "ungapped":
+        print(f"  alignment model: auto -> ungapped (peptide library, one length holds "
+              f"{min(modal_shares):.1%} >= {AUTO_UNIFORM_LENGTH_SHARE:.0%} on every chain)")
+    else:
+        print(f"  alignment model: auto -> gapped (peptide lengths too spread out, modal "
+              f"length holds only {min(modal_shares):.1%} < "
+              f"{AUTO_UNIFORM_LENGTH_SHARE:.0%})")
+    return resolved
 
 
 def _align_chain(values: list[str], weights: list[float], cluster_id: str,
@@ -789,6 +899,12 @@ reference_df = None          # reference_centroid_* per clusterId
 reference_cluster_to_seq_cols = []
 
 if sequence_cols:
+    # Resolve "auto" against the clustered chains themselves — trimming included, since
+    # those are the sequences the layout will actually see. One vectorized length pass
+    # per chain over a table already in memory, so there is nothing to sample.
+    alignment_model = _resolve_alignment_model(
+        cloneTable, trimmed_cols, requested_alignment_model, peptide_input,
+    )
     centroid_df, plurality_df, distance_member_df, medoid_df = compute_centroid_and_distance(
         clusters, cloneTable, clonotype_weights,
         sequence_cols, trimmed_cols, consensus_threshold, gap_threshold, remove_gaps,

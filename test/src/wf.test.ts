@@ -66,7 +66,11 @@ const CLI_ARGS = [
   "--gap-threshold",
   "--alignment-model",
   "--keep-gaps",
+  // Only --alignment-model auto reads it, and only to keep VDJ input on the gapped model.
+  "--peptide-input",
 ] as const;
+
+const ALIGNMENT_MODELS = ["auto", "gapped", "ungapped"] as const;
 
 // ---------------------------------------------------------------------------
 // Plurality-centroid dataset contract surface (docs/centroid-dataset-plan.md).
@@ -96,7 +100,15 @@ const CENTROID_DATASET_EXPORT_KEY = "centroidDatasetPf"; // workflow export / mo
 // TS oracle: faithful re-implementation of the process_results.py helpers.
 // ---------------------------------------------------------------------------
 
-import { DEFAULT_GAP_THRESHOLD, isAbsentColumn, msaConsensus, ungappedLayout } from "./msa-oracle";
+import {
+  AUTO_UNIFORM_LENGTH_SHARE,
+  chooseAlignmentModel,
+  DEFAULT_GAP_THRESHOLD,
+  isAbsentColumn,
+  modalLengthShare,
+  msaConsensus,
+  ungappedLayout,
+} from "./msa-oracle";
 
 /**
  * Mirror of `_msa_profile_distances` (§3). Returns per-(gap-stripped)-member
@@ -520,6 +532,7 @@ describe("contract surface (column + CLI arg names)", () => {
     expect(CLI_ARGS).toContain("--gap-threshold");
     expect(CLI_ARGS).toContain("--alignment-model");
     expect(CLI_ARGS).toContain("--keep-gaps");
+    expect(CLI_ARGS).toContain("--peptide-input");
   });
 
   test("plurality-centroid dataset names are stable (payload schema DEFERRED)", () => {
@@ -610,6 +623,74 @@ describe("ungapped centroid alignment", () => {
     const [first, second] = ungappedLayout(seqs, [2, 1]);
     expect(first).toBe(seqs[0]);
     expect(second).toBe("-----GQGAETQYFG"); // slid right onto the suffix
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Automatic alignment-model selection. Ungapped is only sound where indels cannot
+// occur, which is a property of the library rather than of a cluster's residues —
+// so the rule is deliberately narrow, and these tests pin how narrow.
+// ---------------------------------------------------------------------------
+
+describe("automatic alignment model", () => {
+  test('"auto" is the default and the model list keeps both explicit choices', () => {
+    expect(ALIGNMENT_MODELS[0]).toBe("auto");
+    expect([...ALIGNMENT_MODELS]).toEqual(["auto", "gapped", "ungapped"]);
+  });
+
+  test("a peptide library sitting at one length resolves to ungapped", () => {
+    const library = Array.from({ length: 40 }, () => "SIINFEKL");
+    expect(modalLengthShare(library)).toBe(1);
+    expect(chooseAlignmentModel([modalLengthShare(library)], true)).toBe("ungapped");
+  });
+
+  test("VDJ input never resolves to ungapped, however uniform its lengths look", () => {
+    // Junctional indels are real, so the length distribution is not evidence here.
+    const uniform = Array.from({ length: 40 }, () => "CASSLGQGAETQYFG");
+    expect(modalLengthShare(uniform)).toBe(1);
+    expect(chooseAlignmentModel([modalLengthShare(uniform)], false)).toBe("gapped");
+  });
+
+  test("the tolerance is inclusive at the threshold and falls back just below it", () => {
+    // Calibrated, not picked: at ~12% off-modal members the ungapped layout costs ~0.15
+    // of an edit against a known parent, at 25% it more than doubles the error.
+    const atThreshold = [...Array.from({ length: 9 }, () => "ACDEFGHIK"), "ACDEFGHI"];
+    expect(modalLengthShare(atThreshold)).toBeCloseTo(AUTO_UNIFORM_LENGTH_SHARE, 10);
+    expect(chooseAlignmentModel([modalLengthShare(atThreshold)], true)).toBe("ungapped");
+
+    const belowThreshold = [...Array.from({ length: 8 }, () => "ACDEFGHIK"), "ACDEFGHI", "ACDEFGH"];
+    expect(modalLengthShare(belowThreshold)).toBeLessThan(AUTO_UNIFORM_LENGTH_SHARE);
+    expect(chooseAlignmentModel([modalLengthShare(belowThreshold)], true)).toBe("gapped");
+  });
+
+  test("one non-uniform chain drags the whole decision back to gapped", () => {
+    // Single-cell peptide input would align each chain separately; a chain with mixed
+    // lengths is exactly where an unwarranted ungapped layout does damage.
+    expect(chooseAlignmentModel([1, 1, 0.5], true)).toBe("gapped");
+    expect(chooseAlignmentModel([1, 1, 1], true)).toBe("ungapped");
+  });
+
+  test("no measurable length falls back to gapped rather than guessing", () => {
+    expect(modalLengthShare([])).toBe(0);
+    expect(modalLengthShare(["", ""])).toBe(0);
+    expect(chooseAlignmentModel([], true)).toBe("gapped");
+  });
+
+  test("empty chain values are excluded, not counted as a length of their own", () => {
+    // A member missing this chain says nothing about the library's length design;
+    // counting the empties would make a uniform library look mixed.
+    expect(modalLengthShare(["ACDEF", "", "ACDEG", ""])).toBe(1);
+    expect(chooseAlignmentModel([modalLengthShare(["ACDEF", "", "ACDEG", ""])], true)).toBe(
+      "ungapped",
+    );
+  });
+
+  test("an explicit choice is passed through untouched", () => {
+    // The resolver only ever rewrites "auto"; pinned because the block records the
+    // REQUESTED value in the column domain, so a silent rewrite would misreport it.
+    for (const model of ["gapped", "ungapped"] as const) {
+      expect(ALIGNMENT_MODELS).toContain(model);
+    }
   });
 });
 
