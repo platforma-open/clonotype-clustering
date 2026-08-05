@@ -411,18 +411,13 @@ const clusterAxis = computed<AxisId>(() => {
           label="Alignment Model"
         >
           <template #tooltip>
-            How a cluster's members are laid out in columns before the residue vote.
-            <b>Automatic</b> (default) picks <b>Ungapped</b> for a peptide library whose sequences
-            share one length — where a shared position number means the same thing across members
-            and indels cannot occur by design — and <b>Gapped</b> for everything else, VDJ
-            repertoires included, since junctional indels are real there.<br />
-            <b>Gapped (MSA)</b> runs a kalign alignment, which can insert internal gaps and make the
-            layout wider than the input — the centroid then lives in alignment coordinates and its
-            length need not match any member's. <b>Ungapped (fixed length)</b> forbids internal gaps
-            and allows only terminal offsets, the model <b>FaSTPACE</b> uses for peptides and
-            <b>MEME</b> for motifs; on a library where every member has the same length each offset
-            is 0, so the centroid keeps the input length exactly and is provably the closest
-            possible sequence to the whole cluster. The resolved model is reported in the run log.
+            How cluster members are lined up before the residue vote.<br />
+            <b>Automatic</b> (default) is a safe choice: it uses <b>Ungapped</b> for peptide
+            libraries of a single length and <b>Gapped</b> for everything else, VDJ included. The
+            model it picked is noted in the run log.<br />
+            <b>Gapped (MSA)</b> aligns members and may insert gaps, so the centroid can be longer
+            than any input sequence. <b>Ungapped</b> keeps the input length exactly — pick it only
+            when indels are impossible by design.
           </template>
         </PlDropdown>
 
@@ -434,16 +429,13 @@ const clusterAxis = computed<AxisId>(() => {
           :maxValue="1.0"
         >
           <template #tooltip>
-            Fraction of an alignment column's vote that gaps must <b>exceed</b> for a position to
-            count as <b>absent</b> from the cluster, in which case it contributes no residue to the
-            centroid. Mirrors HMMER's <b>--symfrac</b> stated in gap terms, same 0.5 default, and
-            plays the role <b>--maxgap</b> does in pRESTO. A separate question from the
-            <b>Consensus Threshold</b>, which decides <i>which</i> residue a position that does
-            exist carries. At <b>1.0</b> every column holding a residue is kept; at <b>0.0</b> any
-            column containing a gap is absent. Lower values discard more positions and shorten the
-            centroid. Only bites when the alignment has gaps at all, so it has no effect on an
-            <b>Ungapped</b>
-            layout of equal-length members.
+            How gappy an alignment position may get before it is dropped from the centroid. A
+            position is dropped once gaps exceed this fraction of its vote — so lower values drop
+            more positions and shorten the centroid, <b>1.0</b> keeps every position holding a
+            residue.<br />
+            This decides <i>whether</i> a position survives; <b>Consensus Threshold</b> decides
+            <i>which</i> residue it carries. No effect on an <b>Ungapped</b> alignment of
+            equal-length members, which has no gaps to weigh.
           </template>
         </PlNumberField>
 
