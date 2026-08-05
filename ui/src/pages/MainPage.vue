@@ -2,6 +2,7 @@
 import { PlMultiSequenceAlignment } from "@milaboratories/multi-sequence-alignment";
 import strings from "@milaboratories/strings";
 import {
+  centroidAlignmentOptions,
   clusteringToolOptions,
   similarityTypeOptions,
 } from "@platforma-open/milaboratories.clonotype-clustering.model";
@@ -402,6 +403,41 @@ const clusterAxis = computed<AxisId>(() => {
             >
           </PlTooltip>
         </PlCheckbox>
+
+        <PlSectionSeparator>Centroid</PlSectionSeparator>
+        <PlDropdown
+          v-model="app.model.data.centroidAlignment"
+          :options="centroidAlignmentOptions"
+          label="Alignment Model"
+        >
+          <template #tooltip>
+            How cluster members are lined up before the residue vote.<br />
+            <b>Automatic</b> (default) is a safe choice: it uses <b>Ungapped</b> for peptide
+            libraries of a single length and <b>Gapped</b> for everything else, VDJ included. The
+            model it picked is noted in the run log.<br />
+            <b>Gapped (MSA)</b> aligns members and may insert gaps, so the centroid can be longer
+            than any input sequence. <b>Ungapped</b> keeps the input length exactly — pick it only
+            when indels are impossible by design.
+          </template>
+        </PlDropdown>
+
+        <PlNumberField
+          v-model="app.model.data.gapThreshold"
+          label="Gap Threshold"
+          :minValue="0"
+          :step="0.05"
+          :maxValue="1.0"
+        >
+          <template #tooltip>
+            How gappy an alignment position may get before it is dropped from the centroid. A
+            position is dropped once gaps exceed this fraction of its vote — so lower values drop
+            more positions and shorten the centroid, <b>1.0</b> keeps every position holding a
+            residue.<br />
+            This decides <i>whether</i> a position survives; <b>Consensus Threshold</b> decides
+            <i>which</i> residue it carries. No effect on an <b>Ungapped</b> alignment of
+            equal-length members, which has no gaps to weigh.
+          </template>
+        </PlNumberField>
 
         <template v-if="hasCDR3Sequences">
           <PlSectionSeparator>Trimming options</PlSectionSeparator>

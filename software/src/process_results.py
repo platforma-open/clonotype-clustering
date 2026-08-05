@@ -27,6 +27,22 @@ from reassign_singletons import reassign_singletons
 # same confidence as a 70/30 one.
 MSA_MAX_MEMBERS = 1000
 
+# --alignment-model auto: share of input sequences that must sit at one single length
+# before the input counts as a fixed-length library and the ungapped layout is chosen.
+# Exact uniformity is deliberately not demanded — a handful of odd lengths is normal —
+# but the tolerance is narrow, because it is calibrated against how fast the ungapped
+# layout degrades once members genuinely differ in length. On 15-mers at a 0.15
+# substitution rate, with a fraction of the members carrying one deletion, the mean edit
+# distance from the centroid to the true parent goes:
+#
+#   off-modal members   0%     12%    25%    38%    50%
+#   gapped              0.27   0.29   0.36   0.47   0.46
+#   ungapped            0.26   0.44   0.86   1.58   2.72
+#
+# At 12% off-modal (this constant) ungapped costs ~0.15 of an edit on average, which is
+# the "a little spread is fine" range. By 25% it has more than doubled the error.
+AUTO_UNIFORM_LENGTH_SHARE = 0.9
+
 parser = argparse.ArgumentParser(description='Process clustering results and compute summaries')
 parser.add_argument('--trim-start', type=int, default=0, help='Number of amino acids to remove from start')
 parser.add_argument('--trim-end', type=int, default=0, help='Number of amino acids to remove from end')
@@ -38,6 +54,35 @@ parser.add_argument('--consensus-threshold', type=float, default=0.6,
                          'the winning residue must hold for the theoretical (consensus) centroid '
                          'to commit that residue; below it the position is ambiguous and emits "X". '
                          'Default 0.6.')
+parser.add_argument('--gap-threshold', type=float, default=0.5,
+                    help='Fraction (0-1) of an MSA column\'s total abundance weight that gaps '
+                         'must EXCEED for the position to count as absent from the cluster: the '
+                         'column then yields "-" instead of a residue. Mirrors HMMER hmmbuild '
+                         '--symfrac stated in gap terms (gap-threshold = 1 - symfrac), same 0.5 '
+                         'default. At 1.0 every column holding a residue is kept; at 0.0 any '
+                         'column containing a gap is absent. Separate from --consensus-threshold, '
+                         'which decides WHICH residue a present position carries. Default 0.5.')
+parser.add_argument('--keep-gaps', action='store_true',
+                    help='Keep the "-" symbols in the centroid sequences, so they stay in '
+                         'alignment coordinates (one symbol per MSA column) like EMBOSS cons '
+                         'or Jalview. Off by default: gaps are stripped, which is required for '
+                         'the exported peptide dataset, since "-" is not a valid residue for '
+                         'downstream sequence consumers.')
+parser.add_argument('--alignment-model', choices=['auto', 'gapped', 'ungapped'],
+                    default='gapped',
+                    help='How a cluster\'s members are laid out in columns before the vote. '
+                         '"gapped" (default) runs a kalign MSA, which may insert internal gaps '
+                         'and widen the layout beyond the input length. "ungapped" forbids '
+                         'internal gaps and allows only terminal offsets, the model FaSTPACE '
+                         'uses for peptides and MEME for motifs; on a fixed-length library every '
+                         'offset is 0, so the centroid keeps the input length exactly and is the '
+                         'optimal median string under Hamming distance. "auto" picks ungapped '
+                         'only for a --peptide-input whose lengths are dominated by one value '
+                         '(see _resolve_alignment_model), gapped otherwise.')
+parser.add_argument('--peptide-input', action='store_true',
+                    help='The clustered sequences are a peptide library rather than a VDJ '
+                         'repertoire. Only consulted by --alignment-model auto: VDJ junctions '
+                         'carry real indels, so they always resolve to the gapped model.')
 parser.add_argument('--emit-plurality-centroid', action='store_true',
                     help='Also emit plurality-centroid.tsv: per-cluster abundance-weighted per-column '
                          'majority residue (consensus at threshold 0.0, so no "X").')
@@ -54,6 +99,12 @@ trim_end = args.trim_end
 per_chain_trim = args.per_chain_trim
 min_seq_id = args.min_seq_id
 consensus_threshold = args.consensus_threshold
+gap_threshold = args.gap_threshold
+remove_gaps = not args.keep_gaps
+# Requested model; "auto" is resolved once the clone table is loaded and the clustered
+# chains are known (see _resolve_alignment_model at the call site).
+requested_alignment_model = args.alignment_model
+peptide_input = args.peptide_input
 emit_plurality = args.emit_plurality_centroid
 no_abundance_weighting = args.no_abundance_weighting
 
@@ -226,18 +277,61 @@ def _sanitize_seq(seq: str) -> str:
     return _NON_ALPHA_RE.sub("X", seq)
 
 
-def _msa_consensus(aligned: list[str], weights: list[float], threshold: float) -> str:
-    """Abundance-weighted column-majority consensus over a kalign MSA.
+def _is_absent_column(tally: dict[str, float], gap_threshold: float) -> bool:
+    """Does this MSA column represent a position most cluster members do not have?
+
+    Mirrors HMMER's `hmmbuild --symfrac` (default 0.5): a column is a consensus
+    position when the abundance-weighted residue fraction clears the bar, and an
+    insertion — i.e. not a consensus position — otherwise. `gap_threshold` states the
+    same bar in gap terms (gap_threshold = 1 - symfrac), so the position is absent
+    when the weighted gap fraction EXCEEDS it.
+
+    The comparison is strict, which is what makes both endpoints meaningful and
+    matches HMMER at each of them:
+      1.0 — absent needs > 100% gaps, so every column holding a residue is a
+            consensus position (HMMER --symfrac 0.0).
+      0.5 — the default. A half-gap column is still a consensus position, the same
+            way the previous rule let a residue win a tie against the gap.
+      0.0 — any column containing a gap at all is absent (HMMER --symfrac 1.0).
+    A non-strict comparison would instead make 0.0 mark EVERY column absent, gap-free
+    ones included, and empty the centroid outright.
+
+    This replaces the earlier "gap wins the weighted argmax" rule, which was not a
+    threshold at all: on a diverse column where every residue appears once, two gaps
+    out of six already outvoted each residue, so a position present in 67% of members
+    was discarded. Terminal gaps count the same as internal ones — HMMER excludes
+    fragment-end gaps, but that only suits alignments of a shared domain; on clusters
+    whose members barely overlap it marks every column a consensus position.
+    """
+    total = sum(tally.values())
+    if total <= 0:
+        return True
+    return tally.get("-", 0.0) / total > gap_threshold
+
+
+def _msa_consensus(aligned: list[str], weights: list[float], threshold: float,
+                   gap_threshold: float, remove_gaps: bool) -> str:
+    """Abundance-weighted column consensus over a kalign MSA, one symbol per column.
 
     `aligned` are equal-length gap-padded rows from kalign; `weights[i]` is the
-    abundance weight of row i. For each column the residue with the greatest total
-    weight wins (ties broken deterministically: non-gap over gap, then lexically).
-    Columns whose majority residue is a gap contribute nothing to the centroid.
+    abundance weight of row i. Every column yields exactly one symbol, so the result
+    lives in alignment coordinates and its length is the alignment width — the same
+    contract as EMBOSS `cons`, Jalview's consensus row and MiXCR's contigs. Columns
+    are never silently dropped.
 
-    A non-gap winner is only committed when it holds at least `threshold` of the
-    column's total weight; otherwise no residue dominates and the position emits
-    "X" (ambiguous). This stops a 51/49 column being reported as confidently as a
-    70/30 one.
+    Three outcomes per column, deliberately distinguishable:
+      "-"  the position is absent from most members (see _is_absent_column).
+      "X"  the position exists but no residue reaches `threshold`, so which residue
+           it carries is ambiguous.
+      else the winning residue.
+
+    `threshold` is measured against the NON-GAP weight only. The gaps already had
+    their say in deciding whether the position exists; charging them again here would
+    count the same evidence twice and flood a gappy-but-real column with "X".
+
+    `remove_gaps` strips the "-" symbols as an explicit last step. It changes only the
+    rendering of this string — never which columns are consensus positions — so the
+    profile distance and L_cons (see _msa_profile_distances) are unaffected by it.
     """
     out = []
     for col in range(len(aligned[0])):
@@ -245,17 +339,162 @@ def _msa_consensus(aligned: list[str], weights: list[float], threshold: float) -
         for row, w in zip(aligned, weights):
             c = row[col]
             tally[c] = tally.get(c, 0.0) + w
-        # Max total weight; on ties prefer a real residue, then the smaller letter.
-        best = max(tally.items(), key=lambda kv: (kv[1], kv[0] != "-", -ord(kv[0])))
-        if best[0] == "-":
-            continue  # gap-majority column: not part of the centroid
-        total = sum(tally.values())
+        if _is_absent_column(tally, gap_threshold):
+            out.append("-")
+            continue
+        non_gap = {a: w for a, w in tally.items() if a != "-"}
+        if not non_gap:
+            out.append("-")
+            continue
+        # Greatest non-gap weight; on ties prefer the smaller letter (deterministic).
+        best = max(non_gap.items(), key=lambda kv: (kv[1], -ord(kv[0])))
+        non_gap_total = sum(non_gap.values())
         # Commit the residue only when it clears the threshold, else mark ambiguous.
-        out.append(best[0] if total > 0 and best[1] / total >= threshold else "X")
-    return "".join(out)
+        out.append(best[0] if best[1] / non_gap_total >= threshold else "X")
+    consensus = "".join(out)
+    return consensus.replace("-", "") if remove_gaps else consensus
 
 
-def _align_chain(values: list[str], weights: list[float], cluster_id: str):
+def _ungapped_layout(seqs: list[str], weights: list[float]) -> list[str]:
+    """Column layout with NO internal gaps — only terminal offsets (FaSTPACE's model).
+
+    FaSTPACE, the current tool for peptide alignment and consensus extraction, performs
+    "ungapped global alignments between all pairs of sequences (external gaps are
+    permitted, but no gaps are added within either peptide)", on the grounds that
+    variable-length gaps cost exponential time and "would likely introduce more noise".
+    MEME likewise models fixed-length ungapped motifs and defers gapped motifs to a
+    separate tool. For a fixed-length peptide library that is the right model: position
+    i means position i, and a gapped MSA only invents shifts the chemistry does not have.
+
+    Two cases:
+
+    - All members the same length (a genuine fixed-length library): every offset is 0 and
+      the layout is the members stacked as-is. This is not a heuristic — for equal-length
+      strings under Hamming distance the per-column mode of that stack is EXACTLY the
+      optimal length-L median string, because the distance sum decomposes per position
+      and so the minimisation decomposes into an independent per-column argmax. Searching
+      windows or substrings cannot beat it.
+
+    - Lengths differ (mmseqs can cluster different lengths together at coverage < 1, and
+      upstream need not be perfectly uniform): place each member at the terminal offset
+      that best matches the profile built from the members placed before it, greedily, in
+      the caller's already-deterministic order (descending weight, then lexicographic).
+      Total width is capped at the longest member, so an ungapped layout can never widen
+      the way a gapped MSA does. Scoring is weighted identity, matching the column vote;
+      a substitution-matrix score would be the refinement here.
+    """
+    width = max(len(s) for s in seqs)
+    if min(len(s) for s in seqs) == width:
+        return list(seqs)  # equal length: offset 0 for all, exact
+
+    # counts[col][residue] -> accumulated weight of the members placed so far
+    counts: list[dict[str, float]] = [{} for _ in range(width)]
+    placed: list[str] = []
+    for seq, weight in zip(seqs, weights):
+        span = width - len(seq)
+        best_offset = 0
+        best_score = None
+        for offset in range(span + 1):
+            score = sum(
+                counts[offset + i].get(residue, 0.0) for i, residue in enumerate(seq)
+            )
+            # Strict >, so ties keep the smallest offset and the layout stays deterministic.
+            if best_score is None or score > best_score:
+                best_score, best_offset = score, offset
+        row = "-" * best_offset + seq + "-" * (span - best_offset)
+        placed.append(row)
+        for i, residue in enumerate(seq):
+            column = counts[best_offset + i]
+            column[residue] = column.get(residue, 0.0) + weight
+    return placed
+
+
+def _modal_length_share(values: pl.Series) -> tuple[float, int, int]:
+    """(share of sequences at the single most common length, that length, n measured).
+
+    Empty strings are excluded: a member missing this chain says nothing about the
+    library's length design. Returns (0.0, 0, 0) when nothing is left to measure.
+    """
+    lengths = (
+        values.fill_null("").str.len_chars()
+        .to_frame("length").filter(pl.col("length") > 0)
+    )
+    n = lengths.height
+    if n == 0:
+        return (0.0, 0, 0)
+    histogram = lengths.group_by("length").len().sort(["len", "length"],
+                                                     descending=[True, False])
+    modal_length = int(histogram.item(0, "length"))
+    modal_count = int(histogram.item(0, "len"))
+    return (modal_count / n, modal_length, n)
+
+
+def _choose_alignment_model(modal_shares: list[float], peptide_input: bool) -> str:
+    """The whole auto rule, as a pure function of measured evidence.
+
+    "ungapped" is only correct when the input CANNOT contain indels, and that is a fact
+    about how the library was made, not something a cluster's residues can be asked. Two
+    conditions stand in for it, both cheap:
+
+    1. The input is a peptide library (`peptide_input`). VDJ repertoires have real
+       junctional indels, so a gapped MSA is the right model there regardless of how the
+       lengths happen to fall.
+    2. Every clustered chain's length distribution is dominated by ONE length, at or above
+       AUTO_UNIFORM_LENGTH_SHARE. Exact uniformity is not required — see the constant. All
+       chains must qualify: peptide input is single-chain in practice, but a chain with
+       mixed lengths is exactly where an unwarranted ungapped layout does damage.
+
+    Anything else is "gapped", including a peptide input with no measurable length
+    (`modal_shares` empty). Deliberately NOT used as evidence: how far the gapped MSA
+    widened past the input length. That is the one signal that looks like it separates
+    "kalign inserted gaps because there are real indels" from "kalign inserted gaps
+    because of substitution noise", and measurement shows it does not — the artefact
+    scales with cluster size, so substitution-only clusters (zero indels) widen by up to
+    +11 columns at 128 members while genuinely offset clusters can widen by as little as
+    +0..+2. The ranges overlap, absolutely and relative to the sequence length alike.
+    """
+    if not peptide_input or not modal_shares:
+        return "gapped"
+    return "ungapped" if min(modal_shares) >= AUTO_UNIFORM_LENGTH_SHARE else "gapped"
+
+
+def _resolve_alignment_model(clone_table: pl.DataFrame, trim_cols: list[str],
+                             requested: str, peptide_input: bool) -> str:
+    """Turn --alignment-model auto into a concrete "gapped" / "ungapped", with a log.
+
+    Gathers the evidence _choose_alignment_model needs — one vectorized length pass per
+    chain over a table already in memory — and prints what was measured, so the resolved
+    model can be checked against the input rather than taken on faith.
+    """
+    if requested != "auto":
+        return requested
+    if not peptide_input:
+        print("  alignment model: auto -> gapped (input is not a peptide library)")
+        return "gapped"
+    modal_shares = []
+    for col in trim_cols:
+        share, modal_length, n = _modal_length_share(clone_table[col])
+        if n == 0:
+            print(f"  alignment model: no measurable length in {col}")
+            continue
+        print(f"  alignment model: {col} — {share:.1%} of {n} sequences are "
+              f"{modal_length} aa")
+        modal_shares.append(share)
+    resolved = _choose_alignment_model(modal_shares, peptide_input)
+    if not modal_shares:
+        print("  alignment model: auto -> gapped (no measurable peptide length)")
+    elif resolved == "ungapped":
+        print(f"  alignment model: auto -> ungapped (peptide library, one length holds "
+              f"{min(modal_shares):.1%} >= {AUTO_UNIFORM_LENGTH_SHARE:.0%} on every chain)")
+    else:
+        print(f"  alignment model: auto -> gapped (peptide lengths too spread out, modal "
+              f"length holds only {min(modal_shares):.1%} < "
+              f"{AUTO_UNIFORM_LENGTH_SHARE:.0%})")
+    return resolved
+
+
+def _align_chain(values: list[str], weights: list[float], cluster_id: str,
+                 alignment_model: str = "gapped"):
     """Build one cluster's per-chain kalign MSA ONCE; everything else derives from it.
 
     The alignment is a pure function of the (deduplicated, ordered, capped) sequence
@@ -305,16 +544,21 @@ def _align_chain(values: list[str], weights: list[float], cluster_id: str):
 
     seqs = [s for s, _ in pairs]
     member_weights = [w for _, w in pairs]
+    if alignment_model == "ungapped":
+        return ("msa", (_ungapped_layout(seqs, member_weights), member_weights))
     aligned = kalign.align(seqs, seq_type="auto")
     return ("msa", (aligned, member_weights))
 
 
-def derive_consensus(bundle, threshold: float) -> str:
-    """Abundance-weighted column-majority consensus from an _align_chain bundle.
+def derive_consensus(bundle, threshold: float, gap_threshold: float,
+                     remove_gaps: bool) -> str:
+    """Abundance-weighted column consensus from an _align_chain bundle.
 
-    0 members -> ""; a single distinct member -> that sequence unchanged; otherwise the
-    weighted consensus over the shared MSA (see _msa_consensus). At threshold 0.0 the "X"
-    branch is unreachable, giving the X-free plurality centroid.
+    0 members -> ""; a single distinct member -> that sequence unchanged (it has no
+    gaps, so `remove_gaps` is moot); otherwise the weighted consensus over the shared
+    MSA (see _msa_consensus). At threshold 0.0 the "X" branch is unreachable, giving
+    the X-free plurality centroid — "-" can still appear when `remove_gaps` is off,
+    since absence is decided by `gap_threshold`, not by `threshold`.
     """
     mode, payload = bundle
     if mode == "empty":
@@ -322,10 +566,11 @@ def derive_consensus(bundle, threshold: float) -> str:
     if mode == "single":
         return payload
     aligned, member_weights = payload
-    return _msa_consensus(aligned, member_weights, threshold)
+    return _msa_consensus(aligned, member_weights, threshold, gap_threshold, remove_gaps)
 
 
-def _msa_profile_distances(aligned: list[str], weights: list[float]) -> tuple[dict[str, float], int]:
+def _msa_profile_distances(aligned: list[str], weights: list[float],
+                           gap_threshold: float) -> tuple[dict[str, float], int]:
     """Positional profile distance of each aligned row to the column profile (§3).
 
     `aligned` are equal-length gap-padded rows from kalign; `weights[i]` is the
@@ -352,10 +597,9 @@ def _msa_profile_distances(aligned: list[str], weights: list[float]) -> tuple[di
             c = row[col]
             tally[c] = tally.get(c, 0.0) + w
         col_fracs.append({a: (wa / W if W > 0 else 0.0) for a, wa in tally.items()})
-        # Same column winner / tie-break as the consensus: non-gap over gap, then lexical.
-        best = max(tally.items(), key=lambda kv: (kv[1], kv[0] != "-", -ord(kv[0])))
-        if best[0] != "-":
-            l_cons += 1  # non-gap-majority column: part of the centroid length
+        # Same absence rule as the consensus, so centroid and distance stay consistent.
+        if not _is_absent_column(tally, gap_threshold):
+            l_cons += 1  # consensus position: part of the centroid length
 
     # Each member's distance is the sum over columns of 1 - p_j(its residue).
     d_by_seq: dict[str, float] = {}
@@ -367,7 +611,7 @@ def _msa_profile_distances(aligned: list[str], weights: list[float]) -> tuple[di
     return d_by_seq, l_cons
 
 
-def derive_distances(bundle) -> tuple[dict[str, float], int]:
+def derive_distances(bundle, gap_threshold: float) -> tuple[dict[str, float], int]:
     """Per-distinct-member profile distance (§3) from an _align_chain bundle.
 
     Because it reads the SAME alignment as derive_consensus, the distance is computed
@@ -376,7 +620,9 @@ def derive_distances(bundle) -> tuple[dict[str, float], int]:
       - D_by_seq maps each distinct (gap-stripped, sanitized) member sequence to its
         profile distance D^(s) for this chain. The caller looks up with the same
         sanitized form.
-      - L_cons is the number of non-gap-majority consensus columns for this chain.
+      - L_cons is the number of consensus positions for this chain, decided by the same
+        `gap_threshold` the centroid uses (see _is_absent_column). It is independent of
+        the `remove_gaps` rendering flag.
     Members dropped by the cap are not in D_by_seq; the caller charges them full length.
 
     Edge cases: 0 non-empty members -> ({}, 0); a single distinct member -> distance 0
@@ -389,7 +635,7 @@ def derive_distances(bundle) -> tuple[dict[str, float], int]:
         seq = payload
         return {seq: 0.0}, len(seq)
     aligned, member_weights = payload
-    return _msa_profile_distances(aligned, member_weights)
+    return _msa_profile_distances(aligned, member_weights, gap_threshold)
 
 
 def compute_centroid_and_distance(clusters_df: pl.DataFrame,
@@ -398,6 +644,9 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
                                   seq_cols: list[str],
                                   trim_cols: list[str],
                                   threshold: float,
+                                  gap_threshold: float,
+                                  remove_gaps: bool,
+                                  alignment_model: str,
                                   emit_plurality: bool,
                                   no_trim: bool):
     """Single per-cluster pass: align each chain ONCE and derive everything from it.
@@ -497,18 +746,19 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
 
         for sc, tc in zip(seq_cols, trim_cols):
             # Align the trimmed chain ONCE; consensus, plurality and distance share it.
-            bundle_t = _align_chain(row[f"__vals_{tc}"], wts, cluster_id)
-            cons_trim[tc] = derive_consensus(bundle_t, threshold)
-            plur_trim[tc] = derive_consensus(bundle_t, 0.0) if emit_plurality else None
-            d_by_seq_chain[tc], l_cons_chain[tc] = derive_distances(bundle_t)
+            bundle_t = _align_chain(row[f"__vals_{tc}"], wts, cluster_id, alignment_model)
+            cons_trim[tc] = derive_consensus(bundle_t, threshold, gap_threshold, remove_gaps)
+            plur_trim[tc] = (derive_consensus(bundle_t, 0.0, gap_threshold, remove_gaps)
+                             if emit_plurality else None)
+            d_by_seq_chain[tc], l_cons_chain[tc] = derive_distances(bundle_t, gap_threshold)
 
             # Untrimmed centroid: identical to the trimmed one when trimming is off (the
             # trim_ column is a byte copy of the original), else align separately.
             if no_trim:
                 cons_seq[sc] = cons_trim[tc]
             else:
-                bundle_u = _align_chain(row[f"__vals_{sc}"], wts, cluster_id)
-                cons_seq[sc] = derive_consensus(bundle_u, threshold)
+                bundle_u = _align_chain(row[f"__vals_{sc}"], wts, cluster_id, alignment_model)
+                cons_seq[sc] = derive_consensus(bundle_u, threshold, gap_threshold, remove_gaps)
 
         # --- centroid row ---
         centroid_out["clusterId"].append(cluster_id)
@@ -529,7 +779,10 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
                 "====".join(plur_trim[c] for c in sorted_trim_cols)
             )
             for c in trim_cols:
-                plurality_out[f"plurality_centroid_length_{c}"].append(len(plur_trim[c]))
+                # Residue count, never the gap-padded width. The model forbids exporting the
+                # dataset with gaps kept, so this is belt-and-braces for a hand-built args set.
+                plurality_out[f"plurality_centroid_length_{c}"].append(
+                    len(plur_trim[c].replace("-", "")))
         else:
             for c in trim_cols:
                 plurality_out[f"plurality_centroid_{c}"].append(None)
@@ -646,9 +899,16 @@ reference_df = None          # reference_centroid_* per clusterId
 reference_cluster_to_seq_cols = []
 
 if sequence_cols:
+    # Resolve "auto" against the clustered chains themselves — trimming included, since
+    # those are the sequences the layout will actually see. One vectorized length pass
+    # per chain over a table already in memory, so there is nothing to sample.
+    alignment_model = _resolve_alignment_model(
+        cloneTable, trimmed_cols, requested_alignment_model, peptide_input,
+    )
     centroid_df, plurality_df, distance_member_df, medoid_df = compute_centroid_and_distance(
         clusters, cloneTable, clonotype_weights,
-        sequence_cols, trimmed_cols, consensus_threshold, emit_plurality, no_trim,
+        sequence_cols, trimmed_cols, consensus_threshold, gap_threshold, remove_gaps,
+        alignment_model, emit_plurality, no_trim,
     )
 else:
     # No sequence columns: still write a header-only plurality file (the clustering

@@ -175,6 +175,9 @@ importers:
 
   test:
     dependencies:
+      '@types/node':
+        specifier: '*'
+        version: 24.5.2
       this-block:
         specifier: workspace:@platforma-open/milaboratories.clonotype-clustering@*
         version: link:../block

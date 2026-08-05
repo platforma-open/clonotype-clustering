@@ -45,7 +45,32 @@ const EMITTED_COLUMNS = [
   "clusterRadius",
 ] as const;
 
-const CLI_ARGS = ["--consensus-threshold", "--centroid-type"] as const;
+// --keep-gaps is deliberately NOT wired through the block: it exists for running
+// process_results.py by hand, since a centroid carrying "-" is not a valid sequence for
+// the exported dataset. Pinned here so it is not dropped from the script by accident.
+// Centroid provenance recorded in the column domain. These keys make a column computed
+// under different settings a different column, so two blocks compared side by side cannot
+// be confused and a downstream consumer can establish how a sequence was derived.
+// Thresholds are integer percent, not the raw float: a domain value has to be byte-stable
+// for column identity to be stable, and float formatting is not.
+const PROVENANCE_DOMAIN_KEYS = [
+  "pl7.app/clustering/centroidAlignment",
+  "pl7.app/clustering/residueWeighting",
+  "pl7.app/clustering/gapThresholdPercent",
+  "pl7.app/clustering/consensusThresholdPercent",
+] as const;
+
+const CLI_ARGS = [
+  "--consensus-threshold",
+  "--centroid-type",
+  "--gap-threshold",
+  "--alignment-model",
+  "--keep-gaps",
+  // Only --alignment-model auto reads it, and only to keep VDJ input on the gapped model.
+  "--peptide-input",
+] as const;
+
+const ALIGNMENT_MODELS = ["auto", "gapped", "ungapped"] as const;
 
 // ---------------------------------------------------------------------------
 // Plurality-centroid dataset contract surface (docs/centroid-dataset-plan.md).
@@ -75,48 +100,26 @@ const CENTROID_DATASET_EXPORT_KEY = "centroidDatasetPf"; // workflow export / mo
 // TS oracle: faithful re-implementation of the process_results.py helpers.
 // ---------------------------------------------------------------------------
 
-/**
- * Mirror of `_msa_consensus` (§1). `aligned` rows are equal-length, gap = "-".
- * Per column the highest-weight residue wins (tie-break: non-gap over gap, then
- * the lexically smaller letter). Gap-majority columns are dropped. A non-gap
- * winner is committed only when it holds >= threshold of the column weight,
- * otherwise the column emits "X".
- */
-function msaConsensus(aligned: string[], weights: number[], threshold: number): string {
-  const out: string[] = [];
-  const nCols = aligned[0].length;
-  for (let col = 0; col < nCols; col++) {
-    const tally = new Map<string, number>();
-    aligned.forEach((row, i) => tally.set(row[col], (tally.get(row[col]) ?? 0) + weights[i]));
-    // (weight, nonGap, -charCode) descending — same ordering as the Python max key.
-    let best = "";
-    let bestKey: [number, number, number] = [-Infinity, -Infinity, -Infinity];
-    for (const [a, w] of tally) {
-      const key: [number, number, number] = [w, a !== "-" ? 1 : 0, -a.charCodeAt(0)];
-      if (
-        key[0] > bestKey[0] ||
-        (key[0] === bestKey[0] && key[1] > bestKey[1]) ||
-        (key[0] === bestKey[0] && key[1] === bestKey[1] && key[2] > bestKey[2])
-      ) {
-        best = a;
-        bestKey = key;
-      }
-    }
-    if (best === "-") continue; // gap-majority column: not part of the centroid
-    const total = [...tally.values()].reduce((s, w) => s + w, 0);
-    out.push(total > 0 && tally.get(best)! / total >= threshold ? best : "X");
-  }
-  return out.join("");
-}
+import {
+  AUTO_UNIFORM_LENGTH_SHARE,
+  chooseAlignmentModel,
+  DEFAULT_GAP_THRESHOLD,
+  isAbsentColumn,
+  modalLengthShare,
+  msaConsensus,
+  ungappedLayout,
+} from "./msa-oracle";
 
 /**
  * Mirror of `_msa_profile_distances` (§3). Returns per-(gap-stripped)-member
- * profile distance D = Σ_j (1 - p_j(residue)) and L_cons = count of
- * non-gap-majority columns.
+ * profile distance D = Σ_j (1 - p_j(residue)) and L_cons = count of consensus
+ * positions, decided by the SAME `gapThreshold` the centroid uses so the two stay
+ * consistent. Independent of the `removeGaps` rendering flag.
  */
 function msaProfileDistances(
   aligned: string[],
   weights: number[],
+  gapThreshold: number = DEFAULT_GAP_THRESHOLD,
 ): { dBySeq: Map<string, number>; lCons: number } {
   const nCols = aligned[0].length;
   const W = weights.reduce((s, w) => s + w, 0);
@@ -128,20 +131,7 @@ function msaProfileDistances(
     const frac = new Map<string, number>();
     for (const [a, w] of tally) frac.set(a, W > 0 ? w / W : 0);
     colFracs.push(frac);
-    let best = "";
-    let bestKey: [number, number, number] = [-Infinity, -Infinity, -Infinity];
-    for (const [a, w] of tally) {
-      const key: [number, number, number] = [w, a !== "-" ? 1 : 0, -a.charCodeAt(0)];
-      if (
-        key[0] > bestKey[0] ||
-        (key[0] === bestKey[0] && key[1] > bestKey[1]) ||
-        (key[0] === bestKey[0] && key[1] === bestKey[1] && key[2] > bestKey[2])
-      ) {
-        best = a;
-        bestKey = key;
-      }
-    }
-    if (best !== "-") lCons += 1;
+    if (!isAbsentColumn(tally, gapThreshold)) lCons += 1;
   }
   const dBySeq = new Map<string, number>();
   for (const row of aligned) {
@@ -199,10 +189,56 @@ describe("§1 computed centroid: consensus threshold + X fallback", () => {
     expect(msaConsensus(["K", "R"], [1, 1], 0.5)).toBe("K");
   });
 
-  test("gap-majority column is dropped from the centroid", () => {
-    // col0 gap-majority (dropped), col1 unanimous K.
+  test("gap-dominated column yields '-', never a vanished position", () => {
+    // col0: gaps hold 2/3 >= 0.5 -> absent position. col1 unanimous K.
+    // One symbol per column, so the centroid stays in alignment coordinates.
     const t = msaConsensus(["-K", "-K", "AK"], [1, 1, 1], 0.6);
-    expect(t).toBe("K");
+    expect(t).toBe("-K");
+    expect(t).toHaveLength(2); // == alignment width
+  });
+
+  test("gapThreshold endpoints stay meaningful, and 0 does not empty the centroid", () => {
+    // Regression: a non-strict comparison made 0 mark EVERY column absent, gap-free
+    // ones included, so the whole centroid came out empty.
+    const aligned = ["AK", "AK", "-K"]; // col0: 1/3 gaps, col1: gap-free
+    const weights = [1, 1, 1];
+    // 0.0 -> any column containing a gap is absent (HMMER --symfrac 1.0).
+    expect(msaConsensus(aligned, weights, 0.6, 0, false)).toBe("-K");
+    expect(msaConsensus(aligned, weights, 0.6, 0, true)).toBe("K");
+    // 1.0 -> every column holding a residue is kept (HMMER --symfrac 0.0).
+    expect(msaConsensus(aligned, weights, 0.6, 1, false)).toBe("AK");
+    // The gap-free column survives at every threshold, so the centroid is never empty.
+    for (const gapThreshold of [0, 0.25, 0.5, 0.75, 1]) {
+      expect(msaConsensus(aligned, weights, 0.6, gapThreshold, true)).not.toBe("");
+    }
+  });
+
+  test("a half-gap column is a consensus position, as the old tie-break also had it", () => {
+    // 2 gaps vs 2 A at gapThreshold 0.5: the fraction equals the bar but does not
+    // exceed it, so the position exists. The previous rule likewise gave the residue
+    // the win on an exact tie.
+    expect(msaConsensus(["A", "A", "-", "-"], [1, 1, 1, 1], 0.6, 0.5, false)).toBe("A");
+  });
+
+  test("removeGaps strips '-' and nothing else", () => {
+    const aligned = ["-K", "-K", "AK"];
+    const kept = msaConsensus(aligned, [1, 1, 1], 0.6, 0.5, false);
+    const stripped = msaConsensus(aligned, [1, 1, 1], 0.6, 0.5, true);
+    expect(kept).toBe("-K");
+    expect(stripped).toBe("K");
+    expect(kept.replaceAll("-", "")).toBe(stripped);
+  });
+
+  test("residue vote uses the non-gap weight, so gaps are not charged twice", () => {
+    // col0: 2 gaps + 2 A. Gaps are exactly 0.5 -> absent, so this is about col1.
+    // col1: 3 gaps + 1 B would be absent; use 1 gap + 3 B instead.
+    // gaps 1/4 = 0.25 < 0.5 -> present; B holds 3/3 of the non-gap weight -> "B",
+    // whereas charging the gap too would give 3/4 = 0.75 and still pass, so pick a
+    // case where the two differ: 1 gap + 2 B + 1 C.
+    const t = msaConsensus(["-", "B", "B", "C"], [1, 1, 1, 1], 0.6);
+    // non-gap denominator: B = 2/3 = 0.667 >= 0.6 -> "B".
+    // whole-column denominator would give 2/4 = 0.5 < 0.6 -> "X".
+    expect(t).toBe("B");
   });
 
   test("X never appears for a confident column even when an unrelated residue is present", () => {
@@ -225,35 +261,46 @@ describe("plurality consensus (threshold 0): X-free centroid", () => {
   // Independent computation of the per-column weighted argmax, mirroring the
   // same (weight, nonGap, -charCode) ordering, to confirm threshold-0 consensus
   // equals plurality. Gap-majority columns are dropped (not part of the result).
-  function weightedArgmax(aligned: string[], weights: number[]): string {
+  // Independent oracle: per-column non-gap argmax over the columns that are present
+  // (gap fraction < gapThreshold), with absent columns rendered as "-". Written
+  // separately from msaConsensus so the two can disagree if either drifts.
+  function weightedArgmax(
+    aligned: string[],
+    weights: number[],
+    gapThreshold: number = DEFAULT_GAP_THRESHOLD,
+    removeGaps: boolean = true,
+  ): string {
     const out: string[] = [];
     const nCols = aligned[0].length;
     for (let col = 0; col < nCols; col++) {
       const tally = new Map<string, number>();
       aligned.forEach((row, i) => tally.set(row[col], (tally.get(row[col]) ?? 0) + weights[i]));
+      const total = [...tally.values()].reduce((sum, w) => sum + w, 0);
+      const gap = tally.get("-") ?? 0;
+      if (total <= 0 || gap / total > gapThreshold) {
+        out.push("-");
+        continue;
+      }
       let best = "";
-      let bestKey: [number, number, number] = [-Infinity, -Infinity, -Infinity];
+      let bestKey: [number, number] = [-Infinity, -Infinity];
       for (const [a, w] of tally) {
-        const key: [number, number, number] = [w, a !== "-" ? 1 : 0, -a.charCodeAt(0)];
-        if (
-          key[0] > bestKey[0] ||
-          (key[0] === bestKey[0] && key[1] > bestKey[1]) ||
-          (key[0] === bestKey[0] && key[1] === bestKey[1] && key[2] > bestKey[2])
-        ) {
+        if (a === "-") continue;
+        const key: [number, number] = [w, -a.charCodeAt(0)];
+        if (key[0] > bestKey[0] || (key[0] === bestKey[0] && key[1] > bestKey[1])) {
           best = a;
           bestKey = key;
         }
       }
-      if (best === "-") continue;
-      out.push(best);
+      out.push(best === "" ? "-" : best);
     }
-    return out.join("");
+    const joined = out.join("");
+    return removeGaps ? joined.replaceAll("-", "") : joined;
   }
 
   test("50/50 K/R column: X at 0.6, but threshold 0 commits the weighted argmax (no X)", () => {
     // §1 shows this column emits 'X' at 0.6; at threshold 0 it must not.
     expect(msaConsensus(["K", "R"], [1, 1], 0.6)).toBe("X");
-    const t0 = msaConsensus(["K", "R"], [1, 1], 0);
+    const t0 = msaConsensus(["K", "R"], [1, 1], 0, DEFAULT_GAP_THRESHOLD, true);
     expect(t0).not.toContain("X");
     expect(t0).toBe(weightedArgmax(["K", "R"], [1, 1]));
   });
@@ -261,7 +308,7 @@ describe("plurality consensus (threshold 0): X-free centroid", () => {
   test("70/30 column: threshold 0 equals the weighted argmax, no X", () => {
     const aligned = ["K", "K", "K", "R"];
     const weights = [1, 1, 1, 1];
-    const t0 = msaConsensus(aligned, weights, 0);
+    const t0 = msaConsensus(aligned, weights, 0, DEFAULT_GAP_THRESHOLD, true);
     expect(t0).not.toContain("X");
     expect(t0).toBe(weightedArgmax(aligned, weights));
     expect(t0).toBe("K");
@@ -273,17 +320,17 @@ describe("plurality consensus (threshold 0): X-free centroid", () => {
     const aligned = ["K", "K", "K", "R", "R", "W"];
     const weights = [1, 1, 1, 1, 1, 1];
     expect(msaConsensus(aligned, weights, 0.6)).toBe("X");
-    const t0 = msaConsensus(aligned, weights, 0);
+    const t0 = msaConsensus(aligned, weights, 0, DEFAULT_GAP_THRESHOLD, true);
     expect(t0).not.toContain("X");
     expect(t0).toBe(weightedArgmax(aligned, weights));
     expect(t0).toBe("K");
   });
 
-  test("gap-majority column is still dropped at threshold 0 (no X, no gap)", () => {
-    // Reuse the §1 gap-majority fixture: col0 gap-majority (dropped), col1 K.
+  test("absent column contributes nothing once gaps are stripped at threshold 0", () => {
+    // Reuse the §1 fixture: col0 is gap-dominated -> "-" -> stripped; col1 K.
     const aligned = ["-K", "-K", "AK"];
     const weights = [1, 1, 1];
-    const t0 = msaConsensus(aligned, weights, 0);
+    const t0 = msaConsensus(aligned, weights, 0, DEFAULT_GAP_THRESHOLD, true);
     expect(t0).not.toContain("X");
     expect(t0).not.toContain("-");
     expect(t0).toBe(weightedArgmax(aligned, weights));
@@ -314,7 +361,7 @@ describe("plurality consensus (threshold 0): X-free centroid", () => {
         aligned.push(row);
       }
       const weights = aligned.map(() => 1 + Math.floor(rng() * 5));
-      const t0 = msaConsensus(aligned, weights, 0);
+      const t0 = msaConsensus(aligned, weights, 0, DEFAULT_GAP_THRESHOLD, true);
       expect(t0).not.toContain("X");
       expect(t0).toBe(weightedArgmax(aligned, weights));
     }
@@ -479,9 +526,13 @@ describe("contract surface (column + CLI arg names)", () => {
     expect(EMITTED_COLUMNS).toContain("clusterRadius");
   });
 
-  test("process_results.py accepts the consensus-threshold / centroid-type args", () => {
+  test("process_results.py accepts the centroid args the block relies on", () => {
     expect(CLI_ARGS).toContain("--consensus-threshold");
     expect(CLI_ARGS).toContain("--centroid-type");
+    expect(CLI_ARGS).toContain("--gap-threshold");
+    expect(CLI_ARGS).toContain("--alignment-model");
+    expect(CLI_ARGS).toContain("--keep-gaps");
+    expect(CLI_ARGS).toContain("--peptide-input");
   });
 
   test("plurality-centroid dataset names are stable (payload schema DEFERRED)", () => {
@@ -500,5 +551,190 @@ describe("contract surface (column + CLI arg names)", () => {
     expect(PLURALITY_CLI_ARG).toContain("--emit-plurality-centroid");
     expect(PLURALITY_FILE).toContain("plurality-centroid.tsv");
     expect(CENTROID_DATASET_EXPORT_KEY).toContain("centroidDatasetPf");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Ungapped centroid alignment (FaSTPACE's model: no internal gaps, terminal
+// offsets only). The point of the mode is a length guarantee the gapped MSA
+// cannot give, so that is what these pin.
+// ---------------------------------------------------------------------------
+
+describe("ungapped centroid alignment", () => {
+  const sumHamming = (candidate: string, seqs: string[]): number =>
+    seqs.reduce(
+      (total, seq) =>
+        total + [...seq].reduce((d, residue, i) => d + (residue === candidate[i] ? 0 : 1), 0),
+      0,
+    );
+
+  test("equal-length members stack unchanged, so the centroid keeps the input length", () => {
+    const seqs = ["CASSLGQGAETQYFG", "CASSLGTGAETQYFG", "CASSPRQGSYEQYFG"];
+    const rows = ungappedLayout(seqs, [1, 1, 1]);
+    expect(rows).toEqual(seqs); // offset 0 for all, no padding
+    const centroid = msaConsensus(rows, [1, 1, 1], 0, DEFAULT_GAP_THRESHOLD, true);
+    expect(centroid).toHaveLength(seqs[0].length);
+  });
+
+  test("the centroid is the optimal median string under Hamming distance", () => {
+    // Hamming decomposes per position, so the per-column mode minimises the distance
+    // sum — no window search or substring enumeration can beat it. Checked here
+    // against an exhaustive search over the residues actually present per column.
+    const seqs = ["ACDEF", "ACDEG", "AGDEG", "ACHEG"];
+    const weights = [1, 1, 1, 1];
+    const centroid = msaConsensus(
+      ungappedLayout(seqs, weights),
+      weights,
+      0,
+      DEFAULT_GAP_THRESHOLD,
+      true,
+    );
+
+    const alphabets = Array.from({ length: seqs[0].length }, (_unused, i) => [
+      ...new Set(seqs.map((s) => s[i])),
+    ]);
+    let best = Infinity;
+    const walk = (position: number, prefix: string): void => {
+      if (position === alphabets.length) {
+        best = Math.min(best, sumHamming(prefix, seqs));
+        return;
+      }
+      for (const residue of alphabets[position]) walk(position + 1, prefix + residue);
+    };
+    walk(0, "");
+
+    expect(sumHamming(centroid, seqs)).toBe(best);
+  });
+
+  test("mixed lengths get terminal offsets only — never an internal gap", () => {
+    const seqs = ["ABCDEFGH", "CDEFGH", "ABCDEF", "BCDEFG"];
+    const rows = ungappedLayout(seqs, [4, 3, 2, 1]);
+    expect(new Set(rows.map((r) => r.length))).toEqual(new Set([8])); // width == longest member
+    for (const row of rows) {
+      // Strip the terminal padding; whatever remains must be gap-free.
+      expect(row.replace(/^-+/, "").replace(/-+$/, "")).not.toContain("-");
+    }
+    // Each member keeps its residues contiguous and in order.
+    rows.forEach((row, i) => expect(row.replaceAll("-", "")).toBe(seqs[i]));
+  });
+
+  test("the offset actually aligns a shared suffix rather than defaulting to 0", () => {
+    const seqs = ["CASSLGQGAETQYFG", "GQGAETQYFG"];
+    const [first, second] = ungappedLayout(seqs, [2, 1]);
+    expect(first).toBe(seqs[0]);
+    expect(second).toBe("-----GQGAETQYFG"); // slid right onto the suffix
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Automatic alignment-model selection. Ungapped is only sound where indels cannot
+// occur, which is a property of the library rather than of a cluster's residues —
+// so the rule is deliberately narrow, and these tests pin how narrow.
+// ---------------------------------------------------------------------------
+
+describe("automatic alignment model", () => {
+  test('"auto" is the default and the model list keeps both explicit choices', () => {
+    expect(ALIGNMENT_MODELS[0]).toBe("auto");
+    expect([...ALIGNMENT_MODELS]).toEqual(["auto", "gapped", "ungapped"]);
+  });
+
+  test("a peptide library sitting at one length resolves to ungapped", () => {
+    const library = Array.from({ length: 40 }, () => "SIINFEKL");
+    expect(modalLengthShare(library)).toBe(1);
+    expect(chooseAlignmentModel([modalLengthShare(library)], true)).toBe("ungapped");
+  });
+
+  test("VDJ input never resolves to ungapped, however uniform its lengths look", () => {
+    // Junctional indels are real, so the length distribution is not evidence here.
+    const uniform = Array.from({ length: 40 }, () => "CASSLGQGAETQYFG");
+    expect(modalLengthShare(uniform)).toBe(1);
+    expect(chooseAlignmentModel([modalLengthShare(uniform)], false)).toBe("gapped");
+  });
+
+  test("the tolerance is inclusive at the threshold and falls back just below it", () => {
+    // Calibrated, not picked: at ~12% off-modal members the ungapped layout costs ~0.15
+    // of an edit against a known parent, at 25% it more than doubles the error.
+    const atThreshold = [...Array.from({ length: 9 }, () => "ACDEFGHIK"), "ACDEFGHI"];
+    expect(modalLengthShare(atThreshold)).toBeCloseTo(AUTO_UNIFORM_LENGTH_SHARE, 10);
+    expect(chooseAlignmentModel([modalLengthShare(atThreshold)], true)).toBe("ungapped");
+
+    const belowThreshold = [...Array.from({ length: 8 }, () => "ACDEFGHIK"), "ACDEFGHI", "ACDEFGH"];
+    expect(modalLengthShare(belowThreshold)).toBeLessThan(AUTO_UNIFORM_LENGTH_SHARE);
+    expect(chooseAlignmentModel([modalLengthShare(belowThreshold)], true)).toBe("gapped");
+  });
+
+  test("one non-uniform chain drags the whole decision back to gapped", () => {
+    // Single-cell peptide input would align each chain separately; a chain with mixed
+    // lengths is exactly where an unwarranted ungapped layout does damage.
+    expect(chooseAlignmentModel([1, 1, 0.5], true)).toBe("gapped");
+    expect(chooseAlignmentModel([1, 1, 1], true)).toBe("ungapped");
+  });
+
+  test("no measurable length falls back to gapped rather than guessing", () => {
+    expect(modalLengthShare([])).toBe(0);
+    expect(modalLengthShare(["", ""])).toBe(0);
+    expect(chooseAlignmentModel([], true)).toBe("gapped");
+  });
+
+  test("empty chain values are excluded, not counted as a length of their own", () => {
+    // A member missing this chain says nothing about the library's length design;
+    // counting the empties would make a uniform library look mixed.
+    expect(modalLengthShare(["ACDEF", "", "ACDEG", ""])).toBe(1);
+    expect(chooseAlignmentModel([modalLengthShare(["ACDEF", "", "ACDEG", ""])], true)).toBe(
+      "ungapped",
+    );
+  });
+
+  test("an explicit choice is passed through untouched", () => {
+    // The resolver only ever rewrites "auto"; pinned because the block records the
+    // REQUESTED value in the column domain, so a silent rewrite would misreport it.
+    for (const model of ["gapped", "ungapped"] as const) {
+      expect(ALIGNMENT_MODELS).toContain(model);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Centroid provenance contract. The keys and their encoding are what downstream
+// consumers and side-by-side comparisons rely on, so a rename or a switch back to
+// raw floats has to break a test rather than quietly change column identity.
+// ---------------------------------------------------------------------------
+
+describe("centroid provenance domain", () => {
+  /** Mirror of the tengo `pct` helper: fraction -> integer percent, rounded to nearest. */
+  const pct = (fraction: number): string => String(Math.floor(fraction * 100 + 0.5));
+
+  test("threshold encoding is byte-stable for the 0.05 step the UI uses", () => {
+    // Raw float formatting is not safe here: 0.1 + 0.2 style error would make the domain
+    // value — and therefore the column identity — depend on arithmetic history.
+    for (let step = 0; step <= 20; step++) {
+      const fraction = step * 0.05;
+      expect(pct(fraction)).toBe(String(step * 5));
+      expect(pct(fraction)).toMatch(/^\d+$/); // never "0.30000000000000004"
+    }
+  });
+
+  test("the consensus threshold is scoped to the thresholded centroid only", () => {
+    // The medoid, the profile distance/radius and the plurality centroid are all derived at
+    // threshold 0 or from the profile, so tagging them with consensusThresholdPercent would
+    // fragment their identity for a setting that cannot change their value.
+    const centroidKeys = PROVENANCE_DOMAIN_KEYS;
+    const profileKeys = PROVENANCE_DOMAIN_KEYS.filter(
+      (k) => k !== "pl7.app/clustering/consensusThresholdPercent",
+    );
+    expect(centroidKeys).toContain("pl7.app/clustering/consensusThresholdPercent");
+    expect(profileKeys).not.toContain("pl7.app/clustering/consensusThresholdPercent");
+    expect(profileKeys).toContain("pl7.app/clustering/centroidAlignment");
+    expect(profileKeys).toContain("pl7.app/clustering/gapThresholdPercent");
+    expect(profileKeys).toContain("pl7.app/clustering/residueWeighting");
+  });
+
+  test("provenance key names are pinned", () => {
+    expect([...PROVENANCE_DOMAIN_KEYS]).toEqual([
+      "pl7.app/clustering/centroidAlignment",
+      "pl7.app/clustering/residueWeighting",
+      "pl7.app/clustering/gapThresholdPercent",
+      "pl7.app/clustering/consensusThresholdPercent",
+    ]);
   });
 });

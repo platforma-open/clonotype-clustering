@@ -42,6 +42,7 @@ function syncDefaultBlockLabel(model: AppModel) {
       coverageThreshold: model.data.coverageThreshold,
       trimStart: model.data.trimStart ?? 0,
       trimEnd: model.data.trimEnd ?? 0,
+      centroidAlignment: model.data.centroidAlignment,
     });
   });
 }

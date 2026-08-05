@@ -28,6 +28,12 @@ export const similarityTypeOptions = [
   { label: "BLOSUM90", value: "blosum90" },
 ] as const;
 
+export const centroidAlignmentOptions = [
+  { label: "Automatic", value: "auto" },
+  { label: "Gapped (MSA)", value: "gapped" },
+  { label: "Ungapped (fixed length)", value: "ungapped" },
+] as const;
+
 export const clusteringToolOptions = [
   { label: "Easy Cluster", value: "easy-cluster" },
   { label: "Easy Linclust", value: "easy-linclust" },
@@ -89,6 +95,23 @@ export type BlockData = {
   // abundance-weighted fraction a residue must reach in an MSA column to be emitted,
   // otherwise "X". Range 0-1, default 0.6.
   consensusThreshold: number;
+  // Fraction of an MSA column's abundance weight that gaps must EXCEED for the position
+  // to count as absent from the cluster; such a column yields "-" instead of a residue.
+  // Mirrors HMMER hmmbuild --symfrac stated in gap terms (gapThreshold = 1 - symfrac),
+  // same 0.5 default. At 1.0 every column holding a residue is kept; at 0.0 any column
+  // containing a gap is absent. The comparison is strict so both endpoints stay usable.
+  // Separate from consensusThreshold, which decides WHICH residue a present position has.
+  gapThreshold: number;
+  // How a cluster's members are laid out in columns before the vote. "gapped" runs a
+  // kalign MSA, which may insert internal gaps and widen the layout past the input
+  // length. "ungapped" forbids internal gaps and allows only terminal offsets — the
+  // model FaSTPACE uses for peptides and MEME for motifs. On a fixed-length library
+  // every offset is 0, so the centroid keeps the input length exactly and is the optimal
+  // median string under Hamming distance. "auto" (the default) leaves the pick to the
+  // workflow, which chooses ungapped only for a peptide library whose sequence lengths sit
+  // at one value — a fact about the library, which only the data can answer, so the
+  // resolved value is not known here.
+  centroidAlignment: "auto" | "gapped" | "ungapped";
   // Whether the centroid (and the profile distance / reference centroid measured
   // against it) is weighted by clonotype abundance. When false every clonotype
   // counts equally and column ties break deterministically (alphabetically), so the
@@ -114,6 +137,10 @@ export function getDefaultBlockLabel(data: {
   coverageThreshold: number;
   trimStart: number;
   trimEnd: number;
+  // Included so two blocks placed side by side to compare centroid settings do not end up
+  // with identical auto-labels. Only the non-default values are appended, keeping the label
+  // short for the common case.
+  centroidAlignment?: BlockData["centroidAlignment"];
 }) {
   const parts: string[] = [];
   parts.push(data.sequenceLabels.join(" - "));
@@ -128,6 +155,9 @@ export function getDefaultBlockLabel(data: {
   if (data.trimEnd > 0) {
     parts.push(`trimEnd: ${data.trimEnd}`);
   }
+  if (data.centroidAlignment !== undefined && data.centroidAlignment !== "auto") {
+    parts.push(data.centroidAlignment);
+  }
   return parts.filter(Boolean).join(", ");
 }
 
@@ -140,6 +170,10 @@ const dataModel = new DataModelBuilder()
     similarityType:
       (args.similarityType as string) === "alignment-score" ? "blosum62" : args.similarityType,
     consensusThreshold: 0.6,
+    gapThreshold: 0.5,
+    // Not "auto": a project made before this setting existed ran the gapped layout, and
+    // reopening it should not silently switch the model underneath its results.
+    centroidAlignment: "gapped",
     weightByAbundance: false,
     generateDataset: false,
     tableState: uiState.tableState,
@@ -155,6 +189,7 @@ const dataModel = new DataModelBuilder()
       coverageThreshold: 0.8,
       trimStart: 0,
       trimEnd: 0,
+      centroidAlignment: "auto",
     }),
     customBlockLabel: "",
     sequencesRef: [],
@@ -168,6 +203,9 @@ const dataModel = new DataModelBuilder()
     trimEnd: 0, // default to no trimming from end
     clusteringTool: "easy-cluster",
     consensusThreshold: 0.6, // default majority threshold for the theoretical centroid
+    gapThreshold: 0.5, // HMMER --symfrac 0.5 default, stated in gap terms
+    // Resolved in the workflow: ungapped for a peptide library of one length, else gapped
+    centroidAlignment: "auto",
     weightByAbundance: false, // default to equal-weight centroid (abundance ignored)
     generateDataset: false, // off by default; peptide inputs only
     tableState: createPlDataTableStateV2(),
@@ -219,6 +257,8 @@ export const platforma = BlockModelV3.create(dataModel)
       trimEnd: data.trimEnd,
       clusteringTool: data.clusteringTool,
       consensusThreshold: data.consensusThreshold,
+      gapThreshold: data.gapThreshold,
+      centroidAlignment: data.centroidAlignment,
       weightByAbundance: data.weightByAbundance,
       generateDataset: data.generateDataset,
       mem: data.mem,

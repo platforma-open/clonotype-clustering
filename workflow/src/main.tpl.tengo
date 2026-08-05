@@ -210,6 +210,8 @@ wf.body(func(args) {
 		trimEnd: args.trimEnd,
 		clusteringTool: args.clusteringTool,
 		consensusThreshold: args.consensusThreshold,
+		gapThreshold: args.gapThreshold,
+		centroidAlignment: args.centroidAlignment,
 		weightByAbundance: args.weightByAbundance,
 		generateDataset: args.generateDataset
 	}, {
@@ -431,12 +433,68 @@ wf.body(func(args) {
 	// Both keep the original sequence spec (name/domain) so downstream consumers read them as
 	// sequence columns.
 	centroidLabel := "Theoretical Centroid "
+
+	// --- Centroid provenance in the domain ---
+	// How the centroid was computed goes into the column domain, not just the label, so that a
+	// column produced under different settings is a DIFFERENT column: two blocks run side by
+	// side to compare settings cannot be confused for each other, and a downstream consumer of
+	// an exported sequence can still establish how that sequence was derived.
+	//
+	// Thresholds are stored as integer percent rather than the raw float. A domain value has to
+	// be byte-stable to keep column identity stable, and float formatting is not — 0.3 can
+	// render as "0.30000000000000004". Percent-integers are exact for the 0.05 step the UI uses.
+	//
+	// Two sets, because not every setting reaches every value. Putting a key on a column whose
+	// value does not depend on it would fragment identity for nothing:
+	//   centroidDomain  — the thresholded consensus, which is the only thing consensusThreshold
+	//                     touches (it decides which residue a present position commits to).
+	//   profileDomain   — everything else derived from the same layout: the medoid, the profile
+	//                     distance and radius, and the plurality centroid (whose threshold is
+	//                     forced to 0). These follow the layout, the gap rule and the weighting,
+	//                     but never the consensus threshold.
+	//
+	// centroidAlignment is recorded as chosen, so it reads "auto" on the default setting rather
+	// than the model auto resolved to. That resolution needs the sequences, which only
+	// process_results.py has (a workflow body cannot await column data), so the concrete value
+	// is not knowable at spec-building time. Identity stays sound regardless: the resolution is
+	// a deterministic function of the input data, and the input data is already part of this
+	// column's lineage, so two "auto" columns over the same input always agree. The resolved
+	// model and the length distribution behind it are printed in the step's log.
+	centroidAlignment := is_undefined(args.centroidAlignment) ? "auto" : args.centroidAlignment
+	consensusThreshold := is_undefined(args.consensusThreshold) ? 0.6 : args.consensusThreshold
+	gapThreshold := is_undefined(args.gapThreshold) ? 0.5 : args.gapThreshold
+	weightByAbundance := is_undefined(args.weightByAbundance) ? false : args.weightByAbundance
+
+	pct := func(fraction) {
+		// +0.5 rounds to nearest, so 0.35 -> "35" whichever way the float lands.
+		return string(int(fraction * 100 + 0.5))
+	}
+
+	profileDomain := {
+		"pl7.app/clustering/centroidAlignment": centroidAlignment,
+		"pl7.app/clustering/residueWeighting": weightByAbundance ? "abundance" : "equal",
+		"pl7.app/clustering/gapThresholdPercent": pct(gapThreshold)
+	}
+	centroidDomain := maps.deepMerge(profileDomain, {
+		"pl7.app/clustering/consensusThresholdPercent": pct(consensusThreshold)
+	})
+
+	// Same facts in prose on the columns that carry them, so the table's hover text answers
+	// "how was this computed" without the reader decoding domain keys.
+	alignmentDesc := centroidAlignment == "auto" ?
+		"automatically chosen (ungapped for a peptide library whose sequences share one length, gapped otherwise)" :
+		centroidAlignment
+	provenanceDesc := " Computed with the " + alignmentDesc + " alignment model, " +
+		(weightByAbundance ? "abundance" : "equal") + " residue weighting, gap threshold " +
+		pct(gapThreshold) + "%."
+
 	// Column-header definitions (rendered as hover tooltips via "pl7.app/description").
 	centroidDesc := "Per-column consensus of the cluster's aligned members (kalign MSA). " +
 		"May contain 'X' at low-confidence positions and need not match any observed member; " +
-		"distance-to-centroid and cluster radius are measured against it."
+		"distance-to-centroid and cluster radius are measured against it." +
+		provenanceDesc + " Consensus threshold " + pct(consensusThreshold) + "%."
 	referenceCentroidDesc := "The real cluster member closest to the theoretical centroid (the medoid). " +
-		"Made entirely of observed residues, so it is directly synthesizable."
+		"Made entirely of observed residues, so it is directly synthesizable." + provenanceDesc
 	for nr, seq in sequencesRef {
 		spec := maps.clone(columns.getSpec(seq))
 		baseLabel := spec.annotations["pl7.app/label"]
@@ -454,7 +512,7 @@ wf.body(func(args) {
 			spec: setTableProps({
 				name: spec.name,
 				valueType: spec.valueType,
-				domain: maps.deepMerge(spec.domain, {
+				domain: maps.deepMerge(maps.deepMerge(spec.domain, centroidDomain), {
 					"pl7.app/clustering/sequenceContent": "centroid"
 				}),
 				annotations: spec.annotations
@@ -471,7 +529,7 @@ wf.body(func(args) {
 			spec: setTableProps({
 				name: spec.name,
 				valueType: spec.valueType,
-				domain: maps.deepMerge(spec.domain, {
+				domain: maps.deepMerge(maps.deepMerge(spec.domain, profileDomain), {
 					"pl7.app/clustering/sequenceContent": "referenceCentroid"
 				}),
 				annotations: spec.annotations
@@ -500,7 +558,7 @@ wf.body(func(args) {
 					spec: setTableProps({
 						name: baseSpec.name,
 						valueType: baseSpec.valueType,
-						domain: maps.deepMerge(baseSpec.domain, {
+						domain: maps.deepMerge(maps.deepMerge(baseSpec.domain, centroidDomain), {
 							"pl7.app/clustering/sequenceContent": "centroid"
 						}),
 						annotations: baseSpec.annotations
@@ -513,7 +571,7 @@ wf.body(func(args) {
 					spec: setTableProps({
 						name: baseSpec.name,
 						valueType: baseSpec.valueType,
-						domain: maps.deepMerge(baseSpec.domain, {
+						domain: maps.deepMerge(maps.deepMerge(baseSpec.domain, profileDomain), {
 							"pl7.app/clustering/sequenceContent": "referenceCentroid"
 						}),
 						annotations: baseSpec.annotations
@@ -544,7 +602,7 @@ wf.body(func(args) {
 				spec: setTableProps({
 					name: baseSpec.name,
 					valueType: baseSpec.valueType,
-					domain: maps.deepMerge(baseSpec.domain, {
+					domain: maps.deepMerge(maps.deepMerge(baseSpec.domain, centroidDomain), {
 						"pl7.app/clustering/sequenceContent": "centroid"
 					}),
 					annotations: baseSpec.annotations
@@ -557,7 +615,7 @@ wf.body(func(args) {
 				spec: setTableProps({
 					name: baseSpec.name,
 					valueType: baseSpec.valueType,
-					domain: maps.deepMerge(baseSpec.domain, {
+					domain: maps.deepMerge(maps.deepMerge(baseSpec.domain, profileDomain), {
 						"pl7.app/clustering/sequenceContent": "referenceCentroid"
 					}),
 					annotations: baseSpec.annotations
@@ -586,10 +644,13 @@ wf.body(func(args) {
 			spec: setTableProps({
 				name: "pl7.app/distanceToCentroid",
 				valueType: "Float",
-				domain:  {
+				// profileDomain: the distance is measured over the same layout with the same
+				// weighting, and normalised by L_cons, which the gap rule decides. The
+				// consensus threshold never reaches it.
+				domain: maps.deepMerge(profileDomain, {
 					"pl7.app/clustering/algorithm": "mmseqs2",
 					"pl7.app/clustering/blockId": blockId
-				},
+				}),
 				annotations: {
 					"pl7.app/min": "0",
 					"pl7.app/max": "1",
@@ -613,6 +674,9 @@ wf.body(func(args) {
 			spec: setTableProps({
 				name: "pl7.app/clustering/clusterRadius",
 				valueType: "Float",
+				// Radius is the max normalised distance to the centroid, so it follows the same
+				// provenance as the distance itself.
+				domain: profileDomain,
 				annotations: {
 					"pl7.app/rankingOrder": "decreasing",
 					"pl7.app/min": "0",
@@ -702,7 +766,9 @@ wf.body(func(args) {
 		for nr, seq in sequencesRef {
 			dspec := maps.clone(columns.getSpec(seq))
 			dBaseLabel := dspec.annotations["pl7.app/label"]
-			seqDomain := maps.deepMerge(dspec.domain, {
+			// profileDomain, not centroidDomain: the exported dataset carries the PLURALITY
+			// centroid, computed at threshold 0, so consensusThreshold does not reach it.
+			seqDomain := maps.deepMerge(maps.deepMerge(dspec.domain, profileDomain), {
 				"pl7.app/clustering/sequenceContent": "consensusCentroidDataset"
 			})
 
@@ -748,7 +814,10 @@ wf.body(func(args) {
 						"pl7.app/alphabet": lengthAlphabet
 					},
 					annotations: {}
-				}, "Consensus Centroid length" + lengthSuffix, false, "4600", "Length of the consensus centroid peptide sequence.")
+				// Visible by default: the centroid is a consensus over the cluster's alignment, so
+				// its length is the alignment's, not any member's. Surfacing the length makes that
+				// divergence apparent instead of something users discover by eyeballing sequences.
+				}, "Consensus Centroid length" + lengthSuffix, true, "4600", "Length of the consensus centroid peptide sequence. The centroid is a per-column consensus over the cluster's alignment, so this need not match the length of any individual member (see Reference Centroid).")
 			})
 
 			// Clusters-table column: drop the dataset/vdj markers (match the sibling centroid_*
@@ -969,6 +1038,9 @@ wf.body(func(args) {
 			spec: setTableProps({
 				name: "pl7.app/clustering/clusterRadius",
 				valueType: "Float",
+				// Radius is the max normalised distance to the centroid, so it follows the same
+				// provenance as the distance itself.
+				domain: profileDomain,
 				annotations: {
 					"pl7.app/rankingOrder": "decreasing",
 					"pl7.app/min": "0",
