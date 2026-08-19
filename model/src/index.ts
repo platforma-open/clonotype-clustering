@@ -16,6 +16,7 @@ import {
   createPlDataTableStateV2,
   createPlDataTableV2,
 } from "@platforma-sdk/model";
+import { kind } from "@platforma-open/milaboratories.clonotype-clustering.kind";
 export type * from "@milaboratories/helpers";
 
 /** Map user-facing similarity type to mmseqs2 similarity type */
@@ -163,7 +164,7 @@ export function getDefaultBlockLabel(data: {
 
 const defaultSimilarityType = similarityTypeOptions[3];
 
-const dataModel = new DataModelBuilder()
+const dataModel = new DataModelBuilder({ kind })
   .from<BlockData>("v1")
   .upgradeLegacy<OldArgs, OldUiState>(({ args, uiState }) => ({
     ...args,
@@ -181,33 +182,38 @@ const dataModel = new DataModelBuilder()
     alignmentModel: uiState.alignmentModel,
     graphStateHistogram: uiState.graphStateHistogram,
   }))
-  .init(() => ({
-    defaultBlockLabel: getDefaultBlockLabel({
-      sequenceLabels: [],
-      similarityType: defaultSimilarityType.value,
-      identity: 0.8,
-      coverageThreshold: 0.8,
-      trimStart: 0,
-      trimEnd: 0,
-      centroidAlignment: "auto",
-    }),
-    customBlockLabel: "",
-    sequencesRef: [],
-    sequenceType: "aminoacid",
-    identity: 0.8,
-    similarityType: defaultSimilarityType.value,
-    coverageThreshold: 0.8, // default value matching MMseqs2 default
-    coverageMode: 0, // default to coverage of query and target
-    highPrecision: false, // default to off, can be enabled manually in advanced settings
-    trimStart: 0, // default to no trimming from start
-    trimEnd: 0, // default to no trimming from end
-    clusteringTool: "easy-cluster",
-    consensusThreshold: 0.6, // default majority threshold for the theoretical centroid
-    gapThreshold: 0.5, // HMMER --symfrac 0.5 default, stated in gap terms
+  // `params` is absent when a block is created by hand rather than from a
+  // template, so every field the contract carries keeps its own default.
+  .init(({ params }) => ({
+    ...params,
+    defaultBlockLabel:
+      params?.defaultBlockLabel ??
+      getDefaultBlockLabel({
+        sequenceLabels: [],
+        similarityType: defaultSimilarityType.value,
+        identity: 0.8,
+        coverageThreshold: 0.8,
+        trimStart: 0,
+        trimEnd: 0,
+        centroidAlignment: "auto",
+      }),
+    customBlockLabel: params?.customBlockLabel ?? "",
+    sequencesRef: params?.sequencesRef ?? [],
+    sequenceType: params?.sequenceType ?? "aminoacid",
+    identity: params?.identity ?? 0.8,
+    similarityType: params?.similarityType ?? defaultSimilarityType.value,
+    coverageThreshold: params?.coverageThreshold ?? 0.8, // default value matching MMseqs2 default
+    coverageMode: params?.coverageMode ?? 0, // default to coverage of query and target
+    highPrecision: params?.highPrecision ?? false, // default to off, can be enabled manually in advanced settings
+    trimStart: params?.trimStart ?? 0, // default to no trimming from start
+    trimEnd: params?.trimEnd ?? 0, // default to no trimming from end
+    clusteringTool: params?.clusteringTool ?? "easy-cluster",
+    consensusThreshold: params?.consensusThreshold ?? 0.6, // default majority threshold for the theoretical centroid
+    gapThreshold: params?.gapThreshold ?? 0.5, // HMMER --symfrac 0.5 default, stated in gap terms
     // Resolved in the workflow: ungapped for a peptide library of one length, else gapped
-    centroidAlignment: "auto",
-    weightByAbundance: false, // default to equal-weight centroid (abundance ignored)
-    generateDataset: false, // off by default; peptide inputs only
+    centroidAlignment: params?.centroidAlignment ?? "auto",
+    weightByAbundance: params?.weightByAbundance ?? false, // default to equal-weight centroid (abundance ignored)
+    generateDataset: params?.generateDataset ?? false, // off by default; peptide inputs only
     tableState: createPlDataTableStateV2(),
     graphStateBubble: {
       title: "Most abundant clusters",
@@ -237,7 +243,38 @@ const dataModel = new DataModelBuilder()
     },
   }));
 
-export const platforma = BlockModelV3.create(dataModel)
+export const platforma = BlockModelV3.create({ dataModel, kind })
+
+  // Inverse of `init` — the same fields, projected back out for template export.
+  // The table's grid state, the two graph states and the alignment model are
+  // view state and never cross the boundary. The block holds no file handles, so
+  // nothing here is bound to the machine it was exported from.
+  .templateParams((data) => ({
+    datasetRef: data.datasetRef,
+    sequencesRef: data.sequencesRef,
+    sequenceType: data.sequenceType,
+
+    identity: data.identity,
+    similarityType: data.similarityType,
+    coverageThreshold: data.coverageThreshold,
+    coverageMode: data.coverageMode,
+    highPrecision: data.highPrecision,
+    trimStart: data.trimStart,
+    trimEnd: data.trimEnd,
+    clusteringTool: data.clusteringTool,
+
+    consensusThreshold: data.consensusThreshold,
+    gapThreshold: data.gapThreshold,
+    centroidAlignment: data.centroidAlignment,
+    weightByAbundance: data.weightByAbundance,
+    generateDataset: data.generateDataset,
+
+    mem: data.mem,
+    cpu: data.cpu,
+
+    defaultBlockLabel: data.defaultBlockLabel,
+    customBlockLabel: data.customBlockLabel,
+  }))
 
   .args((data) => {
     if (!data.datasetRef) throw new Error("Dataset is required");
