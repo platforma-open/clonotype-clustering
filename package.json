@@ -23,6 +23,7 @@
     "@changesets/cli": "catalog:",
     "@milaboratories/ts-builder": "catalog:",
     "@platforma-sdk/block-tools": "catalog:",
+    "@types/node": "catalog:",
     "shx": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:"

@@ -1,5 +1,6 @@
 packages:
   - block
+  - kind
   - model
   - software
   - test
@@ -8,16 +9,17 @@ packages:
 
 catalog:
   # SDK packages - EXACT VERSIONS (no ^ or ~)
-  '@milaboratories/ts-builder': 1.6.0
-  '@milaboratories/ts-configs': 1.3.0
-  '@platforma-sdk/workflow-tengo': 6.7.2
-  '@platforma-sdk/model': 1.80.2
-  '@platforma-sdk/ui-vue': 1.80.4
-  '@platforma-sdk/tengo-builder': 4.0.18
-  '@platforma-sdk/package-builder': 3.14.1
-  '@platforma-sdk/block-tools': 2.12.7
-  '@platforma-sdk/test': 1.80.5
-  '@milaboratories/helpers': 1.14.4
+  '@milaboratories/ts-builder': 1.7.0
+  '@milaboratories/ts-configs': 1.4.0
+  '@platforma-sdk/workflow-tengo': 6.8.2
+  '@platforma-sdk/model': 1.82.0
+  '@platforma-sdk/ui-vue': 1.82.1
+  '@platforma-sdk/tengo-builder': 4.0.23
+  '@platforma-sdk/package-builder': 3.15.0
+  '@platforma-sdk/block-tools': 2.14.3
+  '@platforma-sdk/block-kind': 1.1.0
+  '@platforma-sdk/test': 1.82.4
+  '@milaboratories/helpers': 1.14.5
   '@milaboratories/strings': 0.1.2
 
   # Block-specific dependencies
@@ -35,3 +37,6 @@ catalog:
   'eslint': ^9.25.1
   '@changesets/cli': ^2.29.8
   'shx': ^0.4.0
+  '@types/node': ^24.5.2
+  # pinned to the copy already in the graph, so the kind does not pull a second one
+  'es-toolkit': 1.39.10
