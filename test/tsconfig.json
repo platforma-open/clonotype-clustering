@@ -1,11 +1,5 @@
 {
   "extends": "@milaboratories/ts-configs/block/test",
-  "compilerOptions": {
-    // The shared block/test config clears `types`, assuming block tests are pure
-    // logic. consensus-parity.test.ts shells out to python3 to execute the real
-    // process_results.py helpers, so it needs node:child_process / fs / path / url.
-    "types": ["node"]
-  },
   "include": ["src/**/*"],
   "files": []
 }

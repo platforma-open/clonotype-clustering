@@ -1,3 +1,9 @@
+/// <reference types="node" />
+// The shared block/test tsconfig is structurer-owned and clears `types`, assuming
+// block tests are pure logic. This file shells out to python3 to execute the real
+// process_results.py helpers, so it pulls node:child_process / fs / path / url in
+// by reference rather than by editing a config the next refresh would rewrite.
+
 /*
   Parity between the TS oracle in msa-oracle.ts and the REAL Python it mirrors.
 
