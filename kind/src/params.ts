@@ -7,6 +7,7 @@ import {
   type SUniversalPColumnId,
 } from "@platforma-sdk/model";
 import { isBoolean, isString } from "es-toolkit";
+import { isArray, isNumber } from "es-toolkit/compat";
 import type {
   BlockParams,
   CentroidAlignment,
@@ -53,18 +54,12 @@ function check<T>(is: Guard<T>, must: string): Check<T> {
   return { is, must };
 }
 
-/** `Number.isFinite` already rejects non-numbers; this only adds the narrowing. */
-const isNumber: Guard<number> = (v): v is number => Number.isFinite(v);
-
-/** `Number.isInteger` already rejects non-numbers; this only adds the narrowing. */
-const isInteger: Guard<number> = (v): v is number => Number.isInteger(v);
-
 function oneOf<T extends string | number>(...allowed: readonly T[]): Guard<T> {
   return (v): v is T => allowed.includes(v as T);
 }
 
 function arrayOf<T>(item: Guard<T>): Guard<T[]> {
-  return (v): v is T[] => Array.isArray(v) && v.every((e) => item(e));
+  return (v): v is T[] => isArray(v) && v.every((e) => item(e));
 }
 
 /**
@@ -119,8 +114,8 @@ const CONTRACT = {
   coverageThreshold: check(isNumber, FRACTION),
   coverageMode: check(oneOf<CoverageMode>(0, 1, 2, 3, 4, 5), "one of: 0, 1, 2, 3, 4, 5"),
   highPrecision: check(isBoolean, "a boolean"),
-  trimStart: check(isInteger, "an integer"),
-  trimEnd: check(isInteger, "an integer"),
+  trimStart: check(isNumber, "a number"),
+  trimEnd: check(isNumber, "a number"),
   clusteringTool: check(
     oneOf<ClusteringTool>("easy-cluster", "easy-linclust"),
     "one of: easy-cluster, easy-linclust",
@@ -135,8 +130,8 @@ const CONTRACT = {
   weightByAbundance: check(isBoolean, "a boolean"),
   generateDataset: check(isBoolean, "a boolean"),
 
-  mem: check(isInteger, "an integer"),
-  cpu: check(isInteger, "an integer"),
+  mem: check(isNumber, "a number"),
+  cpu: check(isNumber, "a number"),
 
   defaultBlockLabel: check(isString, "a string"),
   customBlockLabel: check(isString, "a string"),
