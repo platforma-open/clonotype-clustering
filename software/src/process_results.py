@@ -175,8 +175,19 @@ else:
 # The computed centroid's own "Peptide Id" is NOT derived here — it is a hash of the
 # consensus sequence itself, computed once the plurality centroid is known (see the
 # peptideLabel derivation on plurality_df below).
+# Labels with no recognised prefix — an imported set's labels are the scientist's own
+# identifiers, e.g. "AB-001" — get "CL-" prepended rather than rewritten. Without it the cluster
+# is shown under a bare record name and reads as a record rather than a cluster. Prepending
+# keeps the representative's identity visible, which a generated index would lose, and needs no
+# ordering decision, which a generated index would (see the determinism note in the MSA feed
+# order below: anything derived per cluster has to be stable run-to-run).
 cloneTable = cloneTable.with_columns(
-    pl.col('clonotypeKeyLabel').str.replace(r'^[CP]-', 'CL-').alias('clusterLabel'),
+    pl.when(pl.col('clonotypeKeyLabel').str.starts_with('CL-'))
+    .then(pl.col('clonotypeKeyLabel'))
+    .when(pl.col('clonotypeKeyLabel').str.contains(r'^[CP]-'))
+    .then(pl.col('clonotypeKeyLabel').str.replace(r'^[CP]-', 'CL-'))
+    .otherwise(pl.concat_str([pl.lit('CL-'), pl.col('clonotypeKeyLabel')]))
+    .alias('clusterLabel'),
 )
 
 # clusterId, clonotypeKey (both are representative keys from de-duplicated FASTA)

@@ -350,7 +350,13 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
     const isAmplicon =
       axis1Name === "pl7.app/variantKey" &&
       keyAxisDomain["pl7.app/repertoire/extractionRunId"] !== undefined;
-    const isSingleCell = axis1Name === "pl7.app/vdj/scClonotypeKey";
+    // Paired chains live in the scClonotypeChain column domain. Imported paired sets have them
+    // on pl7.app/variantKey, so ask for such a column rather than trusting the axis name.
+    const perChainColumns = ctx.resultPool.getAnchoredPColumns({ main: ref }, [
+      { name: "pl7.app/vdj/sequence", domain: { "pl7.app/vdj/scClonotypeChain/index": "primary" } },
+    ]);
+    const isSingleCell =
+      axis1Name === "pl7.app/vdj/scClonotypeKey" || (perChainColumns?.length ?? 0) > 0;
 
     const sequenceMatchers = [];
 
@@ -435,7 +441,13 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
       return undefined;
     }
 
-    return spec.axesSpec[1].name === "pl7.app/vdj/scClonotypeKey";
+    // Same test as in sequenceOptions above.
+    const perChainColumns = ctx.resultPool.getAnchoredPColumns({ main: ctx.data.datasetRef }, [
+      { name: "pl7.app/vdj/sequence", domain: { "pl7.app/vdj/scClonotypeChain/index": "primary" } },
+    ]);
+    return (
+      spec.axesSpec[1].name === "pl7.app/vdj/scClonotypeKey" || (perChainColumns?.length ?? 0) > 0
+    );
   })
 
   .output(
@@ -446,7 +458,16 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
         : undefined;
       if (!spec) return undefined;
       for (const ax of spec.axesSpec) {
-        if (ax.name === "pl7.app/variantKey") return "peptide";
+        if (ax.name === "pl7.app/variantKey") {
+          // Three producers share this axis; the run-id in its domain is what separates them.
+          // import-vdj-data's bare antibody sets stamp pl7.app/vdj/clonotypingRunId and are not
+          // peptide — calling them peptide offers the consensus-export checkbox for a dataset
+          // the workflow would then stamp peptide. peptide-extraction and
+          // synthetic-repertoire-profiler both remain "peptide" here, as before.
+          return (ax.domain ?? {})["pl7.app/vdj/clonotypingRunId"] !== undefined
+            ? "antibody_tcr"
+            : "peptide";
+        }
         if (ax.name === "pl7.app/vdj/clonotypeKey" || ax.name === "pl7.app/vdj/scClonotypeKey")
           return "antibody_tcr";
       }
