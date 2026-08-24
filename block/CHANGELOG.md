@@ -1,5 +1,43 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.3.1
+
+### Patch Changes
+
+- 0f89145: Prefix cluster labels that carry no recognised record prefix
+
+  A cluster is labelled from its representative record's label, with a leading `C-` (MiXCR) or `P-`
+  (peptide) rewritten to `CL-`. An imported set's labels are the scientist's own identifiers —
+  `AB-001`, `trastuzumab` — so nothing was rewritten and the cluster appeared under a bare record
+  name, reading as a record rather than a cluster.
+
+  Such labels now get `CL-` prepended: `AB-001` becomes `CL-AB-001`. MiXCR and peptide labels are
+  unchanged.
+
+  A label already shaped like `CL-01` is prepended too, giving `CL-CL-01`. An imported set's labels
+  are arbitrary, so `CL-01` is a record the scientist named that way; leaving it alone would show a
+  cluster and a record under one identical string — the confusion this change exists to remove.
+
+- f80609f: Support imported antibody sets on the variantKey axis
+
+  Two tests read the record axis's name where they should have read its domain or its columns.
+
+  **Modality.** Three producers key on `pl7.app/variantKey` and only the run-id in the axis domain
+  separates them. A receptor set from import-vdj-data was read as peptide, so with consensus export
+  enabled its centroid dataset came out stamped `pl7.app/peptide/extractionRunId` — an antibody set
+  re-emitted as peptide, which every downstream reader then believes. The model already got this
+  right; the workflow and the model's `modality` output did not.
+
+  **Paired chains.** `isSingleCell` meant "the axis is `pl7.app/vdj/scClonotypeKey`". Imported
+  paired sets hold their chains the same way — in the `pl7.app/vdj/scClonotypeChain` column domain
+  — but on `pl7.app/variantKey`, so `trimStart` / `trimEnd` applied to the joined `VH====VL` string
+  instead of to each chain, cutting into the first chain's head and the last chain's tail only. It
+  now asks for a chain-domain column in both the workflow and the model. Cell barcodes and per-cell
+  counts are optional attributes rather than what makes data single-cell.
+
+  Clustering itself was never affected — every selected column is joined and clustered as one
+  string either way — and trimming defaults to `0`, so this only reached anyone who set a trim.
+
 ## 3.3.0
 
 ### Minor Changes
