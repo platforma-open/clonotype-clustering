@@ -182,9 +182,7 @@ else:
 # ordering decision, which a generated index would (see the determinism note in the MSA feed
 # order below: anything derived per cluster has to be stable run-to-run).
 cloneTable = cloneTable.with_columns(
-    pl.when(pl.col('clonotypeKeyLabel').str.starts_with('CL-'))
-    .then(pl.col('clonotypeKeyLabel'))
-    .when(pl.col('clonotypeKeyLabel').str.contains(r'^[CP]-'))
+    pl.when(pl.col('clonotypeKeyLabel').str.contains(r'^[CP]-'))
     .then(pl.col('clonotypeKeyLabel').str.replace(r'^[CP]-', 'CL-'))
     .otherwise(pl.concat_str([pl.lit('CL-'), pl.col('clonotypeKeyLabel')]))
     .alias('clusterLabel'),

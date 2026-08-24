@@ -12,4 +12,8 @@ A cluster is labelled from its representative record's label, with a leading `C-
 name, reading as a record rather than a cluster.
 
 Such labels now get `CL-` prepended: `AB-001` becomes `CL-AB-001`. MiXCR and peptide labels are
-unchanged. Labels already starting with `CL-` are left alone.
+unchanged.
+
+A label already shaped like `CL-01` is prepended too, giving `CL-CL-01`. An imported set's labels
+are arbitrary, so `CL-01` is a record the scientist named that way; leaving it alone would show a
+cluster and a record under one identical string — the confusion this change exists to remove.
