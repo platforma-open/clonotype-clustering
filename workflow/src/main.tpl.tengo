@@ -109,8 +109,29 @@ wf.body(func(args) {
 	datasetSpec := columns.getSpec(args.datasetRef)
 	abundanceSpec := columns.getSpec("abundance")
 
+	// Whether records carry paired chains, in the pl7.app/vdj/scClonotypeChain column domain.
+	// Imported paired sets have them on pl7.app/variantKey, so the axis name alone cannot say.
+	//
+	// Decides trimming only: whether trimStart/trimEnd apply to each chain or to the joined
+	// string. Clustering joins every selected column either way.
 	isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
-	isPeptide := datasetSpec.axesSpec[1].name == "pl7.app/variantKey"
+	if !isSingleCell && datasetSpec.axesSpec[1].name == "pl7.app/variantKey" {
+		for _, seqRef in sequencesRef {
+			seqDomain := columns.getSpec(seqRef).domain
+			if !is_undefined(seqDomain) && !is_undefined(seqDomain["pl7.app/vdj/scClonotypeChain"]) {
+				isSingleCell = true
+			}
+		}
+	}
+
+	// Three producers key on pl7.app/variantKey; only the run-id in the axis domain says which.
+	// peptide and repertoire are whole-sequence; pl7.app/vdj/clonotypingRunId is a receptor set,
+	// and calling it peptide exported its centroids stamped as peptide.
+	keyAxisDomain := datasetSpec.axesSpec[1].domain
+	if keyAxisDomain == undefined { keyAxisDomain = {} }
+	isPeptide := datasetSpec.axesSpec[1].name == "pl7.app/variantKey" &&
+		(keyAxisDomain["pl7.app/peptide/extractionRunId"] != undefined ||
+			keyAxisDomain["pl7.app/repertoire/extractionRunId"] != undefined)
 
 	baseMemGiB := 32
 	if !is_undefined(args.mem) {
@@ -539,7 +560,6 @@ wf.body(func(args) {
 
 	// For single cell, add per-chain trimmed columns when trimming is enabled; for bulk add one trimmed
 	if (trimStart > 0) || (trimEnd > 0) {
-		isSingleCell := datasetSpec.axesSpec[1].name == "pl7.app/vdj/scClonotypeKey"
 		if isSingleCell {
 			for nr, seq in sequencesRef {
 				baseSpec := maps.clone(columns.getSpec(seq))
