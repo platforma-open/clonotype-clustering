@@ -352,8 +352,17 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
       keyAxisDomain["pl7.app/repertoire/extractionRunId"] !== undefined;
     // Paired chains live in the scClonotypeChain column domain. Imported paired sets have them
     // on pl7.app/variantKey, so ask for such a column rather than trusting the axis name.
+    //
+    // Scoped to the dataset's clonotype axis, like the matchers below. A selector without `axes`
+    // carries no anchor reference at all, so it is matched against the whole result pool: a
+    // single-cell block anywhere in the project would mark every bulk dataset as paired, and the
+    // paired matcher would then find no sequence columns on the bulk axis.
     const perChainColumns = ctx.resultPool.getAnchoredPColumns({ main: ref }, [
-      { name: "pl7.app/vdj/sequence", domain: { "pl7.app/vdj/scClonotypeChain/index": "primary" } },
+      {
+        axes: [{ anchor: "main", idx: 1 }],
+        name: "pl7.app/vdj/sequence",
+        domain: { "pl7.app/vdj/scClonotypeChain/index": "primary" },
+      },
     ]);
     const isSingleCell =
       axis1Name === "pl7.app/vdj/scClonotypeKey" || (perChainColumns?.length ?? 0) > 0;
@@ -411,6 +420,7 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
       // Check if any PColumns in the dataset have the name "pl7.app/vdj/scFv-sequence"
       const scfvColumns = ctx.resultPool.getAnchoredPColumns({ main: ref }, [
         {
+          axes: [{ anchor: "main", idx: 1 }],
           name: "pl7.app/vdj/scFv-sequence",
         },
       ]);
@@ -441,9 +451,13 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
       return undefined;
     }
 
-    // Same test as in sequenceOptions above.
+    // Same test as in sequenceOptions above, including the axis scoping.
     const perChainColumns = ctx.resultPool.getAnchoredPColumns({ main: ctx.data.datasetRef }, [
-      { name: "pl7.app/vdj/sequence", domain: { "pl7.app/vdj/scClonotypeChain/index": "primary" } },
+      {
+        axes: [{ anchor: "main", idx: 1 }],
+        name: "pl7.app/vdj/sequence",
+        domain: { "pl7.app/vdj/scClonotypeChain/index": "primary" },
+      },
     ]);
     return (
       spec.axesSpec[1].name === "pl7.app/vdj/scClonotypeKey" || (perChainColumns?.length ?? 0) > 0
