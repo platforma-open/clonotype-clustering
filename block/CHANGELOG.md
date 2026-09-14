@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.3.3
+
+### Patch Changes
+
+- aade6a4: Update SDK and MSA
+
 ## 3.3.2
 
 ### Patch Changes
