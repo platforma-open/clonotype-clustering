@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.3.4
+
+### Patch Changes
+
+- 6f6264d: update msa version
+
 ## 3.3.3
 
 ### Patch Changes
