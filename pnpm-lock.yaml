@@ -52,8 +52,8 @@ catalogs:
       specifier: 1.83.17
       version: 1.83.17
     '@platforma-sdk/workflow-tengo':
-      specifier: 6.10.2
-      version: 6.10.2
+      specifier: 6.10.5
+      version: 6.10.5
     '@types/node':
       specifier: ^24.5.2
       version: 24.5.2
@@ -294,7 +294,7 @@ importers:
         version: 1.18.0
       '@platforma-sdk/workflow-tengo':
         specifier: 'catalog:'
-        version: 6.10.2
+        version: 6.10.5
     devDependencies:
       '@platforma-sdk/tengo-builder':
         specifier: 'catalog:'
@@ -1230,6 +1230,9 @@ packages:
   '@milaboratories/pframes-rs-wasip2@1.1.60':
     resolution: {integrity: sha512-7P2Xgm5IcHl7yooaLAHxt+Fgv8Hqj8oF4MH5PjcqkyXOlx8sKrC+19Vow2QcVLVUt/cOxnxXODe/1K8ej1mAbQ==}
 
+  '@milaboratories/pframes-rs-wasip2@1.1.61':
+    resolution: {integrity: sha512-0/LwALWJxsWjRf7AyhznRCzOOR4MyzAq4OJ+FvaRuNUztSBJZeXWRBzatmDN9JjCoonap1F05cy33NXKX+hUyQ==}
+
   '@milaboratories/pl-client@3.16.2':
     resolution: {integrity: sha512-Il7TAr6/DNHA+BMXkMCa3r46MZnTPuDvGZsg5UlTSZPcwPSXDSsvg3OVu6BxwbQQ0Q5du3HOPISJnZntVdQuAw==}
     engines: {node: '>=22.19.0'}
@@ -1652,6 +1655,9 @@ packages:
   '@platforma-open/milaboratories.software-ptabler.schema@1.15.23':
     resolution: {integrity: sha512-tCrPwxtzYvO33FsgpE3FCZx4aERVKjg77aVUaYC0RNisXW7fgqIqfkN30tQZZQ77v1A7E+PC31/oKsKScehOlw==}
 
+  '@platforma-open/milaboratories.software-ptabler@2.1.11':
+    resolution: {integrity: sha512-DaEnLrn9YWZUQJc77I/hBTfIh8+nozZ5/BRpDo7RMD9xev4Owb4BZG/Q27+4HrFEBRbIAiRp/JLR4AF69J/iAQ==}
+
   '@platforma-open/milaboratories.software-ptabler@2.1.9':
     resolution: {integrity: sha512-n5HQa4S9Ih+bT6Zqb+MdmyFf9gVvoN6D28GzrrRF98C9Ez/9tBriDIf33R4cglkWkSNapHCuX9PIMNaFtFHNNg==}
 
@@ -1709,6 +1715,9 @@ packages:
 
   '@platforma-sdk/workflow-tengo@6.10.2':
     resolution: {integrity: sha512-S8UUxUlMXaRNcgDuY5tEFCIUHuFEOuxPSvLlk21s9zrdLgUxUGvD0RxKCuBxWiWRig/nasM85zfuQGkhmEir5Q==}
+
+  '@platforma-sdk/workflow-tengo@6.10.5':
+    resolution: {integrity: sha512-KS/Ki9sCNAZi5UVg6SKGU2djkp2gJD+YOMet8padOr6d16dMbP57tf2vBBiJiXWtIG/sSLpaZ2b8on9ZSQSTfg==}
 
   '@protobuf-ts/grpc-transport@2.11.1':
     resolution: {integrity: sha512-l6wrcFffY+tuNnuyrNCkRM8hDIsAZVLA8Mn7PKdVyYxITosYh60qW663p9kL6TWXYuDCL3oxH8ih3vLKTDyhtg==}
@@ -8136,6 +8145,8 @@ snapshots:
 
   '@milaboratories/pframes-rs-wasip2@1.1.60': {}
 
+  '@milaboratories/pframes-rs-wasip2@1.1.61': {}
+
   '@milaboratories/pl-client@3.16.2':
     dependencies:
       '@grpc/grpc-js': 1.14.4
@@ -8335,7 +8346,7 @@ snapshots:
       oxlint: 1.63.0
       oxlint-plugin-eslint: 1.63.0
       rolldown: 1.1.3
-      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.9.3))
+      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@7.0.2))
       rollup-plugin-copy: 3.5.0
       rollup-plugin-sourcemaps2: 0.5.4(@types/node@24.5.2)(rollup@4.53.5)
       typescript: 7.0.2
@@ -8381,7 +8392,7 @@ snapshots:
       oxlint: 1.63.0
       oxlint-plugin-eslint: 1.63.0
       rolldown: 1.1.3
-      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.9.3))
+      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@7.0.2))
       rollup-plugin-copy: 3.5.0
       rollup-plugin-sourcemaps2: 0.5.4(@types/node@24.5.2)(rollup@4.53.5)
       typescript: 7.0.2
@@ -8427,7 +8438,7 @@ snapshots:
       oxlint: 1.63.0
       oxlint-plugin-eslint: 1.63.0
       rolldown: 1.1.3
-      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.9.3))
+      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@7.0.2))
       rollup-plugin-copy: 3.5.0
       rollup-plugin-sourcemaps2: 0.5.4(@types/node@24.5.2)(rollup@4.53.5)
       typescript: 7.0.2
@@ -8784,6 +8795,8 @@ snapshots:
     dependencies:
       '@milaboratories/pl-model-common': 1.49.0
 
+  '@platforma-open/milaboratories.software-ptabler@2.1.11': {}
+
   '@platforma-open/milaboratories.software-ptabler@2.1.9': {}
 
   '@platforma-open/milaboratories.software-ptexter@1.2.4': {}
@@ -8971,6 +8984,14 @@ snapshots:
       '@milaboratories/pframes-rs-wasip2': 1.1.60
       '@milaboratories/software-pframes-conv': 2.2.9
       '@platforma-open/milaboratories.software-ptabler': 2.1.9
+      '@platforma-open/milaboratories.software-ptexter': 1.2.4
+      '@platforma-open/milaboratories.software-small-binaries': 2.1.1
+
+  '@platforma-sdk/workflow-tengo@6.10.5':
+    dependencies:
+      '@milaboratories/pframes-rs-wasip2': 1.1.61
+      '@milaboratories/software-pframes-conv': 2.2.9
+      '@platforma-open/milaboratories.software-ptabler': 2.1.11
       '@platforma-open/milaboratories.software-ptexter': 1.2.4
       '@platforma-open/milaboratories.software-small-binaries': 2.1.1
 
@@ -13742,7 +13763,7 @@ snapshots:
     dependencies:
       glob: 10.4.5
 
-  rolldown-plugin-dts@0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.9.3)):
+  rolldown-plugin-dts@0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@7.0.2)):
     dependencies:
       dts-resolver: 3.0.0
       get-tsconfig: 5.0.0-beta.6
