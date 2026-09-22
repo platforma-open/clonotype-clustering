@@ -1,8 +1,6 @@
 self := import("@platforma-sdk/workflow-tengo:tpl")
-ll := import("@platforma-sdk/workflow-tengo:ll")
 exec := import("@platforma-sdk/workflow-tengo:exec")
 assets:= import("@platforma-sdk/workflow-tengo:assets")
-pframes := import("@platforma-sdk/workflow-tengo:pframes")
 
 math := import("math")
 json := import("json")
