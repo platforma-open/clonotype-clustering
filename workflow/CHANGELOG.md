@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.3.2
+
+### Patch Changes
+
+- e49b268: Bump tengo-builder to 4.1.1 and block-tools to 2.16.1.
+
 ## 4.3.1
 
 ### Patch Changes

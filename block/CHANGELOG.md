@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.4.0
+
+### Minor Changes
+
+- b748238: Hide the multiple sequence alignment entry point for peptide datasets, including the table cell button.
+
 ## 3.3.5
 
 ### Patch Changes
