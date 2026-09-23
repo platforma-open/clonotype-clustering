@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.3.5
+
+### Patch Changes
+
+- 1b8a391: Move to workflow-tengo 6.10.5
+
 ## 3.3.4
 
 ### Patch Changes
