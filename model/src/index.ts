@@ -1,6 +1,7 @@
 import type { GraphMakerState } from "@milaboratories/graph-maker";
 import strings from "@milaboratories/strings";
 import type {
+  DatasetOption,
   PColumnIdAndSpec,
   PColumnSpec,
   PFrameHandle,
@@ -12,9 +13,12 @@ import type {
 import {
   BlockModelV3,
   DataModelBuilder,
+  buildDatasetOptions,
   createPFrameForGraphs,
   createPlDataTableStateV2,
   createPlDataTableV2,
+  isPColumnSpec,
+  plRefsEqual,
 } from "@platforma-sdk/model";
 import { kind } from "@platforma-open/milaboratories.clonotype-clustering.kind";
 export type * from "@milaboratories/helpers";
@@ -76,6 +80,9 @@ export type BlockData = {
   defaultBlockLabel: string;
   customBlockLabel: string;
   datasetRef?: PlRef;
+  // Optional `pl7.app/isSubset` column picked alongside the dataset (e.g. a
+  // repertoire-labeling label). Only clonotypes present in it are clustered.
+  filterRef?: PlRef;
   sequencesRef: SUniversalPColumnId[];
   sequenceType: "aminoacid" | "nucleotide";
   identity: number;
@@ -251,6 +258,7 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
   // nothing here is bound to the machine it was exported from.
   .templateParams((data) => ({
     datasetRef: data.datasetRef,
+    filterRef: data.filterRef,
     sequencesRef: data.sequencesRef,
     sequenceType: data.sequenceType,
 
@@ -283,6 +291,7 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
       defaultBlockLabel: data.defaultBlockLabel,
       customBlockLabel: data.customBlockLabel,
       datasetRef: data.datasetRef,
+      filterRef: data.filterRef,
       sequencesRef: data.sequencesRef,
       sequenceType: data.sequenceType,
       identity: data.identity,
@@ -303,7 +312,7 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
     };
   })
 
-  .output("datasetOptions", (ctx) => {
+  .output("datasetOptions", (ctx): DatasetOption[] => {
     const options = ctx.resultPool.getOptions(
       [
         {
@@ -325,11 +334,39 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
       },
     );
 
-    // Exclude this block's OWN exported centroid dataset from the input picker
-    return options.filter((opt) => {
-      const keyAxis = ctx.resultPool.getPColumnSpecByRef(opt.ref)?.axesSpec[1];
-      return keyAxis?.domain?.["pl7.app/clustering/algorithm"] === undefined;
-    });
+    // Subset columns (`pl7.app/isSubset`) on each dataset's axes, e.g. repertoire-labeling
+    // labels or Lead Selection picks. Only the filters are taken from here: its primary refs
+    // carry `requireEnrichments`, which would make this block depend on every block between
+    // it and the dataset, and would not match `datasetRef`s saved before filters existed.
+    // The primary predicate only has to cover the datasets above: results are matched to them by ref.
+    const withFilters =
+      buildDatasetOptions(ctx, {
+        primary: (spec) =>
+          isPColumnSpec(spec) &&
+          spec.annotations?.["pl7.app/isAnchor"] === "true" &&
+          spec.axesSpec[0]?.name === "pl7.app/sampleId",
+        // Only subsets keyed by the clonotype axis alone. The SDK already limits filter axes to
+        // the dataset's; a sample axis would add rows per sample to the per-clonotype tables.
+        filter: (spec) =>
+          isPColumnSpec(spec) &&
+          spec.axesSpec.length === 1 &&
+          spec.axesSpec[0]?.name !== "pl7.app/sampleId",
+      }) ?? [];
+
+    return (
+      options
+        // Exclude this block's OWN exported centroid dataset from the input picker
+        .filter((opt) => {
+          const keyAxis = ctx.resultPool.getPColumnSpecByRef(opt.ref)?.axesSpec[1];
+          return keyAxis?.domain?.["pl7.app/clustering/algorithm"] === undefined;
+        })
+        .map((primary) => {
+          const filters = withFilters.find((o) =>
+            plRefsEqual(o.primary.ref, primary.ref, true),
+          )?.filters;
+          return filters === undefined ? { primary } : { primary, filters };
+        })
+    );
   })
 
   .output("isPeptide", (ctx): boolean => {
