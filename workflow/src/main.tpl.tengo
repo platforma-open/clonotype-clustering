@@ -993,8 +993,14 @@ wf.body(func(args) {
 	}
 
 	// building outputs & exports
+	// With a subset filter the trace roots in the filter: its own trace is dataset -> the
+	// block that made the subset (e.g. Repertoire Labeling), so downstream labels name it.
+	traceSourceSpec := abundanceSpec
+	if !is_undefined(filterColumn) {
+		traceSourceSpec = filterColumn.spec
+	}
 	trace := pSpec.makeTrace(
-		abundanceSpec,
+		traceSourceSpec,
 		{
 			type: "milaboratories.clonotype-clustering.clustering",
 			importance: 30,
@@ -1003,7 +1009,7 @@ wf.body(func(args) {
 	)
 
 	centroidTrace := pSpec.makeTrace(
-		abundanceSpec,
+		traceSourceSpec,
 		{
 			type: "milaboratories.clonotype-clustering.centroids",
 			importance: 30,
