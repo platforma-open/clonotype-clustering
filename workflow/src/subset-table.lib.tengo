@@ -1,5 +1,6 @@
 pframes := import("@platforma-sdk/workflow-tengo:pframes")
 ll := import("@platforma-sdk/workflow-tengo:ll")
+json := import("json")
 
 // A TSV builder restricted to the rows of an optional subset column. Without one it is
 // the plain xsv builder. With one, every column becomes its own primary carrying the
@@ -27,6 +28,13 @@ newTableBuilder := func(filterColumn) {
 	}
 }
 
+// A result-pool column id: the canonical JSON of the column's PlRef, keys in sorted order.
+columnIdOf := func(ref) {
+	return "{\"__isRef\":true,\"blockId\":" + string(json.encode(ref.blockId)) +
+	",\"name\":" + string(json.encode(ref.name)) + "}"
+}
+
 export ll.toStrict({
-	newTableBuilder: newTableBuilder
+	newTableBuilder: newTableBuilder,
+	columnIdOf: columnIdOf
 })

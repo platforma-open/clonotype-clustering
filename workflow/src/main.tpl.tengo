@@ -269,14 +269,20 @@ wf.body(func(args) {
 	trimStart := is_undefined(args.trimStart) ? 0 : args.trimStart
 	trimEnd := is_undefined(args.trimEnd) ? 0 : args.trimEnd
 
+	clusterDomain := {
+		"pl7.app/clustering/algorithm": "mmseqs2",
+		"pl7.app/clustering/blockId": blockId
+	}
+	// A run on a subset stamps the subset's column id on the cluster axis, so every cluster
+	// column, the clone-to-cluster linker and the clonotype's cluster label say they cover only
+	// the subset.
+	if !is_undefined(args.filterRef) {
+		clusterDomain["pl7.app/subset"] = subsetTable.columnIdOf(args.filterRef)
+	}
 	clusterIdAxisSpec := {
 		name: "pl7.app/clusterId",
 		type: "String",
-		domain: maps.deepMerge(datasetSpec.axesSpec[1].domain,
-			{
-				"pl7.app/clustering/algorithm": "mmseqs2",
-				"pl7.app/clustering/blockId": blockId
-		}),
+		domain: maps.deepMerge(datasetSpec.axesSpec[1].domain, clusterDomain),
 		annotations: {
 			"pl7.app/label": "Cluster Id",
 			"pl7.app/table/visibility": "default",

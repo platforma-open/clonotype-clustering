@@ -55,10 +55,17 @@ async function tsvLines(
   return (await driverKit.blobDriver.getContent(handle!)).toString().trim().split("\n");
 }
 
+// Filter refs whose column id the workflow stamps as `pl7.app/subset`.
+const refs = [
+  { __isRef: true, blockId: "84a3733d-f4bc-4aa3-afbf-b2e32a72c9c9", name: "labels.49534f364a564a51" },
+  { __isRef: true, blockId: "b", name: 'with "quotes" \\ and / slashes' },
+];
+
 tplTest("subset filter restricts both clustering input tables", { timeout: 120000 }, async ({ helper, driverKit }) => {
-  const outputs = ["cloneFull", "cloneFiltered", "seqFull", "seqFiltered"];
+  const outputs = ["cloneFull", "cloneFiltered", "seqFull", "seqFiltered", "columnIds"];
   const result = await helper.renderTemplate(false, "test.subset-table.test", outputs, (tx) => ({
     specs: tx.createValue(ML.Pl.JsonObject, JSON.stringify(specs)),
+    refs: tx.createValue(ML.Pl.JsonObject, JSON.stringify(refs)),
     ...columnInputs(tx, ["abundance", "seq0", "seq1", "label", "tag"]),
   }));
 
@@ -72,6 +79,15 @@ tplTest("subset filter restricts both clustering input tables", { timeout: 12000
     "s1\tk1\t10\tCARDYW\t\tC-1",
     "s2\tk3\t7\tCASSLW\tCQQY\tC-3",
   ]);
+  // The stamp must equal the model side's column id (what other blocks compare with).
+  const columnIds = await awaitStableState(
+    result.computeOutput("columnIds", (acc) => acc?.getDataAsJson<string[]>()),
+    90000,
+  );
+  expect(columnIds).toEqual(
+    refs.map((r) => JSON.stringify({ __isRef: true, blockId: r.blockId, name: r.name })),
+  );
+
   expect(await tsvLines(result, "seqFiltered", driverKit)).toEqual([
     "clonotypeKey\tsequence_0\tsequence_1",
     "k1\tCARDYW\t",
