@@ -2,9 +2,10 @@
 // without a subset filter. Driven by ../subset-table.test.ts.
 self := import("@platforma-sdk/workflow-tengo:tpl")
 file := import("@platforma-sdk/workflow-tengo:file")
+smart := import("@platforma-sdk/workflow-tengo:smart")
 subsetTable := import(":subset-table")
 
-self.defineOutputs("cloneFull", "cloneFiltered", "seqFull", "seqFiltered")
+self.defineOutputs("cloneFull", "cloneFiltered", "seqFull", "seqFiltered", "columnIds")
 
 self.body(func(inputs) {
 	col := func(name) {
@@ -33,10 +34,16 @@ self.body(func(inputs) {
 		return file.exportFile(b.build())
 	}
 
+	columnIds := []
+	for ref in inputs.refs {
+		columnIds = append(columnIds, subsetTable.columnIdOf(ref))
+	}
+
 	return {
 		cloneFull: cloneTable(undefined),
 		cloneFiltered: cloneTable(col("tag")),
 		seqFull: seqTable(undefined),
-		seqFiltered: seqTable(col("tag"))
+		seqFiltered: seqTable(col("tag")),
+		columnIds: smart.createJsonResource(columnIds)
 	}
 })
