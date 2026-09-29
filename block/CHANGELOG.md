@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.4.1
+
+### Patch Changes
+
+- cee1c9d: Update SDK: PlAgDataTable no longer recreates its grid in an endless loop
+
 ## 3.4.0
 
 ### Minor Changes
