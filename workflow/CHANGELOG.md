@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.6.0
+
+### Minor Changes
+
+- 6a098c8: Update MMseqs2 software to 1.19.0 (upstream 3b6aa9c)
+
 ## 4.5.0
 
 ### Minor Changes
