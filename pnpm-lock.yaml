@@ -236,7 +236,7 @@ importers:
         version: 1.4.0
       '@platforma-sdk/test':
         specifier: 'catalog:'
-        version: 1.84.4(@bytecodealliance/preview2-shim@0.17.8)(@types/node@24.5.2)(vite@6.3.5(@types/node@24.5.2)(lightningcss@1.32.0)(yaml@2.8.1))
+        version: 1.84.4(@bytecodealliance/preview2-shim@0.17.8)(@types/node@24.5.2)(vite@8.0.10(@types/node@24.5.2)(yaml@2.8.1))
       eslint:
         specifier: 'catalog:'
         version: 9.39.2
@@ -301,10 +301,13 @@ importers:
         version: 4.1.5
       '@platforma-sdk/test':
         specifier: 'catalog:'
-        version: 1.84.4(@bytecodealliance/preview2-shim@0.17.8)(@types/node@24.5.2)(vite@8.0.10(@types/node@24.5.2)(yaml@2.8.1))
+        version: 1.84.4(@bytecodealliance/preview2-shim@0.17.8)(@types/node@24.5.2)(vite@6.3.5(@types/node@24.5.2)(lightningcss@1.32.0)(yaml@2.8.1))
       shx:
         specifier: 'catalog:'
         version: 0.4.0
+      vitest:
+        specifier: 'catalog:'
+        version: 4.0.8(@types/node@24.5.2)(lightningcss@1.32.0)(yaml@2.8.1)
 
 packages:
 
@@ -4906,10 +4909,6 @@ packages:
     resolution: {integrity: sha512-adbxcyWV46qiHyvSp50TKt05tB4tK3HcmF7/nxfAdhnox83seTDbwnaqKO4sXRy7roHAIFqJP/Rw/AuEbX61LA==}
     engines: {node: '>=6'}
 
-  expect-type@1.2.2:
-    resolution: {integrity: sha512-JhFGDVJ7tmDJItKhYgJCGLOWjuK9vPxiXoUFLwLDc99NlmklilbiQJwoctZtt13+xMw91MCk/REan6MWHqDjyA==}
-    engines: {node: '>=12.0.0'}
-
   expect-type@1.3.0:
     resolution: {integrity: sha512-knvyeauYhqjOYvQ66MznSMs83wmHrCycNEN6Ao+2AeYEfxUIkuiVxdEa1qlGEPK+We3n0THiDciYSsCcgW/DoA==}
     engines: {node: '>=12.0.0'}
@@ -5670,10 +5669,6 @@ packages:
     resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
     engines: {node: '>=8.6'}
 
-  picomatch@4.0.3:
-    resolution: {integrity: sha512-5gTmgEY/sqK6gFXLIsQNH19lWb4ebPDLA4SdLP7dsWkIXHWlG66oPuVvXSGFPppYZz8ZDZq0dYYrbHfBCVUb1Q==}
-    engines: {node: '>=12'}
-
   picomatch@4.0.4:
     resolution: {integrity: sha512-QP88BAKvMam/3NxH6vj2o21R6MjxZUAd6nlwAS/pnGvN9IVLocLHxGYIzFhg6fUQ+5th6P4dv4eW9jX3DSIj7A==}
     engines: {node: '>=12'}
@@ -5710,10 +5705,6 @@ packages:
 
   postcss@8.5.12:
     resolution: {integrity: sha512-W62t/Se6rA0Az3DfCL0AqJwXuKwBeYg6nOaIgzP+xZ7N5BFCI7DYi1qs6ygUYT6rvfi6t9k65UMLJC+PHZpDAA==}
-    engines: {node: ^10 || ^12 || >=14}
-
-  postcss@8.5.6:
-    resolution: {integrity: sha512-3Ybi1tAuwAP9s0r1UQ2J4n5Y0G05bJkpUIO0/bI9MhwmD70S5aTWbXGBwxHrelT+XM1k6dM0pk+SwNkpTRN7Pg==}
     engines: {node: ^10 || ^12 || >=14}
 
   prelude-ls@1.2.1:
@@ -6121,10 +6112,6 @@ packages:
     resolution: {integrity: sha512-W/KYk+NFhkmsYpuHq5JykngiOCnxeVL8v8dFnqxSD8qEEdRfXk1SDM6JzNqcERbcGYj9tMrDQBYV9cjgnunFIg==}
     engines: {node: '>=18'}
 
-  tinyglobby@0.2.15:
-    resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
-    engines: {node: '>=12.0.0'}
-
   tinyglobby@0.2.16:
     resolution: {integrity: sha512-pn99VhoACYR8nFHhxqix+uvsbXineAasWm5ojXoN8xEwK5Kd3/TrhNn1wByuD52UxWRLy8pu+kRMniEi6Eq9Zg==}
     engines: {node: '>=12.0.0'}
@@ -6132,10 +6119,6 @@ packages:
   tinypool@2.1.0:
     resolution: {integrity: sha512-Pugqs6M0m7Lv1I7FtxN4aoyToKg1C4tu+/381vH35y8oENM/Ai7f7C4StcoK4/+BSw9ebcS8jRiVrORFKCALLw==}
     engines: {node: ^20.0.0 || >=22.0.0}
-
-  tinyrainbow@3.0.3:
-    resolution: {integrity: sha512-PSkbLUoxOFRzJYjjxHJt9xro7D+iilgMX/C9lawzVuYiIdcihh9DXmVibBe8lmcFrRi/VzlPjBxbN7rH24q8/Q==}
-    engines: {node: '>=14.0.0'}
 
   tinyrainbow@3.1.0:
     resolution: {integrity: sha512-Bf+ILmBgretUrdJxzXM0SgXLZ3XfiaUuOj/IKQHuTXip+05Xn+uyEYdVg0kYDipTBcLrCVyUzAPz7QmArb0mmw==}
@@ -8335,7 +8318,7 @@ snapshots:
       oxlint: 1.63.0
       oxlint-plugin-eslint: 1.63.0
       rolldown: 1.1.3
-      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.6.3))
+      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.9.3))
       rollup-plugin-copy: 3.5.0
       rollup-plugin-sourcemaps2: 0.5.4(@types/node@24.5.2)(rollup@4.53.5)
       typescript: 7.0.2
@@ -8381,7 +8364,7 @@ snapshots:
       oxlint: 1.63.0
       oxlint-plugin-eslint: 1.63.0
       rolldown: 1.1.3
-      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.6.3))
+      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.9.3))
       rollup-plugin-copy: 3.5.0
       rollup-plugin-sourcemaps2: 0.5.4(@types/node@24.5.2)(rollup@4.53.5)
       typescript: 7.0.2
@@ -8427,7 +8410,7 @@ snapshots:
       oxlint: 1.63.0
       oxlint-plugin-eslint: 1.63.0
       rolldown: 1.1.3
-      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.6.3))
+      rolldown-plugin-dts: 0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.9.3))
       rollup-plugin-copy: 3.5.0
       rollup-plugin-sourcemaps2: 0.5.4(@types/node@24.5.2)(rollup@4.53.5)
       typescript: 7.0.2
@@ -8882,7 +8865,7 @@ snapshots:
       '@milaboratories/pl-middle-layer': 1.73.1(@bytecodealliance/preview2-shim@0.17.8)(@types/node@24.5.2)
       '@milaboratories/pl-tree': 1.15.5
       '@platforma-sdk/model': 1.84.3
-      '@vitest/coverage-istanbul': 4.1.5(vitest@4.0.8(@types/node@24.5.2)(lightningcss@1.32.0)(yaml@2.8.1))
+      '@vitest/coverage-istanbul': 4.1.5(vitest@4.1.5)
       vitest: 4.1.5(@types/node@24.5.2)(@vitest/coverage-istanbul@4.1.5)(vite@6.3.5(@types/node@24.5.2)(lightningcss@1.32.0)(yaml@2.8.1))
     transitivePeerDependencies:
       - '@bytecodealliance/preview2-shim'
@@ -8909,7 +8892,7 @@ snapshots:
       '@milaboratories/pl-middle-layer': 1.73.1(@bytecodealliance/preview2-shim@0.17.8)(@types/node@24.5.2)
       '@milaboratories/pl-tree': 1.15.5
       '@platforma-sdk/model': 1.84.3
-      '@vitest/coverage-istanbul': 4.1.5(vitest@4.1.5)
+      '@vitest/coverage-istanbul': 4.1.5(vitest@4.0.8(@types/node@24.5.2)(lightningcss@1.32.0)(yaml@2.8.1))
       vitest: 4.1.5(@types/node@24.5.2)(@vitest/coverage-istanbul@4.1.5)(vite@8.0.10(@types/node@24.5.2)(yaml@2.8.1))
     transitivePeerDependencies:
       - '@bytecodealliance/preview2-shim'
@@ -11847,7 +11830,7 @@ snapshots:
       magicast: 0.5.2
       obug: 2.2.1
       tinyrainbow: 3.1.0
-      vitest: 4.1.5(@types/node@24.5.2)(@vitest/coverage-istanbul@4.1.5)(vite@6.3.5(@types/node@24.5.2)(lightningcss@1.32.0)(yaml@2.8.1))
+      vitest: 4.1.5(@types/node@24.5.2)(@vitest/coverage-istanbul@4.1.5)(vite@8.0.10(@types/node@24.5.2)(yaml@2.8.1))
     transitivePeerDependencies:
       - supports-color
 
@@ -12861,8 +12844,6 @@ snapshots:
       signal-exit: 3.0.7
       strip-eof: 1.0.0
 
-  expect-type@1.2.2: {}
-
   expect-type@1.3.0: {}
 
   exsolve@1.0.8: {}
@@ -13557,8 +13538,6 @@ snapshots:
 
   picomatch@2.3.1: {}
 
-  picomatch@4.0.3: {}
-
   picomatch@4.0.4: {}
 
   pify@2.3.0: {}
@@ -13595,12 +13574,6 @@ snapshots:
       tslib: 2.8.1
 
   postcss@8.5.12:
-    dependencies:
-      nanoid: 3.3.11
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
-
-  postcss@8.5.6:
     dependencies:
       nanoid: 3.3.11
       picocolors: 1.1.1
@@ -13742,7 +13715,7 @@ snapshots:
     dependencies:
       glob: 10.4.5
 
-  rolldown-plugin-dts@0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.6.3)):
+  rolldown-plugin-dts@0.28.5(@volar/typescript@2.4.28)(rolldown@1.1.3)(typescript@7.0.2)(vue-tsc@3.3.10(typescript@5.9.3)):
     dependencies:
       dts-resolver: 3.0.0
       get-tsconfig: 5.0.0-beta.6
@@ -14059,19 +14032,12 @@ snapshots:
 
   tinyexec@1.0.2: {}
 
-  tinyglobby@0.2.15:
-    dependencies:
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
-
   tinyglobby@0.2.16:
     dependencies:
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
 
   tinypool@2.1.0: {}
-
-  tinyrainbow@3.0.3: {}
 
   tinyrainbow@3.1.0: {}
 
@@ -14271,7 +14237,7 @@ snapshots:
       esbuild: 0.25.1
       fdir: 6.5.0(picomatch@4.0.4)
       picomatch: 4.0.4
-      postcss: 8.5.6
+      postcss: 8.5.12
       rollup: 4.53.5
       tinyglobby: 0.2.16
     optionalDependencies:
@@ -14303,15 +14269,15 @@ snapshots:
       '@vitest/utils': 4.0.8
       debug: 4.4.3
       es-module-lexer: 1.7.0
-      expect-type: 1.2.2
+      expect-type: 1.3.0
       magic-string: 0.30.21
       pathe: 2.0.3
-      picomatch: 4.0.3
+      picomatch: 4.0.4
       std-env: 3.10.0
       tinybench: 2.9.0
       tinyexec: 0.3.2
-      tinyglobby: 0.2.15
-      tinyrainbow: 3.0.3
+      tinyglobby: 0.2.16
+      tinyrainbow: 3.1.0
       vite: 6.3.5(@types/node@24.5.2)(lightningcss@1.32.0)(yaml@2.8.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
@@ -14354,7 +14320,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.5.2
-      '@vitest/coverage-istanbul': 4.1.5(vitest@4.0.8(@types/node@24.5.2)(lightningcss@1.32.0)(yaml@2.8.1))
+      '@vitest/coverage-istanbul': 4.1.5(vitest@4.1.5)
     transitivePeerDependencies:
       - msw
 
@@ -14382,7 +14348,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.5.2
-      '@vitest/coverage-istanbul': 4.1.5(vitest@4.1.5)
+      '@vitest/coverage-istanbul': 4.1.5(vitest@4.0.8(@types/node@24.5.2)(lightningcss@1.32.0)(yaml@2.8.1))
     transitivePeerDependencies:
       - msw
 
