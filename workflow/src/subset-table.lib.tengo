@@ -1,0 +1,32 @@
+pframes := import("@platforma-sdk/workflow-tengo:pframes")
+ll := import("@platforma-sdk/workflow-tengo:ll")
+
+// A TSV builder restricted to the rows of an optional subset column. Without one it is
+// the plain xsv builder. With one, every column becomes its own primary carrying the
+// filter, full-joined: tableBuilder full-joins addColumn entries onto the filtered
+// primary, which would bring the filtered-out rows back.
+newTableBuilder := func(filterColumn) {
+	if is_undefined(filterColumn) {
+		return pframes.tsvFileBuilder()
+	}
+	tb := pframes.tableBuilder("tsv").setJoinMode("full")
+	nColumns := 0
+	return {
+		add: func(column, opts) {
+			tb.addPrimary("col" + string(nColumns), {
+				__isPrimaryRef: "v1",
+				column: column,
+				filter: filterColumn
+				}, opts)
+			nColumns += 1
+		},
+		setAxisHeader: func(matcher, header) { tb.setAxisHeader(matcher, header) },
+		mem: func(amount) { tb.mem(amount) },
+		cpu: func(amount) { tb.cpu(amount) },
+		build: func() { return tb.build() }
+	}
+}
+
+export ll.toStrict({
+	newTableBuilder: newTableBuilder
+})

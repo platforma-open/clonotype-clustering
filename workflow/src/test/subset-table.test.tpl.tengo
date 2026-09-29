@@ -1,0 +1,42 @@
+// Test harness: builds clustering's two input tables with subset-table.lib.tengo, with and
+// without a subset filter. Driven by ../subset-table.test.ts.
+self := import("@platforma-sdk/workflow-tengo:tpl")
+file := import("@platforma-sdk/workflow-tengo:file")
+subsetTable := import(":subset-table")
+
+self.defineOutputs("cloneFull", "cloneFiltered", "seqFull", "seqFiltered")
+
+self.body(func(inputs) {
+	col := func(name) {
+		return { key: "{\"test\":\"" + name + "\"}", spec: inputs.specs[name], data: inputs[name] }
+	}
+
+	cloneTable := func(filterColumn) {
+		b := subsetTable.newTableBuilder(filterColumn)
+		b.add(col("abundance"), { header: "abundance" })
+		b.add(col("seq0"), { header: "sequence_0" })
+		b.add(col("seq1"), { header: "sequence_1" })
+		b.add(col("label"), { header: "clonotypeKeyLabel" })
+		b.setAxisHeader("pl7.app/sampleId", "sampleId")
+		b.setAxisHeader("pl7.app/vdj/clonotypeKey", "clonotypeKey")
+		b.mem("1GiB")
+		b.cpu(1)
+		return file.exportFile(b.build())
+	}
+	seqTable := func(filterColumn) {
+		b := subsetTable.newTableBuilder(filterColumn)
+		b.mem("1GiB")
+		b.cpu(1)
+		b.setAxisHeader("pl7.app/vdj/clonotypeKey", "clonotypeKey")
+		b.add(col("seq0"), { header: "sequence_0" })
+		b.add(col("seq1"), { header: "sequence_1" })
+		return file.exportFile(b.build())
+	}
+
+	return {
+		cloneFull: cloneTable(undefined),
+		cloneFiltered: cloneTable(col("tag")),
+		seqFull: seqTable(undefined),
+		seqFiltered: seqTable(col("tag"))
+	}
+})

@@ -35,9 +35,11 @@ export type CentroidAlignment = "auto" | "gapped" | "ungapped";
  * not the recipe a template exists to reproduce.
  */
 export type BlockParams = {
-  // Input wiring — the upstream dataset, and the sequence columns picked within
-  // it. Both are what a template engine fills from an earlier entry's output.
+  // Input wiring — the upstream dataset, an optional subset column restricting it,
+  // and the sequence columns picked within it. All are what a template engine
+  // fills from an earlier entry's output.
   datasetRef?: PlRef;
+  filterRef?: PlRef;
   sequencesRef?: SUniversalPColumnId[];
   sequenceType?: SequenceType;
 

@@ -93,6 +93,7 @@ const FRACTION = "a number";
  */
 const CONTRACT = {
   datasetRef: check(isPlRef, REF),
+  filterRef: check(isPlRef, REF),
   sequencesRef: check(arrayOf(isColumnId), COLUMN_IDS),
   sequenceType: check(
     oneOf<SequenceType>("aminoacid", "nucleotide"),

@@ -8,12 +8,13 @@ import {
 } from "@platforma-open/milaboratories.clonotype-clustering.model";
 import type {
   AxisId,
+  DatasetSelection,
   PColumnIdAndSpec,
-  PlRef,
   PlSelectionModel,
   PTableKey,
   SUniversalPColumnId,
 } from "@platforma-sdk/model";
+import { createDatasetSelection, createPrimaryRef, plRefsEqual } from "@platforma-sdk/model";
 import {
   listToOptions,
   PlAccordionSection,
@@ -23,9 +24,9 @@ import {
   PlBtnGhost,
   PlBtnGroup,
   PlCheckbox,
+  PlDatasetSelector,
   PlDropdown,
   PlDropdownMulti,
-  PlDropdownRef,
   PlLogView,
   PlMaskIcon24,
   PlNumberField,
@@ -74,13 +75,28 @@ const onRowDoubleClicked = reactive((key?: PTableKey) => {
   multipleSequenceAlignmentOpen.value = true;
 });
 
-function setInput(inputRef?: PlRef) {
-  app.model.data.datasetRef = inputRef;
-  // Sequence selections are scoped to a dataset; switching datasets invalidates
-  // them. Clear so the user re-picks against the new options and we never carry
-  // over an unresolvable ref (which would crash the workflow at xsv import).
-  app.model.data.sequencesRef = [];
-}
+// The selector picks a dataset, or a dataset narrowed by one of its subset columns.
+// Stored as two refs so blocks saved before filters existed keep their `datasetRef`.
+const datasetSelection = computed<DatasetSelection | undefined>({
+  get: () => {
+    const { datasetRef, filterRef } = app.model.data;
+    if (datasetRef === undefined) return undefined;
+    return createDatasetSelection(createPrimaryRef(datasetRef, filterRef));
+  },
+  set: (selection) => {
+    const datasetRef = selection?.primary.column;
+    const previous = app.model.data.datasetRef;
+    const datasetChanged =
+      datasetRef === undefined || previous === undefined || !plRefsEqual(datasetRef, previous);
+    app.model.data.datasetRef = datasetRef;
+    app.model.data.filterRef = selection?.primary.filter;
+    // Sequence selections are scoped to a dataset; switching datasets invalidates
+    // them. Clear so the user re-picks against the new options and we never carry
+    // over an unresolvable ref (which would crash the workflow at xsv import).
+    // Changing only the filter keeps the dataset, so the picks stay valid.
+    if (datasetChanged) app.model.data.sequencesRef = [];
+  },
+});
 
 // Self-heal stale sequence selections. PlDropdownMulti only renders chips for
 // refs present in `:options`, so if the dataset/upstream changes and a
@@ -238,13 +254,12 @@ const clusterAxis = computed<AxisId>(() => {
     />
     <PlSlideModal v-model="settingsOpen" close-on-outside-click shadow>
       <template #title>{{ strings.titles.settings }}</template>
-      <PlDropdownRef
-        v-model="app.model.data.datasetRef"
+      <PlDatasetSelector
+        v-model="datasetSelection"
         :options="app.model.outputs.datasetOptions"
         :label="strings.titles.dataset"
         clearable
         required
-        @update:model-value="setInput"
       />
       <PlBtnGroup
         v-model="app.model.data.sequenceType"
