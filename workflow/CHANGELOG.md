@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.5.0
+
+### Minor Changes
+
+- 4fdc145: Add filter ID stamp to cluster axis
+
 ## 4.4.0
 
 ### Minor Changes
