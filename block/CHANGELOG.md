@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.5.0
+
+### Minor Changes
+
+- b2546cb: Allow selection of filtered data as input
+
 ## 3.4.1
 
 ### Patch Changes
