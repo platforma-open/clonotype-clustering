@@ -277,7 +277,7 @@ wf.body(func(args) {
 	// column, the clone-to-cluster linker and the clonotype's cluster label say they cover only
 	// the subset.
 	if !is_undefined(args.filterRef) {
-		clusterDomain["pl7.app/subset"] = subsetTable.columnIdOf(args.filterRef)
+		clusterDomain["pl7.app/inputSubset"] = subsetTable.columnIdOf(args.filterRef)
 	}
 	clusterIdAxisSpec := {
 		name: "pl7.app/clusterId",

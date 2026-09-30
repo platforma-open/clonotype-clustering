@@ -55,7 +55,7 @@ async function tsvLines(
   return (await driverKit.blobDriver.getContent(handle!)).toString().trim().split("\n");
 }
 
-// Filter refs whose column id the workflow stamps as `pl7.app/subset`.
+// Filter refs whose column id the workflow stamps as `pl7.app/inputSubset`.
 const refs = [
   { __isRef: true, blockId: "84a3733d-f4bc-4aa3-afbf-b2e32a72c9c9", name: "labels.49534f364a564a51" },
   { __isRef: true, blockId: "b", name: 'with "quotes" \\ and / slashes' },
