@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 3.8.0
+
+### Minor Changes
+
+- f86716a: Update input subset domain annotation
+
 ## 3.7.0
 
 ### Minor Changes
