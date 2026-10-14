@@ -2,21 +2,22 @@
   Degenerate inputs the block must survive: one clonotype, and duplicated sequences.
 */
 
-import { blockTest } from "@platforma-sdk/test";
 import { describe } from "vitest";
 import { SHORT_CDR3 } from "./fixtures";
-import { clusterRows, hasXsvImport } from "./helpers";
+import { hasXsvImport, vdjSpec, vdjTsv } from "./helpers";
+import { suiteTest } from "./suite";
 
 describe.skipIf(!hasXsvImport)("degenerate inputs", () => {
-  blockTest(
+  suiteTest.concurrent(
     "a single clonotype is its own cluster with zero distance",
     { timeout: 600000 },
-    async ({ rawPrj, ml, helpers, tmpFolder, expect }) => {
-      const run = await clusterRows(
-        { rawPrj, ml, helpers, tmpFolder },
-        [{ key: "only", seq: "CARDYWGQGTLV", count: 7 }],
-        SHORT_CDR3,
+    async ({ suite, expect }) => {
+      const dataset = suite.dataset(
+        "One clonotype",
+        vdjTsv([{ key: "only", seq: "CARDYWGQGTLV", count: 7 }]),
+        vdjSpec(),
       );
+      const run = await suite.run("single", dataset, SHORT_CDR3);
       expect(await run.clusters()).toEqual([["only"]]);
       expect([...(await run.centroids("centroid")).values()]).toEqual(["CARDYWGQGTLV"]);
       expect([...(await run.centroids("referenceCentroid")).values()]).toEqual(["CARDYWGQGTLV"]);
@@ -33,19 +34,17 @@ describe.skipIf(!hasXsvImport)("degenerate inputs", () => {
     },
   );
 
-  blockTest(
+  suiteTest.concurrent(
     "identical sequences under different keys share one cluster and a zero radius",
     { timeout: 600000 },
-    async ({ rawPrj, ml, helpers, tmpFolder, expect }) => {
-      const run = await clusterRows(
-        { rawPrj, ml, helpers, tmpFolder },
-        [
-          { key: "a", seq: "CASSLGTEAFF", count: 5 },
-          { key: "b", seq: "CASSLGTEAFF", count: 3 },
-          { key: "c", seq: "CASSLGTEAFF", count: 1 },
-        ],
-        SHORT_CDR3,
-      );
+    async ({ suite, expect }) => {
+      const rows = [
+        { key: "a", seq: "CASSLGTEAFF", count: 5 },
+        { key: "b", seq: "CASSLGTEAFF", count: 3 },
+        { key: "c", seq: "CASSLGTEAFF", count: 1 },
+      ];
+      const dataset = suite.dataset("Identical sequences", vdjTsv(rows), vdjSpec());
+      const run = await suite.run("identical", dataset, SHORT_CDR3);
       expect(await run.clusters()).toEqual([["a", "b", "c"]]);
       expect([...(await run.centroids("centroid")).values()]).toEqual(["CASSLGTEAFF"]);
       const size = await run.readMap({

@@ -13,8 +13,7 @@ import {
   getStorageData,
   normalizeBlockStorage,
 } from "@platforma-sdk/model";
-import type { ML, RawHelpers } from "@platforma-sdk/test";
-import { awaitStableState } from "@platforma-sdk/test";
+import type { ML } from "@platforma-sdk/test";
 import fs from "node:fs";
 import path from "node:path";
 import { ClonotypeClusteringBlockPointer } from "this-block";
@@ -22,9 +21,43 @@ import { ClonotypeClusteringBlockPointer } from "this-block";
 export type Ctx = {
   rawPrj: ML.Project;
   ml: ML.MiddleLayer;
-  helpers: RawHelpers;
+  helpers: { getLocalFileHandle(localPath: string): Promise<unknown> };
   tmpFolder: string;
 };
+
+/** Resources every test run asks for. Small, so parallel runs do not fight over cores. */
+export const TEST_RESOURCES = { cpu: 2, mem: 4 };
+
+const T0 = Date.now();
+/** Phase timestamps for tuning the harness; enabled with TEST_TIMING=1. */
+export const mark = (what: string) => {
+  if (process.env.TEST_TIMING === "1")
+    console.log(`T+${((Date.now() - T0) / 1000).toFixed(1)}s ${what}`);
+};
+
+/**
+ * Canonical anchored ids of the fixture sequence columns, as `sequenceOptions` reports
+ * them: axis 1 of the dataset anchor, the column name, and its full domain (keys sorted).
+ * discovery.test.ts checks the model derives exactly these; every other scenario sets
+ * them directly and skips two staging round trips.
+ */
+export const VDJ_CDR3_ID = JSON.stringify({
+  axes: [{ anchor: "main", idx: 1 }],
+  domain: { "pl7.app/alphabet": "aminoacid", "pl7.app/vdj/feature": "CDR3" },
+  name: "pl7.app/vdj/sequence",
+});
+export const PEPTIDE_SEQUENCE_ID = JSON.stringify({
+  axes: [{ anchor: "main", idx: 1 }],
+  domain: { "pl7.app/alphabet": "aminoacid", "pl7.app/feature": "peptide" },
+  name: "pl7.app/sequence",
+});
+
+/** The pool ref of a column xsv-import published under `outputPf`. */
+export const publishedRef = (blockId: string, column: string) => ({
+  __isRef: true,
+  blockId,
+  name: `outputPf.${column}`,
+});
 
 export const xsvImportFolder = path.resolve(import.meta.dirname, "../../../xsv-import/block");
 export const hasXsvImport = fs.existsSync(
@@ -236,10 +269,23 @@ export async function awaitBlockDoneObserved(
   blockId: string,
   timeoutMs: number,
 ) {
-  const state = rawPrj.getBlockState(blockId);
+  return await awaitBlockDone(rawPrj, blockId, timeoutMs, true);
+}
+
+/**
+ * Wait for Done on the project overview alone. Reading a block's state renders every one of
+ * its outputs, so a block that uploads nothing is cheaper to wait for this way.
+ */
+export async function awaitBlockDone(
+  rawPrj: ML.Project,
+  blockId: string,
+  timeoutMs: number,
+  observeState = false,
+) {
+  const state = observeState ? rawPrj.getBlockState(blockId) : undefined;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    await state.getValue();
+    if (state !== undefined) await state.getValue();
     const overview = (await rawPrj.overview.getValue())!.blocks.find((b) => b.id === blockId);
     if (overview === undefined) throw new Error(`Block not found: ${blockId}`);
     if (overview.outputErrors) {
@@ -248,7 +294,7 @@ export async function awaitBlockDoneObserved(
       );
     }
     if (overview.calculationStatus === "Done") return;
-    await new Promise((r) => setTimeout(r, 500));
+    await new Promise((r) => setTimeout(r, 1000));
   }
   throw new Error(`Block ${blockId} did not reach Done within ${timeoutMs} ms`);
 }
@@ -274,13 +320,23 @@ export async function stableOutput<T>(
   blockId: string,
   name: string,
   timeoutMs: number,
-) {
-  const state = await awaitStableState(rawPrj.getBlockState(blockId), timeoutMs);
-  const output = (
-    state.outputs as Record<string, { ok: boolean; value?: unknown; errors?: unknown }>
-  )[name];
-  if (!output?.ok) throw new Error(`Output ${name} is not ok: ${JSON.stringify(output?.errors)}`);
-  return output.value as T;
+): Promise<T> {
+  // Poll rather than await stability: the stability wait gives up after a fixed number of
+  // tree changes, which a busy backend exceeds long before anything is wrong.
+  const state = rawPrj.getBlockState(blockId);
+  const deadline = Date.now() + timeoutMs;
+  let last: { ok: boolean; value?: unknown; errors?: unknown; stable?: boolean } | undefined;
+  while (Date.now() < deadline) {
+    const s = await state.getValue();
+    last = (s.outputs as Record<string, typeof last>)[name];
+    if (last?.ok && last.value !== undefined && last.stable !== false) return last.value as T;
+    if (last !== undefined && !last.ok)
+      throw new Error(`Output ${name} is not ok: ${JSON.stringify(last.errors)}`);
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error(
+    `Output ${name} of ${blockId} did not settle within ${timeoutMs} ms: ${JSON.stringify(last)}`,
+  );
 }
 
 /** Publish a TSV through an xsv-import block; returns the publisher's block id. */
@@ -290,7 +346,9 @@ export async function publishTsv(
   tsv: string,
   spec: unknown,
 ): Promise<string> {
-  const file = path.join(ctx.tmpFolder, `${label.replace(/\W+/g, "_")}.tsv`);
+  // One file per publish: an uploader checks the file's mtime, so two scenarios publishing
+  // the same dataset must never share a path.
+  const file = path.join(ctx.tmpFolder, `${label.replace(/\W+/g, "_")}-${crypto.randomUUID()}.tsv`);
   fs.writeFileSync(file, tsv);
   const blockId = await ctx.rawPrj.addBlock(label, { type: "dev-v2", folder: xsvImportFolder });
   const fileHandle = await ctx.helpers.getLocalFileHandle(file);
@@ -298,8 +356,10 @@ export async function publishTsv(
     operation: "update-block-data",
     value: { fileHandle, spec, tableState: createPlDataTableStateV2() },
   });
+  mark(`publish ${label}: uploading`);
   await ctx.rawPrj.runBlock(blockId);
   await awaitBlockDoneObserved(ctx.rawPrj, blockId, 90000);
+  mark(`publish ${label}: done`);
   return blockId;
 }
 
@@ -315,6 +375,13 @@ export type SequenceOption = { value: string; label: string };
  */
 export type RunOptions = {
   keyAxis?: string;
+  /**
+   * Set the dataset anchor, sequence column and optional subset directly instead of
+   * discovering them through the model's option outputs.
+   */
+  direct?: { anchorColumn: string; sequenceId: string; filterColumn?: string };
+  /** Publisher block of the dataset to cluster; required when the project holds several. */
+  datasetBlockId?: string;
   /** Pick the dataset's subset filter whose ref name ends with this, and set `filterRef` to it. */
   filterName?: string;
 };
@@ -324,39 +391,75 @@ export async function runClustering(
   patch: Record<string, unknown> = {},
   opts: RunOptions = {},
 ): Promise<Run> {
-  const { rawPrj, helpers } = ctx;
+  const { rawPrj } = ctx;
   const blockId = await rawPrj.addBlock("Clustering", ClonotypeClusteringBlockPointer);
 
-  const datasets = await stableOutput<DatasetOption[]>(rawPrj, blockId, "datasetOptions", 180000);
-  if (datasets.length !== 1) throw new Error(`Expected one dataset option, got ${datasets.length}`);
-  const dataPatch: Record<string, unknown> = { datasetRef: datasets[0].primary.ref };
-  if (opts.filterName !== undefined) {
-    const filter = datasets[0].filters?.find((f) =>
-      String((f.ref as { name?: string }).name).endsWith(opts.filterName!),
-    );
-    if (filter === undefined) {
-      throw new Error(
-        `No subset filter named ${opts.filterName}; offered: ${JSON.stringify(datasets[0].filters)}`,
+  if (opts.direct !== undefined) {
+    if (opts.datasetBlockId === undefined) throw new Error("direct wiring needs datasetBlockId");
+    const { anchorColumn, sequenceId, filterColumn } = opts.direct;
+    await patchBlockData(rawPrj, blockId, {
+      datasetRef: publishedRef(opts.datasetBlockId, anchorColumn),
+      sequencesRef: [sequenceId],
+      ...(filterColumn === undefined
+        ? {}
+        : { filterRef: publishedRef(opts.datasetBlockId, filterColumn) }),
+      ...TEST_RESOURCES,
+      ...patch,
+    });
+  } else {
+    const options = await stableOutput<DatasetOption[]>(rawPrj, blockId, "datasetOptions", 180000);
+    const datasets =
+      opts.datasetBlockId === undefined
+        ? options
+        : options.filter(
+            (d) => (d.primary.ref as { blockId?: string }).blockId === opts.datasetBlockId,
+          );
+    if (datasets.length !== 1)
+      throw new Error(`Expected one dataset option, got ${datasets.length}`);
+    const dataPatch: Record<string, unknown> = { datasetRef: datasets[0].primary.ref };
+    if (opts.filterName !== undefined) {
+      const filter = datasets[0].filters?.find((f) =>
+        String((f.ref as { name?: string }).name).endsWith(opts.filterName!),
       );
+      if (filter === undefined) {
+        throw new Error(
+          `No subset filter named ${opts.filterName}; offered: ${JSON.stringify(datasets[0].filters)}`,
+        );
+      }
+      dataPatch.filterRef = filter.ref;
     }
-    dataPatch.filterRef = filter.ref;
+    await patchBlockData(rawPrj, blockId, dataPatch);
+
+    const sequences = await stableOutput<SequenceOption[]>(
+      rawPrj,
+      blockId,
+      "sequenceOptions",
+      180000,
+    );
+    if (sequences.length === 0) throw new Error("No sequence options discovered");
+    await patchBlockData(rawPrj, blockId, {
+      sequencesRef: [sequences[0].value],
+      ...TEST_RESOURCES,
+      ...patch,
+    });
   }
-  await patchBlockData(rawPrj, blockId, dataPatch);
 
-  const sequences = await stableOutput<SequenceOption[]>(
-    rawPrj,
-    blockId,
-    "sequenceOptions",
-    180000,
-  );
-  if (sequences.length === 0) throw new Error("No sequence options discovered");
-  await patchBlockData(rawPrj, blockId, { sequencesRef: [sequences[0].value], ...patch });
-
+  mark(`run ${blockId.slice(0, 8)}: start`);
   await rawPrj.runBlock(blockId);
-  await helpers.awaitBlockDone(blockId, 540000);
+  await awaitBlockDone(rawPrj, blockId, 540000);
+  mark(`run ${blockId.slice(0, 8)}: done`);
 
   const pf = await stableOutput<PFrameHandle>(rawPrj, blockId, "clustersPf", 180000);
-  const columns = await ctx.ml.driverKit.pFrameDriver.listColumns(pf);
+  // The graphs PFrame carries every pool column the block can see, including the input
+  // dataset and sibling clustering blocks; this block's own outputs are the local-form ids.
+  const columns = (await ctx.ml.driverKit.pFrameDriver.listColumns(pf)).filter((c) => {
+    try {
+      return (JSON.parse(c.columnId) as { resolvePath?: unknown }).resolvePath !== undefined;
+    } catch {
+      return false;
+    }
+  });
+  mark(`run ${blockId.slice(0, 8)}: pf listed`);
   return new Run(ctx, blockId, pf, columns, opts.keyAxis);
 }
 

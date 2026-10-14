@@ -4,11 +4,11 @@
   visible, so they are checked value by value.
 */
 
-import { blockTest } from "@platforma-sdk/test";
 import { describe } from "vitest";
-import type { Clonotype } from "./helpers";
-import { clusterRows, hasXsvImport } from "./helpers";
 import { SHORT_CDR3 } from "./fixtures";
+import type { Clonotype } from "./helpers";
+import { hasXsvImport, vdjSpec, vdjTsv } from "./helpers";
+import { suiteTest } from "./suite";
 
 // Family A appears in both samples with different expansion; family C only in S2.
 const TWO_SAMPLES: Clonotype[] = [
@@ -22,11 +22,12 @@ const TWO_SAMPLES: Clonotype[] = [
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
 describe.skipIf(!hasXsvImport)("samples", () => {
-  blockTest(
+  suiteTest.concurrent(
     "per-cluster abundances come back under the original sample ids",
     { timeout: 600000 },
-    async ({ rawPrj, ml, helpers, tmpFolder, expect }) => {
-      const run = await clusterRows({ rawPrj, ml, helpers, tmpFolder }, TWO_SAMPLES, SHORT_CDR3);
+    async ({ suite, expect }) => {
+      const dataset = suite.dataset("Two samples", vdjTsv(TWO_SAMPLES), vdjSpec());
+      const run = await suite.run("two samples", dataset, SHORT_CDR3);
       const membership = await run.membership();
       expect(await run.clusters()).toEqual([["c01", "c02", "c03"], ["c07"]]);
 
@@ -39,8 +40,9 @@ describe.skipIf(!hasXsvImport)("samples", () => {
         const k = JSON.stringify([r.sample, membership.get(r.key)]);
         expected.set(k, (expected.get(k) ?? 0) + r.count);
       }
-      const got = new Map(abundance.map((r) => [JSON.stringify(r.keys), Number(r.value)]));
-      expect(got).toEqual(expected);
+      expect(new Map(abundance.map((r) => [JSON.stringify(r.keys), Number(r.value)]))).toEqual(
+        expected,
+      );
 
       // Per-sample fractions sum to one within each sample.
       const fraction = await run.read({

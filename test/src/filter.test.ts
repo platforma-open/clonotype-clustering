@@ -3,31 +3,25 @@
   the clonotypes it marks. Everything the block exports must then be about those rows only.
 */
 
-import { blockTest } from "@platforma-sdk/test";
 import { describe } from "vitest";
 import { SHORT_CDR3, THREE_FAMILIES } from "./fixtures";
-import {
-  hasXsvImport,
-  publishTsv,
-  runClustering,
-  vdjSpecWithSubset,
-  vdjTsvWithSubset,
-} from "./helpers";
+import { hasXsvImport, vdjSpecWithSubset, vdjTsvWithSubset } from "./helpers";
+import { suiteTest } from "./suite";
 
 describe.skipIf(!hasXsvImport)("subset filter", () => {
-  blockTest(
+  suiteTest.concurrent(
     "only the marked clonotypes are clustered",
     { timeout: 600000 },
-    async ({ rawPrj, ml, helpers, tmpFolder, expect }) => {
-      const ctx = { rawPrj, ml, helpers, tmpFolder };
+    async ({ suite, expect }) => {
       const picked = ["c01", "c02", "c04", "c07"];
-      await publishTsv(
-        ctx,
-        "Fixture dataset",
+      const dataset = suite.dataset(
+        "Picked subset",
         vdjTsvWithSubset(THREE_FAMILIES, picked),
         vdjSpecWithSubset("Picked"),
+        undefined,
+        "tag",
       );
-      const run = await runClustering(ctx, SHORT_CDR3, { filterName: "tag" });
+      const run = await suite.run("filtered", dataset, SHORT_CDR3);
 
       const membership = await run.membership();
       expect([...membership.keys()].sort()).toEqual(picked);
