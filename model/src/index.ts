@@ -18,7 +18,6 @@ import {
   createPlDataTableStateV2,
   createPlDataTableV2,
   isPColumnSpec,
-  plRefsEqual,
 } from "@platforma-sdk/model";
 import { kind } from "@platforma-open/milaboratories.clonotype-clustering.kind";
 export type * from "@milaboratories/helpers";
@@ -250,6 +249,13 @@ const dataModel = new DataModelBuilder({ kind })
     },
   }));
 
+// Key axes of the datasets this block clusters: bulk and single-cell clonotypes, and variants.
+const DATASET_KEY_AXES: ReadonlySet<string> = new Set([
+  "pl7.app/vdj/clonotypeKey",
+  "pl7.app/vdj/scClonotypeKey",
+  "pl7.app/variantKey",
+]);
+
 export const platforma = BlockModelV3.create({ dataModel, kind })
 
   // Inverse of `init` — the same fields, projected back out for template export.
@@ -312,62 +318,33 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
     };
   })
 
-  .output("datasetOptions", (ctx): DatasetOption[] => {
-    const options = ctx.resultPool.getOptions(
-      [
-        {
-          axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/clonotypeKey" }],
-          annotations: { "pl7.app/isAnchor": "true" },
-        },
-        {
-          axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/vdj/scClonotypeKey" }],
-          annotations: { "pl7.app/isAnchor": "true" },
-        },
-        {
-          axes: [{ name: "pl7.app/sampleId" }, { name: "pl7.app/variantKey" }],
-          annotations: { "pl7.app/isAnchor": "true" },
-        },
-      ],
-      {
-        // suppress native label of the column (e.g. "Number of Reads") to show only the dataset label
-        label: { includeNativeLabel: false },
-      },
-    );
-
-    // Subset columns (`pl7.app/isSubset`) on each dataset's axes, e.g. repertoire-labeling
-    // labels or Lead Selection picks. Only the filters are taken from here: its primary refs
-    // carry `requireEnrichments`, which would make this block depend on every block between
-    // it and the dataset, and would not match `datasetRef`s saved before filters existed.
-    // The primary predicate only has to cover the datasets above: results are matched to them by ref.
-    const withFilters =
+  // Datasets, each with its subset columns (`pl7.app/isSubset`, e.g. repertoire-labeling labels
+  // or Lead Selection picks) as filters.
+  .output(
+    "datasetOptions",
+    (ctx): DatasetOption[] =>
       buildDatasetOptions(ctx, {
-        primary: (spec) =>
-          isPColumnSpec(spec) &&
-          spec.annotations?.["pl7.app/isAnchor"] === "true" &&
-          spec.axesSpec[0]?.name === "pl7.app/sampleId",
+        primary: (spec) => {
+          if (!isPColumnSpec(spec) || spec.annotations?.["pl7.app/isAnchor"] !== "true")
+            return false;
+          const [sampleAxis, keyAxis] = spec.axesSpec;
+          return (
+            spec.axesSpec.length === 2 &&
+            sampleAxis.name === "pl7.app/sampleId" &&
+            DATASET_KEY_AXES.has(keyAxis.name) &&
+            // Exclude this block's OWN exported centroid dataset from the input picker
+            keyAxis.domain?.["pl7.app/clustering/algorithm"] === undefined
+          );
+        },
         // Only subsets keyed by the clonotype axis alone. The SDK already limits filter axes to
         // the dataset's; a sample axis would add rows per sample to the per-clonotype tables.
         filter: (spec) =>
           isPColumnSpec(spec) &&
           spec.axesSpec.length === 1 &&
           spec.axesSpec[0]?.name !== "pl7.app/sampleId",
-      }) ?? [];
-
-    return (
-      options
-        // Exclude this block's OWN exported centroid dataset from the input picker
-        .filter((opt) => {
-          const keyAxis = ctx.resultPool.getPColumnSpecByRef(opt.ref)?.axesSpec[1];
-          return keyAxis?.domain?.["pl7.app/clustering/algorithm"] === undefined;
-        })
-        .map((primary) => {
-          const filters = withFilters.find((o) =>
-            plRefsEqual(o.primary.ref, primary.ref, true),
-          )?.filters;
-          return filters === undefined ? { primary } : { primary, filters };
-        })
-    );
-  })
+        requireEnrichments: false,
+      }) ?? [],
+  )
 
   .output("isPeptide", (ctx): boolean => {
     const ref = ctx.data.datasetRef;
