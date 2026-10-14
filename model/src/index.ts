@@ -341,7 +341,7 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
         filter: (spec) =>
           isPColumnSpec(spec) &&
           spec.axesSpec.length === 1 &&
-          spec.axesSpec[0]?.name !== "pl7.app/sampleId",
+          DATASET_KEY_AXES.has(spec.axesSpec[0].name),
         requireEnrichments: false,
       }) ?? [],
   )
