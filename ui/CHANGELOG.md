@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 4.7.1
+
+### Patch Changes
+
+- c978d8d: Add per-sample cluster abundance (count and within-sample fraction) to the main clusters table, one column per sample, hidden by default. The table is now built with `createPlDataTableV3`. Fix the descriptions of the per-sample cluster abundance columns: they are sums over the cluster's clonotypes, not per-clonotype values.
+- Updated dependencies [c978d8d]
+  - @platforma-open/milaboratories.clonotype-clustering.model@4.7.1
+
 ## 4.5.0
 
 ### Minor Changes
