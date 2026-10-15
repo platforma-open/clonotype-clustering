@@ -1,6 +1,7 @@
 import type { GraphMakerState } from "@milaboratories/graph-maker";
 import strings from "@milaboratories/strings";
 import type {
+  ColumnRecipe,
   DatasetOption,
   PColumnIdAndSpec,
   PColumnSpec,
@@ -12,13 +13,15 @@ import type {
 } from "@platforma-sdk/model";
 import {
   BlockModelV3,
+  Column,
   DataModelBuilder,
   buildDatasetOptions,
   createPFrameForGraphs,
   createPlDataTableStateV2,
-  createPlDataTableV2,
+  createPlDataTableV3,
   isPColumnSpec,
   plRefsEqual,
+  splitByAxes,
 } from "@platforma-sdk/model";
 import { kind } from "@platforma-open/milaboratories.clonotype-clustering.kind";
 export type * from "@milaboratories/helpers";
@@ -167,6 +170,19 @@ export function getDefaultBlockLabel(data: {
     parts.push(data.centroidAlignment);
   }
   return parts.filter(Boolean).join(", ");
+}
+
+/**
+ * Split [sampleId, clusterId] columns along sampleId into one clusterId-keyed column per sample.
+ * `undefined` while the data is not ready; empty when sampleId is not a partition axis of the data.
+ */
+function splitPerSample(columns: ColumnRecipe[]): ColumnRecipe[] | undefined {
+  if (columns.length === 0) return [];
+  try {
+    return splitByAxes(columns, [{ idx: 0 }]);
+  } catch {
+    return [];
+  }
 }
 
 const defaultSimilarityType = similarityTypeOptions[3];
@@ -562,7 +578,31 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
   .outputWithStatus("clustersTable", (ctx) => {
     const pCols = ctx.outputs?.resolve("clustersPf")?.getPColumns();
     if (pCols === undefined) return undefined;
-    return createPlDataTableV2(ctx, pCols, ctx.data.tableState);
+    const primaryColumns = pCols.map((c) => Column(c)).filter((c) => c !== undefined);
+
+    // Per-sample cluster abundance lives on [sampleId, clusterId] in the plots frame.
+    // Split it along sampleId into one column per sample, keyed on clusterId alone.
+    // The table waits for the split: the grid saves its hidden-column list on first render,
+    // and columns that join later are shown even though they are optional.
+    const pfCols = ctx.outputs?.resolve("pf")?.getPColumns();
+    if (pfCols === undefined) return undefined;
+    const perSampleAbundance = pfCols
+      .filter(
+        (c) =>
+          c.spec.axesSpec.length === 2 &&
+          c.spec.axesSpec[1].name === "pl7.app/clusterId" &&
+          c.spec.annotations?.["pl7.app/isAbundance"] === "true",
+      )
+      .map((c) => Column(c))
+      .filter((c) => c !== undefined);
+    const perSampleColumns = splitPerSample(perSampleAbundance);
+    if (perSampleColumns === undefined) return undefined;
+
+    return createPlDataTableV3(ctx, {
+      primaryColumns,
+      columns: perSampleColumns,
+      tableState: ctx.data.tableState,
+    });
   })
 
   .output("mmseqsOutput", (ctx) => ctx.outputs?.resolve("mmseqsOutput")?.getLogHandle())
