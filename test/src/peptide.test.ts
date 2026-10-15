@@ -11,7 +11,7 @@ import { describe } from "vitest";
 import type { Clonotype } from "./helpers";
 import { peptideDataset, stableOutput } from "@platforma-sdk/test";
 import { PEPTIDES } from "./fixtures";
-import { hasXsvImport, sequencesByCluster } from "./helpers";
+import { sequencesByCluster } from "./helpers";
 import { suiteTest } from "./suite";
 
 // q1 and q2 differ at position 2 only. Dropping the first two residues makes them
@@ -25,7 +25,7 @@ const TRIM_PAIR: Clonotype[] = [
 const PEPTIDE = { keyAxis: "pl7.app/variantKey" };
 const SHORT = { highPrecision: true };
 
-describe.skipIf(!hasXsvImport)("peptide input", () => {
+describe("peptide input", () => {
   suiteTest.concurrent(
     "detects the peptide modality, clusters the library and stamps its settings",
     { timeout: 600000 },

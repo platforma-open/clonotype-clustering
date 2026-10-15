@@ -1,13 +1,14 @@
 /*
   Test kit for driving clonotype-clustering over a synthetic dataset.
 
-  The dataset is published into the result pool by the xsv-import block loaded from the
-  sibling checkout (`dev-v2`), so no MiXCR run is needed. The generic parts (publishing,
+  The dataset is published into the result pool by the published xsv-import
+  block, so no MiXCR run is needed. The generic parts (publishing,
   waits, block data, PFrame readers, dataset shapes) come from `@platforma-sdk/test`; this
   file holds what is specific to the clustering block: how to wire and run it, and how to
   read its outputs.
 */
 
+import { XsvImportBlockPointer } from "@platforma-open/milaboratories.xsv-import";
 import type { PFrameHandle } from "@platforma-sdk/model";
 import type { BlockTestCtx, SequenceRow, SyntheticDataset } from "@platforma-sdk/test";
 import {
@@ -21,8 +22,6 @@ import {
   stableOutput,
   vdjDataset,
 } from "@platforma-sdk/test";
-import fs from "node:fs";
-import path from "node:path";
 import { ClonotypeClusteringBlockPointer } from "this-block";
 
 export type Ctx = BlockTestCtx;
@@ -39,15 +38,11 @@ export const mark = (what: string) => {
     console.log(`T+${((Date.now() - T0) / 1000).toFixed(1)}s ${what}`);
 };
 
-/** The built xsv-import block: `XSV_IMPORT_BLOCK_DIR`, else the sibling checkout. */
-export const xsvImportFolder =
-  process.env.XSV_IMPORT_BLOCK_DIR ??
-  path.resolve(import.meta.dirname, "../../../xsv-import/block");
-export const hasXsvImport = fs.existsSync(
-  path.join(xsvImportFolder, "block-pack", "manifest.json"),
-);
-/** The xsv-import block as built in the sibling checkout. */
-export const XSV_IMPORT_BLOCK = { type: "dev-v2" as const, folder: xsvImportFolder };
+/** The published xsv-import block; `XSV_IMPORT_BLOCK_DIR` points at a local build instead. */
+export const XSV_IMPORT_BLOCK: Parameters<typeof publishXsv>[1]["block"] =
+  process.env.XSV_IMPORT_BLOCK_DIR === undefined
+    ? XsvImportBlockPointer
+    : { type: "dev-v2", folder: process.env.XSV_IMPORT_BLOCK_DIR };
 
 /** Publish a dataset through xsv-import; returns the publisher's block id. */
 export async function publishDataset(

@@ -5,10 +5,9 @@
 import { describe } from "vitest";
 import { SHORT_CDR3 } from "./fixtures";
 import { vdjDataset } from "@platforma-sdk/test";
-import { hasXsvImport } from "./helpers";
 import { suiteTest } from "./suite";
 
-describe.skipIf(!hasXsvImport)("degenerate inputs", () => {
+describe("degenerate inputs", () => {
   suiteTest.concurrent(
     "a single clonotype is its own cluster with zero distance",
     { timeout: 600000 },

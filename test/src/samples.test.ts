@@ -8,7 +8,6 @@ import { describe } from "vitest";
 import { SHORT_CDR3 } from "./fixtures";
 import type { Clonotype } from "./helpers";
 import { vdjDataset } from "@platforma-sdk/test";
-import { hasXsvImport } from "./helpers";
 import { suiteTest } from "./suite";
 
 // Family A appears in both samples with different expansion; family C only in S2.
@@ -22,7 +21,7 @@ const TWO_SAMPLES: Clonotype[] = [
 
 const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
 
-describe.skipIf(!hasXsvImport)("samples", () => {
+describe("samples", () => {
   suiteTest.concurrent(
     "per-cluster abundances come back under the original sample ids",
     { timeout: 600000 },

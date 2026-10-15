@@ -9,11 +9,10 @@
 import { describe } from "vitest";
 import { SHORT_CDR3, THREE_FAMILIES, THREE_FAMILY_PARTITION } from "./fixtures";
 import { vdjDataset } from "@platforma-sdk/test";
-import { hasXsvImport } from "./helpers";
 import { suiteTest } from "./suite";
 import { defaults, families, refines, scenario } from "./families";
 
-describe.skipIf(!hasXsvImport)("three families", () => {
+describe("three families", () => {
   describe("cluster membership", () => {
     suiteTest.concurrent(
       "three families cluster as three groups at identity 0.8",

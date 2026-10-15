@@ -18,7 +18,7 @@ import path from "node:path";
 import { describe } from "vitest";
 import { PEPTIDES } from "./fixtures";
 import { defaults } from "./families";
-import { XSV_IMPORT_BLOCK, hasXsvImport } from "./helpers";
+import { XSV_IMPORT_BLOCK } from "./helpers";
 import { suiteTest } from "./suite";
 
 const RECORDINGS = path.resolve(import.meta.dirname, "../assets/recordings");
@@ -33,7 +33,7 @@ const PRODUCER = {
   ).version,
 };
 
-describe.skipIf(!hasXsvImport)("recorded outputs", () => {
+describe("recorded outputs", () => {
   suiteTest.concurrent(
     "the defaults run exports what its recording holds",
     { timeout: 600000 },

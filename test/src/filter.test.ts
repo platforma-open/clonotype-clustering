@@ -6,10 +6,9 @@
 import { describe } from "vitest";
 import { SHORT_CDR3, THREE_FAMILIES } from "./fixtures";
 import { vdjDataset } from "@platforma-sdk/test";
-import { hasXsvImport } from "./helpers";
 import { suiteTest } from "./suite";
 
-describe.skipIf(!hasXsvImport)("subset filter", () => {
+describe("subset filter", () => {
   suiteTest.concurrent(
     "only the marked clonotypes are clustered",
     { timeout: 600000 },
