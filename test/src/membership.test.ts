@@ -8,11 +8,12 @@
 
 import { describe } from "vitest";
 import { SHORT_CDR3, THREE_FAMILIES, THREE_FAMILY_PARTITION } from "./fixtures";
-import { vdjSpec, vdjTsv } from "./helpers";
+import { vdjDataset } from "@platforma-sdk/test";
+import { hasXsvImport } from "./helpers";
 import { suiteTest } from "./suite";
 import { defaults, families, refines, scenario } from "./families";
 
-describe("three families", () => {
+describe.skipIf(!hasXsvImport)("three families", () => {
   describe("cluster membership", () => {
     suiteTest.concurrent(
       "three families cluster as three groups at identity 0.8",
@@ -67,8 +68,7 @@ describe("three families", () => {
       async ({ suite, expect }) => {
         const reversed = suite.dataset(
           "Three families reversed",
-          vdjTsv([...THREE_FAMILIES].reverse()),
-          vdjSpec(),
+          vdjDataset([...THREE_FAMILIES].reverse()),
         );
         const run = await suite.run("reversed", reversed, SHORT_CDR3);
         expect(await run.clusters()).toEqual(THREE_FAMILY_PARTITION);

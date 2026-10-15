@@ -4,18 +4,18 @@
 
 import { describe } from "vitest";
 import { SHORT_CDR3 } from "./fixtures";
-import { vdjSpec, vdjTsv } from "./helpers";
+import { vdjDataset } from "@platforma-sdk/test";
+import { hasXsvImport } from "./helpers";
 import { suiteTest } from "./suite";
 
-describe("degenerate inputs", () => {
+describe.skipIf(!hasXsvImport)("degenerate inputs", () => {
   suiteTest.concurrent(
     "a single clonotype is its own cluster with zero distance",
     { timeout: 600000 },
     async ({ suite, expect }) => {
       const dataset = suite.dataset(
         "One clonotype",
-        vdjTsv([{ key: "only", seq: "CARDYWGQGTLV", count: 7 }]),
-        vdjSpec(),
+        vdjDataset([{ key: "only", seq: "CARDYWGQGTLV", count: 7 }]),
       );
       const run = await suite.run("single", dataset, SHORT_CDR3);
       expect(await run.clusters()).toEqual([["only"]]);
@@ -43,7 +43,7 @@ describe("degenerate inputs", () => {
         { key: "b", seq: "CASSLGTEAFF", count: 3 },
         { key: "c", seq: "CASSLGTEAFF", count: 1 },
       ];
-      const dataset = suite.dataset("Identical sequences", vdjTsv(rows), vdjSpec());
+      const dataset = suite.dataset("Identical sequences", vdjDataset(rows));
       const run = await suite.run("identical", dataset, SHORT_CDR3);
       expect(await run.clusters()).toEqual([["a", "b", "c"]]);
       expect([...(await run.centroids("centroid")).values()]).toEqual(["CASSLGTEAFF"]);

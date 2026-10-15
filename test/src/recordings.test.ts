@@ -6,13 +6,19 @@
   that consume clustering output (`recordedDataset`).
 */
 
-import { expectRecording, recordedDataset } from "./vendored/recording";
+import {
+  expectRecording,
+  peptideDataset,
+  publishXsv,
+  recordedDataset,
+  stableOutput,
+} from "@platforma-sdk/test";
 import * as fs from "node:fs";
 import path from "node:path";
 import { describe } from "vitest";
 import { PEPTIDES } from "./fixtures";
 import { defaults } from "./families";
-import { PEPTIDE_SEQUENCE_ID, peptideSpec, peptideTsv, publishTsv, stableOutput } from "./helpers";
+import { XSV_IMPORT_BLOCK, hasXsvImport } from "./helpers";
 import { suiteTest } from "./suite";
 
 const RECORDINGS = path.resolve(import.meta.dirname, "../assets/recordings");
@@ -27,7 +33,7 @@ const PRODUCER = {
   ).version,
 };
 
-describe("recorded outputs", () => {
+describe.skipIf(!hasXsvImport)("recorded outputs", () => {
   suiteTest.concurrent(
     "the defaults run exports what its recording holds",
     { timeout: 600000 },
@@ -47,7 +53,7 @@ describe("recorded outputs", () => {
     async ({ suite }) => {
       const run = await suite.run(
         "peptides recording",
-        suite.dataset("Peptides", peptideTsv(PEPTIDES), peptideSpec(), PEPTIDE_SEQUENCE_ID),
+        suite.dataset("Peptides", peptideDataset(PEPTIDES)),
         { highPrecision: true },
         { keyAxis: "pl7.app/variantKey" },
       );
@@ -73,7 +79,12 @@ describe("recorded outputs", () => {
       const ds = await recordedDataset(path.join(RECORDINGS, "defaults"));
       expect(ds.recording.columns.length).toBeGreaterThan(3);
       const ctx = await suite.project("recording publish");
-      const blockId = await publishTsv(ctx, "Recorded clustering", ds.content, ds.spec);
+      const blockId = await publishXsv(ctx, {
+        label: "Recorded clustering",
+        block: XSV_IMPORT_BLOCK,
+        spec: ds.spec,
+        content: ds.content,
+      });
       const table = await stableOutput<unknown>(ctx.rawPrj, blockId, "filePFrame", 180000);
       expect(table).toBeDefined();
     },

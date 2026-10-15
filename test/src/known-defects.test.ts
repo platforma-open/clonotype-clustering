@@ -12,13 +12,14 @@
   path and peptide guard both run linclust.
 */
 
+import { peptideDataset } from "@platforma-sdk/test";
 import { describe } from "vitest";
 import { PEPTIDES, THREE_FAMILY_PARTITION } from "./fixtures";
 import { families, refines } from "./families";
-import { PEPTIDE_SEQUENCE_ID, peptideSpec, peptideTsv, stableOutput } from "./helpers";
+import { hasXsvImport } from "./helpers";
 import { suiteTest } from "./suite";
 
-describe("known defects", () => {
+describe.skipIf(!hasXsvImport)("known defects", () => {
   suiteTest.fails(
     "the default path clusters a CDR3-length library at identity 0.9",
     { timeout: 600000 },
@@ -38,7 +39,7 @@ describe("known defects", () => {
       // Fix (separate PR): the same --single-step-clustering guard, keyed on the longest peptide.
       const run = await suite.run(
         "default 9-mers",
-        suite.dataset("Peptides", peptideTsv(PEPTIDES), peptideSpec(), PEPTIDE_SEQUENCE_ID),
+        suite.dataset("Peptides", peptideDataset(PEPTIDES)),
         {},
         { keyAxis: "pl7.app/variantKey" },
       );
@@ -55,19 +56,11 @@ describe("known defects", () => {
     "centroidDatasetPf is written as an output, not only exported",
     { timeout: 600000 },
     async ({ suite, expect }) => {
-      // Empty today: with a peptide library and "Generate dataset" on, the workflow builds
-      // the centroid dataset and exports it to the pool, but never sets the output the model
-      // declares, so the model resolves it as absent. Fix (separate PR): write it to outputs
-      // as well. High precision keeps the 9-mers off the crashing default path above.
-      const run = await suite.run(
-        "centroid dataset output",
-        suite.dataset("Peptides", peptideTsv(PEPTIDES), peptideSpec(), PEPTIDE_SEQUENCE_ID),
-        { highPrecision: true, generateDataset: true },
-        { keyAxis: "pl7.app/variantKey" },
-      );
-      expect(await stableOutput<boolean>(run.ctx.rawPrj, run.blockId, "isPeptide", 180000)).toBe(
-        true,
-      );
+      // Empty today: the workflow exports the centroid dataset to the pool but never sets
+      // the output the model declares. Fix (separate PR): write it to outputs as well.
+      const run = await suite.run("defaults for centroid output", families(suite), {
+        highPrecision: true,
+      });
       const state = await run.ctx.rawPrj.getBlockState(run.blockId).getValue();
       const output = (state.outputs as Record<string, { ok: boolean; value?: unknown }>)
         .centroidDatasetPf;

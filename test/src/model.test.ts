@@ -4,9 +4,8 @@
   data, so it runs in milliseconds and without a backend.
 */
 
-import type { SUniversalPColumnId } from "@platforma-sdk/model";
 import { createPlRef } from "@platforma-sdk/model";
-import { BlockModelHarness } from "./vendored/model-harness";
+import { BlockModelHarness, VDJ_CDR3_ID } from "@platforma-sdk/test";
 import { beforeAll, describe, expect, test } from "vitest";
 import type { BlockData } from "this-block";
 
@@ -17,13 +16,6 @@ beforeAll(async () => {
   model = await BlockModelHarness.load<BlockData, Args>(() => import("this-block"));
 });
 
-// Inline rather than imported from ./helpers: that module imports the block, and a model
-// loaded before the harness installs its registry registers nothing.
-const VDJ_CDR3_ID = JSON.stringify({
-  axes: [{ anchor: "main", idx: 1 }],
-  domain: { "pl7.app/alphabet": "aminoacid", "pl7.app/vdj/feature": "CDR3" },
-  name: "pl7.app/vdj/sequence",
-}) as SUniversalPColumnId;
 const ref = createPlRef("upstream", "outputPf.cellCount");
 
 describe("model", () => {
