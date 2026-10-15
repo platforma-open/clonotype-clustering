@@ -6,11 +6,11 @@
 
 import { describe } from "vitest";
 import { THREE_FAMILIES } from "./fixtures";
-import { hasXsvImport, sequencesByCluster } from "./helpers";
+import { sequencesByCluster } from "./helpers";
 import { suiteTest } from "./suite";
 import { clusterOf, defaults, scenario } from "./families";
 
-describe.skipIf(!hasXsvImport)("three families", () => {
+describe("three families", () => {
   describe("centroids", () => {
     suiteTest.concurrent(
       "defaults: consensus at 0.6, reference centroid is a member, distances bounded",

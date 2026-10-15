@@ -6,11 +6,10 @@
 
 import { describe } from "vitest";
 import { THREE_FAMILIES, THREE_FAMILY_PARTITION } from "./fixtures";
-import { hasXsvImport } from "./helpers";
 import { suiteTest } from "./suite";
 import { refines, scenario } from "./families";
 
-describe.skipIf(!hasXsvImport)("three families", () => {
+describe("three families", () => {
   describe("parameters", () => {
     // Exact partitions at every setting would pin mmseqs2 internals; the assertions are
     // the block's own promises: identity orders partitions, and no cluster crosses a family.

@@ -12,7 +12,6 @@ import type { Clonotype } from "./helpers";
 import { PEPTIDES } from "./fixtures";
 import {
   PEPTIDE_SEQUENCE_ID,
-  hasXsvImport,
   peptideSpec,
   peptideTsv,
   sequencesByCluster,
@@ -31,7 +30,7 @@ const TRIM_PAIR: Clonotype[] = [
 const PEPTIDE = { keyAxis: "pl7.app/variantKey" };
 const SHORT = { highPrecision: true };
 
-describe.skipIf(!hasXsvImport)("peptide input", () => {
+describe("peptide input", () => {
   suiteTest.concurrent(
     "detects the peptide modality, clusters the library and stamps its settings",
     { timeout: 600000 },

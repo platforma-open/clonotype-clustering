@@ -12,7 +12,6 @@ import {
   addBlock,
   awaitBlockDoneObserved,
   VDJ_CDR3_ID,
-  hasXsvImport,
   publishTsv,
   patchBlockData,
   stableOutput,
@@ -21,7 +20,7 @@ import {
 } from "./helpers";
 import { suiteTest } from "./suite";
 
-describe.skipIf(!hasXsvImport)("discovery of an xsv-import seeded dataset", () => {
+describe("discovery of an xsv-import seeded dataset", () => {
   suiteTest(
     "dataset and sequence options resolve, and the run yields a clusters table",
     { timeout: 600000 },

@@ -15,10 +15,10 @@
 import { describe } from "vitest";
 import { PEPTIDES, THREE_FAMILY_PARTITION } from "./fixtures";
 import { families, refines } from "./families";
-import { PEPTIDE_SEQUENCE_ID, hasXsvImport, peptideSpec, peptideTsv } from "./helpers";
+import { PEPTIDE_SEQUENCE_ID, peptideSpec, peptideTsv, stableOutput } from "./helpers";
 import { suiteTest } from "./suite";
 
-describe.skipIf(!hasXsvImport)("known defects", () => {
+describe("known defects", () => {
   suiteTest.fails(
     "the default path clusters a CDR3-length library at identity 0.9",
     { timeout: 600000 },
@@ -55,11 +55,19 @@ describe.skipIf(!hasXsvImport)("known defects", () => {
     "centroidDatasetPf is written as an output, not only exported",
     { timeout: 600000 },
     async ({ suite, expect }) => {
-      // Empty today: the workflow exports the centroid dataset to the pool but never sets
-      // the output the model declares. Fix (separate PR): write it to outputs as well.
-      const run = await suite.run("defaults for centroid output", families(suite), {
-        highPrecision: true,
-      });
+      // Empty today: with a peptide library and "Generate dataset" on, the workflow builds
+      // the centroid dataset and exports it to the pool, but never sets the output the model
+      // declares, so the model resolves it as absent. Fix (separate PR): write it to outputs
+      // as well. High precision keeps the 9-mers off the crashing default path above.
+      const run = await suite.run(
+        "centroid dataset output",
+        suite.dataset("Peptides", peptideTsv(PEPTIDES), peptideSpec(), PEPTIDE_SEQUENCE_ID),
+        { highPrecision: true, generateDataset: true },
+        { keyAxis: "pl7.app/variantKey" },
+      );
+      expect(await stableOutput<boolean>(run.ctx.rawPrj, run.blockId, "isPeptide", 180000)).toBe(
+        true,
+      );
       const state = await run.ctx.rawPrj.getBlockState(run.blockId).getValue();
       const output = (state.outputs as Record<string, { ok: boolean; value?: unknown }>)
         .centroidDatasetPf;

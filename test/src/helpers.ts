@@ -1,8 +1,8 @@
 /*
   Test kit for driving clonotype-clustering over a synthetic dataset.
 
-  The dataset is published into the result pool by the xsv-import block loaded from the
-  sibling checkout (`dev-v2`), so no MiXCR run is needed. One publisher block carries every
+  The dataset is published into the result pool by the published xsv-import
+  block, so no MiXCR run is needed. One publisher block carries every
   column: a block's workflow sees only the blocks its args reference by PlRef, so an
   anchored sequence column must live in the same block as the anchor it is matched against.
 
@@ -21,6 +21,7 @@
   `sequencesByCluster`.
 */
 
+import { XsvImportBlockPointer } from "@platforma-open/milaboratories.xsv-import";
 import type { PColumnSpec, PFrameHandle, PObjectId } from "@platforma-sdk/model";
 import {
   createPlDataTableStateV2,
@@ -75,10 +76,11 @@ export const publishedRef = (blockId: string, column: string) => ({
   name: `outputPf.${column}`,
 });
 
-export const xsvImportFolder = path.resolve(import.meta.dirname, "../../../xsv-import/block");
-export const hasXsvImport = fs.existsSync(
-  path.join(xsvImportFolder, "block-pack", "manifest.json"),
-);
+/** The published xsv-import block; `XSV_IMPORT_BLOCK_DIR` points at a local build instead. */
+export const XSV_IMPORT_BLOCK: Parameters<ML.Project["addBlock"]>[1] =
+  process.env.XSV_IMPORT_BLOCK_DIR === undefined
+    ? XsvImportBlockPointer
+    : { type: "dev-v2", folder: process.env.XSV_IMPORT_BLOCK_DIR };
 
 // ---------------------------------------------------------------------------
 // Fixture rows → xsv-import spec
@@ -395,7 +397,7 @@ export async function publishTsv(
   // the same dataset must never share a path.
   const file = path.join(ctx.tmpFolder, `${label.replace(/\W+/g, "_")}-${crypto.randomUUID()}.tsv`);
   fs.writeFileSync(file, tsv);
-  const blockId = await addBlock(ctx.rawPrj, label, { type: "dev-v2", folder: xsvImportFolder });
+  const blockId = await addBlock(ctx.rawPrj, label, XSV_IMPORT_BLOCK);
   const fileHandle = await ctx.helpers.getLocalFileHandle(file);
   await ctx.rawPrj.mutateBlockStorage(blockId, {
     operation: "update-block-data",
