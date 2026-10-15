@@ -174,15 +174,13 @@ export function getDefaultBlockLabel(data: {
 
 /**
  * Split [sampleId, clusterId] columns along sampleId into one clusterId-keyed column per sample.
- * `undefined` while the data is not ready; empty when sampleId is not a partition axis of the data.
+ * `undefined` while the data is not ready. The workflow imports these columns with
+ * `partitionKeyLength: 1`, so sampleId is always a partition axis; any split error is unexpected
+ * and reaches the table's output status.
  */
 function splitPerSample(columns: ColumnRecipe[]): ColumnRecipe[] | undefined {
   if (columns.length === 0) return [];
-  try {
-    return splitByAxes(columns, [{ idx: 0 }]);
-  } catch {
-    return [];
-  }
+  return splitByAxes(columns, [{ idx: 0 }]);
 }
 
 const defaultSimilarityType = similarityTypeOptions[3];
