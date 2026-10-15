@@ -35,3 +35,13 @@ export const THREE_FAMILY_PARTITION = [FAMILY_A, FAMILY_B, FAMILY_C];
  * sequences like CDR3"); every fixture run that expects the families to form uses it.
  */
 export const SHORT_CDR3 = { highPrecision: true } as const;
+
+// A fixed-length (9-mer) peptide library: two families, one mismatch apart. Family 2 splits
+// 1:1 at position 8 (T 40 cells, S 10 cells), so its equal-weight centroid carries an X there.
+export const PEPTIDES: Clonotype[] = [
+  { key: "p1", seq: "SIINFEKLA", count: 50 },
+  { key: "p2", seq: "SIINFEKLV", count: 30 },
+  { key: "p3", seq: "SIINYEKLA", count: 20 },
+  { key: "p4", seq: "GILGFVFTL", count: 40 },
+  { key: "p5", seq: "GILGFVFSL", count: 10 },
+];

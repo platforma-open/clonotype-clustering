@@ -5,6 +5,20 @@
   sibling checkout (`dev-v2`), so no MiXCR run is needed. One publisher block carries every
   column: a block's workflow sees only the blocks its args reference by PlRef, so an
   anchored sequence column must live in the same block as the anchor it is matched against.
+
+  SDK-BOUND: the parts marked `SDK-BOUND` below are block-agnostic and move to
+  `@platforma-sdk/test` in milaboratory/platforma#1900 under these names:
+    publishedRef                -> exportedRef
+    vdjSpec / vdjSpecWithSubset / vdjTsv / vdjTsvWithSubset -> vdjDataset (declarative shape)
+    peptideSpec / peptideTsv    -> peptideDataset
+    VDJ_CDR3_ID / PEPTIDE_SEQUENCE_ID / CLONOTYPE_AXIS / VARIANT_AXIS -> same names
+    awaitBlockDone / awaitBlockDoneObserved -> awaitBlockDone({ observeState })
+    patchBlockData / stableOutput / addBlock -> same names
+    publishTsv                  -> publishXsv
+    Run.findColumns / findColumn / read / readById / readMap -> PFrameReader
+  Once that releases, this file keeps only `runClustering`, the block-specific readers on
+  `Run` (membership, clusterLabels, clusters, centroids), `clusterRows` and
+  `sequencesByCluster`.
 */
 
 import type { PColumnSpec, PFrameHandle, PObjectId } from "@platforma-sdk/model";
@@ -41,6 +55,7 @@ export const mark = (what: string) => {
  * discovery.test.ts checks the model derives exactly these; every other scenario sets
  * them directly and skips two staging round trips.
  */
+// SDK-BOUND: canonical anchored ids move to @platforma-sdk/test fixtures.
 export const VDJ_CDR3_ID = JSON.stringify({
   axes: [{ anchor: "main", idx: 1 }],
   domain: { "pl7.app/alphabet": "aminoacid", "pl7.app/vdj/feature": "CDR3" },
@@ -52,6 +67,7 @@ export const PEPTIDE_SEQUENCE_ID = JSON.stringify({
   name: "pl7.app/sequence",
 });
 
+// SDK-BOUND: becomes `exportedRef(blockId, "outputPf", column)`.
 /** The pool ref of a column xsv-import published under `outputPf`. */
 export const publishedRef = (blockId: string, column: string) => ({
   __isRef: true,
@@ -66,6 +82,8 @@ export const hasXsvImport = fs.existsSync(
 
 // ---------------------------------------------------------------------------
 // Fixture rows → xsv-import spec
+// SDK-BOUND: this whole section becomes the declarative shapes (`vdjDataset`,
+// `peptideDataset`, `buildDataset`) in @platforma-sdk/test.
 // ---------------------------------------------------------------------------
 
 /** One input row. `sample` defaults to "S1"; `label` to the key. */
@@ -257,6 +275,8 @@ export function vdjTsv(rows: Clonotype[]): string {
 
 // ---------------------------------------------------------------------------
 // Block driving
+// SDK-BOUND: awaitBlockDone*, patchBlockData, stableOutput, addBlock and publishTsv move to
+// @platforma-sdk/test; runClustering stays here.
 // ---------------------------------------------------------------------------
 
 /**
@@ -339,6 +359,31 @@ export async function stableOutput<T>(
   );
 }
 
+/**
+ * `rawPrj.addBlock` with a bounded retry on a stale template reference. Under concurrent
+ * block additions the middle layer's template cache can hand out a template resource the
+ * backend has since dropped ("target resource ... does not exist"); the next attempt loads
+ * the template afresh.
+ */
+export async function addBlock(
+  rawPrj: ML.Project,
+  label: string,
+  spec: Parameters<ML.Project["addBlock"]>[1],
+): Promise<string> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await rawPrj.addBlock(label, spec);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (attempt >= 3 || !/does not exist/.test(message)) throw e;
+      console.warn(
+        `addBlock(${label}) hit a stale template reference (attempt ${attempt}); retrying`,
+      );
+      await new Promise((r) => setTimeout(r, 500 + Math.random() * 1000));
+    }
+  }
+}
+
 /** Publish a TSV through an xsv-import block; returns the publisher's block id. */
 export async function publishTsv(
   ctx: Ctx,
@@ -350,7 +395,7 @@ export async function publishTsv(
   // the same dataset must never share a path.
   const file = path.join(ctx.tmpFolder, `${label.replace(/\W+/g, "_")}-${crypto.randomUUID()}.tsv`);
   fs.writeFileSync(file, tsv);
-  const blockId = await ctx.rawPrj.addBlock(label, { type: "dev-v2", folder: xsvImportFolder });
+  const blockId = await addBlock(ctx.rawPrj, label, { type: "dev-v2", folder: xsvImportFolder });
   const fileHandle = await ctx.helpers.getLocalFileHandle(file);
   await ctx.rawPrj.mutateBlockStorage(blockId, {
     operation: "update-block-data",
@@ -392,7 +437,7 @@ export async function runClustering(
   opts: RunOptions = {},
 ): Promise<Run> {
   const { rawPrj } = ctx;
-  const blockId = await rawPrj.addBlock("Clustering", ClonotypeClusteringBlockPointer);
+  const blockId = await addBlock(rawPrj, "Clustering", ClonotypeClusteringBlockPointer);
 
   if (opts.direct !== undefined) {
     if (opts.datasetBlockId === undefined) throw new Error("direct wiring needs datasetBlockId");
@@ -471,7 +516,11 @@ export type ColumnQuery = {
   domain?: Record<string, string>;
 };
 
-/** A finished clustering run and readers over its exported PFrame. */
+/**
+ * A finished clustering run and readers over its exported PFrame.
+ * SDK-BOUND: findColumns / findColumn / read / readById / readMap become `PFrameReader`;
+ * membership / clusterLabels / clusters / centroids stay here.
+ */
 export class Run {
   constructor(
     readonly ctx: Ctx,

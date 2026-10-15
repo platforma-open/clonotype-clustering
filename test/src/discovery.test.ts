@@ -9,6 +9,7 @@ import { ClonotypeClusteringBlockPointer } from "this-block";
 import { THREE_FAMILIES } from "./fixtures";
 import type { DatasetOption, SequenceOption } from "./helpers";
 import {
+  addBlock,
   awaitBlockDoneObserved,
   VDJ_CDR3_ID,
   hasXsvImport,
@@ -29,7 +30,7 @@ describe.skipIf(!hasXsvImport)("discovery of an xsv-import seeded dataset", () =
       const { rawPrj } = ctx;
       await publishTsv(ctx, "Three families", vdjTsv(THREE_FAMILIES), vdjSpec());
 
-      const clusteringId = await rawPrj.addBlock("Clustering", ClonotypeClusteringBlockPointer);
+      const clusteringId = await addBlock(rawPrj, "Clustering", ClonotypeClusteringBlockPointer);
 
       const datasets = await stableOutput<DatasetOption[]>(
         rawPrj,

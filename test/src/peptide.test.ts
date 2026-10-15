@@ -3,14 +3,13 @@
   the modality, sizes its mmseqs2 tuning from the library's shortest peptide, applies
   trimming before clustering, and stamps its settings into the exported specs.
 
-  Not covered: the `centroidDatasetPf` block output. The workflow exports the centroid
-  dataset to the result pool (`exports.centroidDatasetPf`) but never writes it to its
-  outputs, so the model output of that name resolves to nothing. Pin it once the workflow
-  publishes it as an output as well.
+  The `centroidDatasetPf` output is a known defect, pinned as an expected failure in
+  known-defects.test.ts.
 */
 
 import { describe } from "vitest";
 import type { Clonotype } from "./helpers";
+import { PEPTIDES } from "./fixtures";
 import {
   PEPTIDE_SEQUENCE_ID,
   hasXsvImport,
@@ -20,16 +19,6 @@ import {
   stableOutput,
 } from "./helpers";
 import { suiteTest } from "./suite";
-
-// A fixed-length (9-mer) library: two families, one mismatch apart. Family 2 splits 1:1 at
-// position 8 (T 40 cells, S 10 cells), so its equal-weight centroid carries an X there.
-const PEPTIDES: Clonotype[] = [
-  { key: "p1", seq: "SIINFEKLA", count: 50 },
-  { key: "p2", seq: "SIINFEKLV", count: 30 },
-  { key: "p3", seq: "SIINYEKLA", count: 20 },
-  { key: "p4", seq: "GILGFVFTL", count: 40 },
-  { key: "p5", seq: "GILGFVFSL", count: 10 },
-];
 
 // q1 and q2 differ at position 2 only. Dropping the first two residues makes them
 // identical, so they merge at an identity no untrimmed pair can reach.

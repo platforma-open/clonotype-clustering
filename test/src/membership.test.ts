@@ -2,9 +2,8 @@
   Cluster assignment: the contract every downstream consumer relies on. Scenarios are
   clustering blocks over the published three-family dataset, in their own projects.
 
-  Not covered: identity 1.0. mmseqs2 1.19.0 (macOS arm64) segfaults in kmermatcher with
-  `--min-seq-id 1`, which the UI slider allows. Pin that behaviour once the block clamps the
-  value or the software package is fixed.
+  The default path on a library shorter than linclust's k-mer length crashes mmseqs2; that
+  defect is pinned in known-defects.test.ts.
 */
 
 import { describe } from "vitest";
@@ -44,7 +43,7 @@ describe.skipIf(!hasXsvImport)("three families", () => {
       { timeout: 600000 },
       async ({ suite, expect }) => {
         // The closest pair differs at 1 of 12 residues (0.917); 0.99 separates everything
-        // while staying below 1, which crashes mmseqs2 (see the note above).
+        // on a CDR3-length library; the default path crashes from 0.9 up (see the note above).
         const run = await scenario(suite, "identity 0.99", { identity: 0.99 });
         expect(await run.clusters()).toEqual(THREE_FAMILIES.map((r) => [r.key]));
       },

@@ -1,10 +1,12 @@
 /*
-  File-scoped harness: one backend client, one middle layer and one project per test file.
+  File-scoped harness: one backend client, one middle layer and one project per scenario.
   Every scenario in the file is a block in that project, so scenarios run concurrently on
   the backend and the per-test setup of `blockTest` is paid once.
 
-  The middle layer refreshes staging every 500 ms here (the default is 2 s), which is the
-  wait behind every option-discovery step.
+  SDK-BOUND: `suiteTest` (the file-scoped client + middle layer fixture), project creation
+  with its serialization and retry, and `KEEP_PL_ROOT` move to `@platforma-sdk/test` as
+  `suiteTest` / `BlockTestSession` in milaboratory/platforma#1900. Once that releases, this
+  file keeps only `Suite` (the block's memoized runs) over the SDK's `session.once`.
 */
 
 import { registerServiceCapabilities } from "@platforma-sdk/model";
@@ -53,9 +55,38 @@ export class Suite {
     return { key, tsv, spec, sequenceId, filterColumn };
   }
 
-  /** Open a fresh project with the file's middle layer. */
-  async project(label: string): Promise<Ctx> {
-    const prjId = await this.ml.createProject({ label });
+  // SDK-BOUND: becomes `BlockTestSession.project` / `createProject` in @platforma-sdk/test.
+  private creating: Promise<unknown> = Promise.resolve();
+
+  /**
+   * Open a fresh project with the file's middle layer. Creations are serialized within the
+   * file and retried a few times across files: every middle layer writes the same project
+   * list, and under load the client exhausts its own write-transaction retries.
+   */
+  project(label: string): Promise<Ctx> {
+    const next = this.creating.then(() => this.openProject(label));
+    this.creating = next.catch(() => undefined);
+    return next;
+  }
+
+  private async createProject(label: string): Promise<ML.ProjectId> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.ml.createProject({ label });
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        if (attempt >= 4 || !/max number of attempts/.test(message)) throw e;
+        const delay = 1000 + Math.random() * 2000;
+        console.warn(
+          `createProject(${label}) hit write contention (attempt ${attempt}); retrying in ${Math.round(delay)} ms`,
+        );
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+
+  private async openProject(label: string): Promise<Ctx> {
+    const prjId = await this.createProject(label);
     await this.ml.openProject(prjId);
     const rawPrj = this.ml.getOpenedProject(prjId);
     const helpers = {
@@ -95,6 +126,7 @@ export class Suite {
   }
 }
 
+// SDK-BOUND: becomes `suiteTest` in @platforma-sdk/test (platforma#1900).
 export const suiteTest = test.extend<{ suite: Suite }>({
   suite: [
     // vitest requires the destructuring form even for a file-scoped fixture with no deps.
