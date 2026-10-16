@@ -44,7 +44,10 @@
   "columns": [
     {
       "column": "abundance",
-      "parentAxes": [0, 1],
+      "parentAxes": [
+        0,
+        1
+      ],
       "rows": 2,
       "spec": {
         "annotations": {
@@ -88,7 +91,9 @@
     },
     {
       "column": "clusterId_2",
-      "parentAxes": [2],
+      "parentAxes": [
+        2
+      ],
       "rows": 5,
       "spec": {
         "annotations": {
@@ -120,7 +125,9 @@
     },
     {
       "column": "clusterRadius",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 2,
       "spec": {
         "annotations": {
@@ -162,7 +169,9 @@
     },
     {
       "column": "clusterSize",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 2,
       "spec": {
         "annotations": {
@@ -195,7 +204,9 @@
     },
     {
       "column": "distanceToCentroid",
-      "parentAxes": [2],
+      "parentAxes": [
+        2
+      ],
       "rows": 5,
       "spec": {
         "annotations": {
@@ -234,7 +245,9 @@
     },
     {
       "column": "label",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 2,
       "spec": {
         "annotations": {
@@ -266,7 +279,10 @@
     },
     {
       "column": "link",
-      "parentAxes": [1, 2],
+      "parentAxes": [
+        1,
+        2
+      ],
       "rows": 5,
       "spec": {
         "annotations": {
@@ -308,7 +324,9 @@
     },
     {
       "column": "readCountTotal",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 2,
       "spec": {
         "annotations": {
@@ -346,7 +364,10 @@
     },
     {
       "column": "readFraction",
-      "parentAxes": [0, 1],
+      "parentAxes": [
+        0,
+        1
+      ],
       "rows": 2,
       "spec": {
         "annotations": {
@@ -390,7 +411,9 @@
     },
     {
       "column": "readFractionTotal",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 2,
       "spec": {
         "annotations": {
@@ -430,7 +453,9 @@
     },
     {
       "column": "sequence",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 2,
       "spec": {
         "annotations": {
@@ -472,7 +497,9 @@
     },
     {
       "column": "sequence_referenceCentroid",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 2,
       "spec": {
         "annotations": {

@@ -44,7 +44,9 @@
   "columns": [
     {
       "column": "clusterId_2",
-      "parentAxes": [0],
+      "parentAxes": [
+        0
+      ],
       "rows": 8,
       "spec": {
         "annotations": {
@@ -76,7 +78,9 @@
     },
     {
       "column": "clusterRadius",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 3,
       "spec": {
         "annotations": {
@@ -118,7 +122,9 @@
     },
     {
       "column": "clusterSize",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 3,
       "spec": {
         "annotations": {
@@ -151,7 +157,9 @@
     },
     {
       "column": "distanceToCentroid",
-      "parentAxes": [0],
+      "parentAxes": [
+        0
+      ],
       "rows": 8,
       "spec": {
         "annotations": {
@@ -190,7 +198,9 @@
     },
     {
       "column": "label",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 3,
       "spec": {
         "annotations": {
@@ -222,7 +232,10 @@
     },
     {
       "column": "link",
-      "parentAxes": [1, 0],
+      "parentAxes": [
+        1,
+        0
+      ],
       "rows": 8,
       "spec": {
         "annotations": {
@@ -264,7 +277,9 @@
     },
     {
       "column": "readCountTotal",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 3,
       "spec": {
         "annotations": {
@@ -302,7 +317,10 @@
     },
     {
       "column": "readFraction",
-      "parentAxes": [2, 1],
+      "parentAxes": [
+        2,
+        1
+      ],
       "rows": 3,
       "spec": {
         "annotations": {
@@ -346,7 +364,9 @@
     },
     {
       "column": "readFractionTotal",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 3,
       "spec": {
         "annotations": {
@@ -386,7 +406,9 @@
     },
     {
       "column": "sequence",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 3,
       "spec": {
         "annotations": {
@@ -428,7 +450,9 @@
     },
     {
       "column": "sequence_referenceCentroid",
-      "parentAxes": [1],
+      "parentAxes": [
+        1
+      ],
       "rows": 3,
       "spec": {
         "annotations": {
@@ -469,7 +493,10 @@
     },
     {
       "column": "uniqueCellCount",
-      "parentAxes": [2, 1],
+      "parentAxes": [
+        2,
+        1
+      ],
       "rows": 3,
       "spec": {
         "annotations": {
