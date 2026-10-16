@@ -60,7 +60,7 @@ describe("model", () => {
   });
 
   test("sections render from data alone", () => {
-    const sections = model.sections({ data: model.initialData() });
+    const sections = model.render<unknown[]>("sections", { data: model.initialData() });
     expect(sections.length).toBeGreaterThan(0);
   });
 
