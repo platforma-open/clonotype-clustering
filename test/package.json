@@ -18,6 +18,8 @@
   "devDependencies": {
     "@milaboratories/ts-builder": "catalog:",
     "@milaboratories/ts-configs": "catalog:",
+    "@platforma-open/milaboratories.xsv-import": "^2.0.0",
+    "@platforma-sdk/model": "catalog:",
     "@platforma-sdk/test": "catalog:",
     "eslint": "catalog:",
     "vitest": "catalog:"
