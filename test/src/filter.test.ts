@@ -5,7 +5,7 @@
 
 import { describe } from "vitest";
 import { SHORT_CDR3, THREE_FAMILIES } from "./fixtures";
-import { vdjSpecWithSubset, vdjTsvWithSubset } from "./helpers";
+import { vdjDataset } from "@platforma-sdk/test";
 import { suiteTest } from "./suite";
 
 describe("subset filter", () => {
@@ -16,10 +16,7 @@ describe("subset filter", () => {
       const picked = ["c01", "c02", "c04", "c07"];
       const dataset = suite.dataset(
         "Picked subset",
-        vdjTsvWithSubset(THREE_FAMILIES, picked),
-        vdjSpecWithSubset("Picked"),
-        undefined,
-        "tag",
+        vdjDataset(THREE_FAMILIES, { subset: { members: picked, label: "Picked" } }),
       );
       const run = await suite.run("filtered", dataset, SHORT_CDR3);
 

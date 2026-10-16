@@ -12,10 +12,10 @@
   path and peptide guard both run linclust.
 */
 
+import { peptideDataset, stableOutput } from "@platforma-sdk/test";
 import { describe } from "vitest";
 import { PEPTIDES, THREE_FAMILY_PARTITION } from "./fixtures";
 import { families, refines } from "./families";
-import { PEPTIDE_SEQUENCE_ID, peptideSpec, peptideTsv, stableOutput } from "./helpers";
 import { suiteTest } from "./suite";
 
 describe("known defects", () => {
@@ -38,7 +38,7 @@ describe("known defects", () => {
       // Fix (separate PR): the same --single-step-clustering guard, keyed on the longest peptide.
       const run = await suite.run(
         "default 9-mers",
-        suite.dataset("Peptides", peptideTsv(PEPTIDES), peptideSpec(), PEPTIDE_SEQUENCE_ID),
+        suite.dataset("Peptides", peptideDataset(PEPTIDES)),
         {},
         { keyAxis: "pl7.app/variantKey" },
       );
@@ -61,7 +61,7 @@ describe("known defects", () => {
       // as well. High precision keeps the 9-mers off the crashing default path above.
       const run = await suite.run(
         "centroid dataset output",
-        suite.dataset("Peptides", peptideTsv(PEPTIDES), peptideSpec(), PEPTIDE_SEQUENCE_ID),
+        suite.dataset("Peptides", peptideDataset(PEPTIDES)),
         { highPrecision: true, generateDataset: true },
         { keyAxis: "pl7.app/variantKey" },
       );

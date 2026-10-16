@@ -6,7 +6,7 @@
 
 import { SHORT_CDR3, THREE_FAMILIES } from "./fixtures";
 import type { Run } from "./helpers";
-import { vdjSpec, vdjTsv } from "./helpers";
+import { vdjDataset } from "@platforma-sdk/test";
 import type { Suite } from "./suite";
 
 export const clusterOf = (m: Map<string, string>, key: string) => {
@@ -21,7 +21,7 @@ export function refines(finer: string[][], coarser: string[][]): boolean {
 }
 
 export const families = (suite: Suite) =>
-  suite.dataset("Three families", vdjTsv(THREE_FAMILIES), vdjSpec());
+  suite.dataset("Three families", vdjDataset(THREE_FAMILIES));
 export const scenario = (suite: Suite, key: string, patch: Record<string, unknown>): Promise<Run> =>
   suite.run(key, families(suite), { ...SHORT_CDR3, ...patch });
 export const defaults = (suite: Suite) => scenario(suite, "defaults", {});

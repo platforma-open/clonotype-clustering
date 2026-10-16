@@ -9,15 +9,14 @@ import { ClonotypeClusteringBlockPointer } from "this-block";
 import { THREE_FAMILIES } from "./fixtures";
 import type { DatasetOption, SequenceOption } from "./helpers";
 import {
-  addBlock,
-  awaitBlockDoneObserved,
   VDJ_CDR3_ID,
-  publishTsv,
+  addBlock,
+  awaitBlockDone,
   patchBlockData,
   stableOutput,
-  vdjSpec,
-  vdjTsv,
-} from "./helpers";
+  vdjDataset,
+} from "@platforma-sdk/test";
+import { publishDataset } from "./helpers";
 import { suiteTest } from "./suite";
 
 describe("discovery of an xsv-import seeded dataset", () => {
@@ -27,7 +26,7 @@ describe("discovery of an xsv-import seeded dataset", () => {
     async ({ suite, expect }) => {
       const ctx = await suite.project("discovery");
       const { rawPrj } = ctx;
-      await publishTsv(ctx, "Three families", vdjTsv(THREE_FAMILIES), vdjSpec());
+      await publishDataset(ctx, "Three families", vdjDataset(THREE_FAMILIES));
 
       const clusteringId = await addBlock(rawPrj, "Clustering", ClonotypeClusteringBlockPointer);
 
@@ -58,7 +57,7 @@ describe("discovery of an xsv-import seeded dataset", () => {
       expect(await stableOutput<boolean>(rawPrj, clusteringId, "isPeptide", 180000)).toBe(false);
 
       await rawPrj.runBlock(clusteringId);
-      await awaitBlockDoneObserved(rawPrj, clusteringId, 540000);
+      await awaitBlockDone(rawPrj, clusteringId, 540000);
 
       const table = await stableOutput<{ fullTableHandle?: string }>(
         rawPrj,

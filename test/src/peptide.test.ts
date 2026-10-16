@@ -3,20 +3,15 @@
   the modality, sizes its mmseqs2 tuning from the library's shortest peptide, applies
   trimming before clustering, and stamps its settings into the exported specs.
 
-  The `centroidDatasetPf` output is a known defect, pinned as an expected failure in
-  known-defects.test.ts.
+  The peptide guard and the `centroidDatasetPf` output are known defects, pinned as expected
+  failures in known-defects.test.ts.
 */
 
 import { describe } from "vitest";
 import type { Clonotype } from "./helpers";
+import { peptideDataset, stableOutput } from "@platforma-sdk/test";
 import { PEPTIDES } from "./fixtures";
-import {
-  PEPTIDE_SEQUENCE_ID,
-  peptideSpec,
-  peptideTsv,
-  sequencesByCluster,
-  stableOutput,
-} from "./helpers";
+import { sequencesByCluster } from "./helpers";
 import { suiteTest } from "./suite";
 
 // q1 and q2 differ at position 2 only. Dropping the first two residues makes them
@@ -35,12 +30,7 @@ describe("peptide input", () => {
     "detects the peptide modality, clusters the library and stamps its settings",
     { timeout: 600000 },
     async ({ suite, expect }) => {
-      const dataset = suite.dataset(
-        "Peptides",
-        peptideTsv(PEPTIDES),
-        peptideSpec(),
-        PEPTIDE_SEQUENCE_ID,
-      );
+      const dataset = suite.dataset("Peptides", peptideDataset(PEPTIDES));
       const run = await suite.run("peptides", dataset, SHORT, PEPTIDE);
       const { rawPrj } = run.ctx;
 
@@ -84,12 +74,7 @@ describe("peptide input", () => {
     "trimStart removes the leading residues before similarity is judged",
     { timeout: 600000 },
     async ({ suite, expect }) => {
-      const dataset = suite.dataset(
-        "Trim pair",
-        peptideTsv(TRIM_PAIR),
-        peptideSpec(),
-        PEPTIDE_SEQUENCE_ID,
-      );
+      const dataset = suite.dataset("Trim pair", peptideDataset(TRIM_PAIR));
       const run = await suite.run(
         "trimmed",
         dataset,
@@ -104,12 +89,7 @@ describe("peptide input", () => {
     "without trimming the same pair stays apart at identity 0.99",
     { timeout: 600000 },
     async ({ suite, expect }) => {
-      const dataset = suite.dataset(
-        "Trim pair",
-        peptideTsv(TRIM_PAIR),
-        peptideSpec(),
-        PEPTIDE_SEQUENCE_ID,
-      );
+      const dataset = suite.dataset("Trim pair", peptideDataset(TRIM_PAIR));
       const run = await suite.run("untrimmed", dataset, { ...SHORT, identity: 0.99 }, PEPTIDE);
       expect(await run.clusters()).toEqual([["q1"], ["q2"], ["q3"]]);
     },
