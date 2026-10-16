@@ -1,112 +1,84 @@
 {
-  "version": 1,
-  "scenario": "defaults",
-  "producer": {
-    "block": "@platforma-open/milaboratories.clonotype-clustering",
-    "version": "3.8.0"
-  },
   "axes": [
     {
       "column": "clonotypeKey",
       "spec": {
-        "name": "pl7.app/vdj/clonotypeKey",
-        "type": "String",
+        "annotations": {
+          "pl7.app/label": "Clonotype key"
+        },
         "domain": {
           "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
         },
-        "annotations": {
-          "pl7.app/label": "Clonotype key"
-        }
+        "name": "pl7.app/vdj/clonotypeKey",
+        "type": "String"
       }
     },
     {
       "column": "clusterId",
       "spec": {
-        "name": "pl7.app/clusterId",
-        "type": "String",
+        "annotations": {
+          "pl7.app/label": "Cluster Id",
+          "pl7.app/table/orderPriority": "990000",
+          "pl7.app/table/visibility": "default"
+        },
         "domain": {
           "pl7.app/clustering/algorithm": "mmseqs2",
           "pl7.app/clustering/blockId": "{{blockId}}",
           "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
         },
-        "annotations": {
-          "pl7.app/label": "Cluster Id",
-          "pl7.app/table/orderPriority": "990000",
-          "pl7.app/table/visibility": "default"
-        }
+        "name": "pl7.app/clusterId",
+        "type": "String"
       }
     },
     {
       "column": "sampleId",
       "spec": {
-        "name": "pl7.app/sampleId",
-        "type": "String",
         "annotations": {
           "pl7.app/label": "pl7.app/sampleId"
-        }
+        },
+        "name": "pl7.app/sampleId",
+        "type": "String"
       }
     }
   ],
   "columns": [
     {
       "column": "clusterId_2",
+      "parentAxes": [0],
+      "rows": 8,
       "spec": {
-        "kind": "PColumn",
+        "annotations": {
+          "pl7.app/label": "Cluster Id",
+          "pl7.app/table/visibility": "hidden",
+          "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
+        },
         "axesSpec": [
           {
-            "name": "pl7.app/vdj/clonotypeKey",
-            "type": "String",
+            "annotations": {
+              "pl7.app/label": "Clonotype key"
+            },
             "domain": {
               "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
             },
-            "annotations": {
-              "pl7.app/label": "Clonotype key"
-            }
+            "name": "pl7.app/vdj/clonotypeKey",
+            "type": "String"
           }
         ],
-        "name": "pl7.app/clusterId",
-        "valueType": "String",
         "domain": {
           "pl7.app/clustering/algorithm": "mmseqs2",
           "pl7.app/clustering/blockId": "{{blockId}}",
           "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
         },
-        "annotations": {
-          "pl7.app/label": "Cluster Id",
-          "pl7.app/table/visibility": "hidden",
-          "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [0],
-      "rows": 8
+        "kind": "PColumn",
+        "name": "pl7.app/clusterId",
+        "valueType": "String"
+      }
     },
     {
       "column": "clusterRadius",
+      "parentAxes": [1],
+      "rows": 3,
       "spec": {
-        "kind": "PColumn",
-        "axesSpec": [
-          {
-            "name": "pl7.app/clusterId",
-            "type": "String",
-            "domain": {
-              "pl7.app/clustering/algorithm": "mmseqs2",
-              "pl7.app/clustering/blockId": "{{blockId}}",
-              "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
-            },
-            "annotations": {
-              "pl7.app/label": "Cluster Id",
-              "pl7.app/table/orderPriority": "990000",
-              "pl7.app/table/visibility": "default"
-            }
-          }
-        ],
-        "name": "pl7.app/clustering/clusterRadius",
-        "valueType": "Float",
-        "domain": {
-          "pl7.app/clustering/centroidAlignment": "auto",
-          "pl7.app/clustering/gapThresholdPercent": "50",
-          "pl7.app/clustering/residueWeighting": "equal"
-        },
         "annotations": {
           "pl7.app/description": "Largest distance-to-centroid among the cluster's members — a compactness measure (0–1; smaller is tighter).",
           "pl7.app/format": ".2f",
@@ -117,69 +89,71 @@
           "pl7.app/table/orderPriority": "2900",
           "pl7.app/table/visibility": "default",
           "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [1],
-      "rows": 3
-    },
-    {
-      "column": "clusterSize",
-      "spec": {
-        "kind": "PColumn",
+        },
         "axesSpec": [
           {
-            "name": "pl7.app/clusterId",
-            "type": "String",
+            "annotations": {
+              "pl7.app/label": "Cluster Id",
+              "pl7.app/table/orderPriority": "990000",
+              "pl7.app/table/visibility": "default"
+            },
             "domain": {
               "pl7.app/clustering/algorithm": "mmseqs2",
               "pl7.app/clustering/blockId": "{{blockId}}",
               "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
             },
-            "annotations": {
-              "pl7.app/label": "Cluster Id",
-              "pl7.app/table/orderPriority": "990000",
-              "pl7.app/table/visibility": "default"
-            }
+            "name": "pl7.app/clusterId",
+            "type": "String"
           }
         ],
-        "name": "pl7.app/clustering/clusterSize",
-        "valueType": "Int",
+        "domain": {
+          "pl7.app/clustering/centroidAlignment": "auto",
+          "pl7.app/clustering/gapThresholdPercent": "50",
+          "pl7.app/clustering/residueWeighting": "equal"
+        },
+        "kind": "PColumn",
+        "name": "pl7.app/clustering/clusterRadius",
+        "valueType": "Float"
+      }
+    },
+    {
+      "column": "clusterSize",
+      "parentAxes": [1],
+      "rows": 3,
+      "spec": {
         "annotations": {
           "pl7.app/description": "Number of distinct clonotypes assigned to this cluster.",
           "pl7.app/label": "Cluster Size",
           "pl7.app/table/orderPriority": "3000",
           "pl7.app/table/visibility": "default",
           "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [1],
-      "rows": 3
+        },
+        "axesSpec": [
+          {
+            "annotations": {
+              "pl7.app/label": "Cluster Id",
+              "pl7.app/table/orderPriority": "990000",
+              "pl7.app/table/visibility": "default"
+            },
+            "domain": {
+              "pl7.app/clustering/algorithm": "mmseqs2",
+              "pl7.app/clustering/blockId": "{{blockId}}",
+              "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
+            },
+            "name": "pl7.app/clusterId",
+            "type": "String"
+          }
+        ],
+        "kind": "PColumn",
+        "name": "pl7.app/clustering/clusterSize",
+        "valueType": "Int"
+      }
     },
     {
       "column": "distanceToCentroid",
+      "parentAxes": [0],
+      "rows": 8,
       "spec": {
-        "kind": "PColumn",
-        "axesSpec": [
-          {
-            "name": "pl7.app/vdj/clonotypeKey",
-            "type": "String",
-            "domain": {
-              "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
-            },
-            "annotations": {
-              "pl7.app/label": "Clonotype key"
-            }
-          }
-        ],
-        "name": "pl7.app/distanceToCentroid",
-        "valueType": "Float",
-        "domain": {
-          "pl7.app/clustering/algorithm": "mmseqs2",
-          "pl7.app/clustering/blockId": "{{blockId}}",
-          "pl7.app/clustering/centroidAlignment": "auto",
-          "pl7.app/clustering/gapThresholdPercent": "50",
-          "pl7.app/clustering/residueWeighting": "equal"
-        },
         "annotations": {
           "pl7.app/description": "Profile distance (0–1) from each clonotype to its cluster's theoretical centroid over the kalign MSA; 0 means identical to the consensus profile.",
           "pl7.app/format": ".2f",
@@ -189,107 +163,110 @@
           "pl7.app/rankingOrder": "decreasing",
           "pl7.app/table/visibility": "optional",
           "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [0],
-      "rows": 8
+        },
+        "axesSpec": [
+          {
+            "annotations": {
+              "pl7.app/label": "Clonotype key"
+            },
+            "domain": {
+              "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
+            },
+            "name": "pl7.app/vdj/clonotypeKey",
+            "type": "String"
+          }
+        ],
+        "domain": {
+          "pl7.app/clustering/algorithm": "mmseqs2",
+          "pl7.app/clustering/blockId": "{{blockId}}",
+          "pl7.app/clustering/centroidAlignment": "auto",
+          "pl7.app/clustering/gapThresholdPercent": "50",
+          "pl7.app/clustering/residueWeighting": "equal"
+        },
+        "kind": "PColumn",
+        "name": "pl7.app/distanceToCentroid",
+        "valueType": "Float"
+      }
     },
     {
       "column": "label",
+      "parentAxes": [1],
+      "rows": 3,
       "spec": {
-        "kind": "PColumn",
-        "axesSpec": [
-          {
-            "name": "pl7.app/clusterId",
-            "type": "String",
-            "domain": {
-              "pl7.app/clustering/algorithm": "mmseqs2",
-              "pl7.app/clustering/blockId": "{{blockId}}",
-              "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
-            },
-            "annotations": {
-              "pl7.app/label": "Cluster Id",
-              "pl7.app/table/orderPriority": "990000",
-              "pl7.app/table/visibility": "default"
-            }
-          }
-        ],
-        "name": "pl7.app/label",
-        "valueType": "String",
         "annotations": {
           "pl7.app/description": "Identifier of the cluster, taken from the representative member MMseqs2 selected.",
           "pl7.app/label": "Cluster Id",
           "pl7.app/table/visibility": "default",
           "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [1],
-      "rows": 3
-    },
-    {
-      "column": "link",
-      "spec": {
-        "kind": "PColumn",
+        },
         "axesSpec": [
           {
-            "name": "pl7.app/clusterId",
-            "type": "String",
+            "annotations": {
+              "pl7.app/label": "Cluster Id",
+              "pl7.app/table/orderPriority": "990000",
+              "pl7.app/table/visibility": "default"
+            },
             "domain": {
               "pl7.app/clustering/algorithm": "mmseqs2",
               "pl7.app/clustering/blockId": "{{blockId}}",
               "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
             },
-            "annotations": {
-              "pl7.app/label": "Cluster Id",
-              "pl7.app/table/orderPriority": "990000",
-              "pl7.app/table/visibility": "default"
-            }
-          },
-          {
-            "name": "pl7.app/vdj/clonotypeKey",
-            "type": "String",
-            "domain": {
-              "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
-            },
-            "annotations": {
-              "pl7.app/label": "Clonotype key"
-            }
+            "name": "pl7.app/clusterId",
+            "type": "String"
           }
         ],
-        "name": "pl7.app/link",
-        "valueType": "Int",
+        "kind": "PColumn",
+        "name": "pl7.app/label",
+        "valueType": "String"
+      }
+    },
+    {
+      "column": "link",
+      "parentAxes": [1, 0],
+      "rows": 8,
+      "spec": {
         "annotations": {
           "pl7.app/isLinkerColumn": "true",
           "pl7.app/label": "Clone to cluster link",
           "pl7.app/table/visibility": "hidden",
           "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [1, 0],
-      "rows": 8
-    },
-    {
-      "column": "readCountTotal",
-      "spec": {
-        "kind": "PColumn",
+        },
         "axesSpec": [
           {
-            "name": "pl7.app/clusterId",
-            "type": "String",
+            "annotations": {
+              "pl7.app/label": "Cluster Id",
+              "pl7.app/table/orderPriority": "990000",
+              "pl7.app/table/visibility": "default"
+            },
             "domain": {
               "pl7.app/clustering/algorithm": "mmseqs2",
               "pl7.app/clustering/blockId": "{{blockId}}",
               "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
             },
+            "name": "pl7.app/clusterId",
+            "type": "String"
+          },
+          {
             "annotations": {
-              "pl7.app/label": "Cluster Id",
-              "pl7.app/table/orderPriority": "990000",
-              "pl7.app/table/visibility": "default"
-            }
+              "pl7.app/label": "Clonotype key"
+            },
+            "domain": {
+              "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
+            },
+            "name": "pl7.app/vdj/clonotypeKey",
+            "type": "String"
           }
         ],
-        "name": "pl7.app/readCountTotal",
-        "valueType": "Long",
+        "kind": "PColumn",
+        "name": "pl7.app/link",
+        "valueType": "Int"
+      }
+    },
+    {
+      "column": "readCountTotal",
+      "parentAxes": [1],
+      "rows": 3,
+      "spec": {
         "annotations": {
           "pl7.app/abundance/isPrimary": "true",
           "pl7.app/abundance/normalized": "false",
@@ -301,40 +278,33 @@
           "pl7.app/table/orderPriority": "2000",
           "pl7.app/table/visibility": "default",
           "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [1],
-      "rows": 3
-    },
-    {
-      "column": "readFraction",
-      "spec": {
-        "kind": "PColumn",
+        },
         "axesSpec": [
           {
-            "name": "pl7.app/sampleId",
-            "type": "String",
             "annotations": {
-              "pl7.app/label": "pl7.app/sampleId"
-            }
-          },
-          {
-            "name": "pl7.app/clusterId",
-            "type": "String",
+              "pl7.app/label": "Cluster Id",
+              "pl7.app/table/orderPriority": "990000",
+              "pl7.app/table/visibility": "default"
+            },
             "domain": {
               "pl7.app/clustering/algorithm": "mmseqs2",
               "pl7.app/clustering/blockId": "{{blockId}}",
               "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
             },
-            "annotations": {
-              "pl7.app/label": "Cluster Id",
-              "pl7.app/table/orderPriority": "990000",
-              "pl7.app/table/visibility": "default"
-            }
+            "name": "pl7.app/clusterId",
+            "type": "String"
           }
         ],
-        "name": "pl7.app/readFraction",
-        "valueType": "Float",
+        "kind": "PColumn",
+        "name": "pl7.app/readCountTotal",
+        "valueType": "Long"
+      }
+    },
+    {
+      "column": "readFraction",
+      "parentAxes": [2, 1],
+      "rows": 3,
+      "spec": {
         "annotations": {
           "pl7.app/abundance/isPrimary": "true",
           "pl7.app/abundance/normalized": "true",
@@ -345,33 +315,40 @@
           "pl7.app/label": "Fraction of Cells in Cluster",
           "pl7.app/table/visibility": "optional",
           "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [2, 1],
-      "rows": 3
-    },
-    {
-      "column": "readFractionTotal",
-      "spec": {
-        "kind": "PColumn",
+        },
         "axesSpec": [
           {
-            "name": "pl7.app/clusterId",
-            "type": "String",
+            "annotations": {
+              "pl7.app/label": "pl7.app/sampleId"
+            },
+            "name": "pl7.app/sampleId",
+            "type": "String"
+          },
+          {
+            "annotations": {
+              "pl7.app/label": "Cluster Id",
+              "pl7.app/table/orderPriority": "990000",
+              "pl7.app/table/visibility": "default"
+            },
             "domain": {
               "pl7.app/clustering/algorithm": "mmseqs2",
               "pl7.app/clustering/blockId": "{{blockId}}",
               "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
             },
-            "annotations": {
-              "pl7.app/label": "Cluster Id",
-              "pl7.app/table/orderPriority": "990000",
-              "pl7.app/table/visibility": "default"
-            }
+            "name": "pl7.app/clusterId",
+            "type": "String"
           }
         ],
-        "name": "pl7.app/readFractionTotal",
-        "valueType": "Float",
+        "kind": "PColumn",
+        "name": "pl7.app/readFraction",
+        "valueType": "Float"
+      }
+    },
+    {
+      "column": "readFractionTotal",
+      "parentAxes": [1],
+      "rows": 3,
+      "spec": {
         "annotations": {
           "pl7.app/abundance/isPrimary": "true",
           "pl7.app/abundance/normalized": "true",
@@ -385,33 +362,56 @@
           "pl7.app/table/orderPriority": "1",
           "pl7.app/table/visibility": "default",
           "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [1],
-      "rows": 3
-    },
-    {
-      "column": "sequence",
-      "spec": {
-        "kind": "PColumn",
+        },
         "axesSpec": [
           {
-            "name": "pl7.app/clusterId",
-            "type": "String",
+            "annotations": {
+              "pl7.app/label": "Cluster Id",
+              "pl7.app/table/orderPriority": "990000",
+              "pl7.app/table/visibility": "default"
+            },
             "domain": {
               "pl7.app/clustering/algorithm": "mmseqs2",
               "pl7.app/clustering/blockId": "{{blockId}}",
               "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
             },
+            "name": "pl7.app/clusterId",
+            "type": "String"
+          }
+        ],
+        "kind": "PColumn",
+        "name": "pl7.app/readFractionTotal",
+        "valueType": "Float"
+      }
+    },
+    {
+      "column": "sequence",
+      "parentAxes": [1],
+      "rows": 3,
+      "spec": {
+        "annotations": {
+          "pl7.app/description": "Per-column consensus of the cluster's aligned members (kalign MSA). May contain 'X' at low-confidence positions and need not match any observed member; distance-to-centroid and cluster radius are measured against it. Computed with the automatically chosen (ungapped for a peptide library whose sequences share one length, gapped otherwise) alignment model, equal residue weighting, gap threshold 50%. Consensus threshold 60%.",
+          "pl7.app/label": "Theoretical Centroid CDR3 aa",
+          "pl7.app/table/orderPriority": "4000",
+          "pl7.app/table/visibility": "optional",
+          "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
+        },
+        "axesSpec": [
+          {
             "annotations": {
               "pl7.app/label": "Cluster Id",
               "pl7.app/table/orderPriority": "990000",
               "pl7.app/table/visibility": "default"
-            }
+            },
+            "domain": {
+              "pl7.app/clustering/algorithm": "mmseqs2",
+              "pl7.app/clustering/blockId": "{{blockId}}",
+              "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
+            },
+            "name": "pl7.app/clusterId",
+            "type": "String"
           }
         ],
-        "name": "pl7.app/vdj/sequence",
-        "valueType": "String",
         "domain": {
           "pl7.app/alphabet": "aminoacid",
           "pl7.app/clustering/centroidAlignment": "auto",
@@ -421,39 +421,39 @@
           "pl7.app/clustering/sequenceContent": "centroid",
           "pl7.app/vdj/feature": "CDR3"
         },
-        "annotations": {
-          "pl7.app/description": "Per-column consensus of the cluster's aligned members (kalign MSA). May contain 'X' at low-confidence positions and need not match any observed member; distance-to-centroid and cluster radius are measured against it. Computed with the automatically chosen (ungapped for a peptide library whose sequences share one length, gapped otherwise) alignment model, equal residue weighting, gap threshold 50%. Consensus threshold 60%.",
-          "pl7.app/label": "Theoretical Centroid CDR3 aa",
-          "pl7.app/table/orderPriority": "4000",
-          "pl7.app/table/visibility": "optional",
-          "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [1],
-      "rows": 3
+        "kind": "PColumn",
+        "name": "pl7.app/vdj/sequence",
+        "valueType": "String"
+      }
     },
     {
       "column": "sequence_referenceCentroid",
+      "parentAxes": [1],
+      "rows": 3,
       "spec": {
-        "kind": "PColumn",
+        "annotations": {
+          "pl7.app/description": "The real cluster member closest to the theoretical centroid (the medoid). Made entirely of observed residues, so it is directly synthesizable. Computed with the automatically chosen (ungapped for a peptide library whose sequences share one length, gapped otherwise) alignment model, equal residue weighting, gap threshold 50%.",
+          "pl7.app/label": "Reference Centroid CDR3 aa",
+          "pl7.app/table/orderPriority": "4000",
+          "pl7.app/table/visibility": "default",
+          "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
+        },
         "axesSpec": [
           {
-            "name": "pl7.app/clusterId",
-            "type": "String",
+            "annotations": {
+              "pl7.app/label": "Cluster Id",
+              "pl7.app/table/orderPriority": "990000",
+              "pl7.app/table/visibility": "default"
+            },
             "domain": {
               "pl7.app/clustering/algorithm": "mmseqs2",
               "pl7.app/clustering/blockId": "{{blockId}}",
               "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
             },
-            "annotations": {
-              "pl7.app/label": "Cluster Id",
-              "pl7.app/table/orderPriority": "990000",
-              "pl7.app/table/visibility": "default"
-            }
+            "name": "pl7.app/clusterId",
+            "type": "String"
           }
         ],
-        "name": "pl7.app/vdj/sequence",
-        "valueType": "String",
         "domain": {
           "pl7.app/alphabet": "aminoacid",
           "pl7.app/clustering/centroidAlignment": "auto",
@@ -462,46 +462,16 @@
           "pl7.app/clustering/sequenceContent": "referenceCentroid",
           "pl7.app/vdj/feature": "CDR3"
         },
-        "annotations": {
-          "pl7.app/description": "The real cluster member closest to the theoretical centroid (the medoid). Made entirely of observed residues, so it is directly synthesizable. Computed with the automatically chosen (ungapped for a peptide library whose sequences share one length, gapped otherwise) alignment model, equal residue weighting, gap threshold 50%.",
-          "pl7.app/label": "Reference Centroid CDR3 aa",
-          "pl7.app/table/orderPriority": "4000",
-          "pl7.app/table/visibility": "default",
-          "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [1],
-      "rows": 3
+        "kind": "PColumn",
+        "name": "pl7.app/vdj/sequence",
+        "valueType": "String"
+      }
     },
     {
       "column": "uniqueCellCount",
+      "parentAxes": [2, 1],
+      "rows": 3,
       "spec": {
-        "kind": "PColumn",
-        "axesSpec": [
-          {
-            "name": "pl7.app/sampleId",
-            "type": "String",
-            "annotations": {
-              "pl7.app/label": "pl7.app/sampleId"
-            }
-          },
-          {
-            "name": "pl7.app/clusterId",
-            "type": "String",
-            "domain": {
-              "pl7.app/clustering/algorithm": "mmseqs2",
-              "pl7.app/clustering/blockId": "{{blockId}}",
-              "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
-            },
-            "annotations": {
-              "pl7.app/label": "Cluster Id",
-              "pl7.app/table/orderPriority": "990000",
-              "pl7.app/table/visibility": "default"
-            }
-          }
-        ],
-        "name": "pl7.app/vdj/uniqueCellCount",
-        "valueType": "Long",
         "annotations": {
           "pl7.app/abundance/isPrimary": "true",
           "pl7.app/abundance/normalized": "false",
@@ -512,10 +482,40 @@
           "pl7.app/label": "Number of Cells in Cluster",
           "pl7.app/table/visibility": "optional",
           "pl7.app/trace": "[{\"importance\":30,\"label\":\"BLOSUM62, ident:0.8, cov:0.8\",\"type\":\"milaboratories.clonotype-clustering.clustering\"}]"
-        }
-      },
-      "parentAxes": [2, 1],
-      "rows": 3
+        },
+        "axesSpec": [
+          {
+            "annotations": {
+              "pl7.app/label": "pl7.app/sampleId"
+            },
+            "name": "pl7.app/sampleId",
+            "type": "String"
+          },
+          {
+            "annotations": {
+              "pl7.app/label": "Cluster Id",
+              "pl7.app/table/orderPriority": "990000",
+              "pl7.app/table/visibility": "default"
+            },
+            "domain": {
+              "pl7.app/clustering/algorithm": "mmseqs2",
+              "pl7.app/clustering/blockId": "{{blockId}}",
+              "pl7.app/vdj/clonotypingRunId": "xsv-fixture"
+            },
+            "name": "pl7.app/clusterId",
+            "type": "String"
+          }
+        ],
+        "kind": "PColumn",
+        "name": "pl7.app/vdj/uniqueCellCount",
+        "valueType": "Long"
+      }
     }
-  ]
+  ],
+  "producer": {
+    "block": "@platforma-open/milaboratories.clonotype-clustering",
+    "version": "3.8.0"
+  },
+  "scenario": "defaults",
+  "version": 1
 }
