@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.7.2
+
+### Patch Changes
+
+- e7d9f19: Release every package through npm trusted publishing (OIDC) so each package's trusted publisher is used before it expires.
+- Updated dependencies [e7d9f19]
+  - @platforma-open/milaboratories.clonotype-clustering.software@4.2.2
+
 ## 4.7.1
 
 ### Patch Changes

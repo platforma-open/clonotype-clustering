@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.test
 
+## 1.2.2
+
+### Patch Changes
+
+- e7d9f19: Release every package through npm trusted publishing (OIDC) so each package's trusted publisher is used before it expires.
+
 ## 1.2.1
 
 ### Patch Changes
