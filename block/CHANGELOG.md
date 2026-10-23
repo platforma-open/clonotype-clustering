@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 4.7.3
+
+### Patch Changes
+
+- 5671ca6: Show export button for main table
+
 ## 4.7.2
 
 ### Patch Changes
