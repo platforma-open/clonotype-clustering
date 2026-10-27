@@ -1,5 +1,7 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.7.4
+
 ## 4.7.3
 
 ## 4.7.2

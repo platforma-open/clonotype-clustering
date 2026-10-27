@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 4.7.4
+
+### Patch Changes
+
+- 9c6021a: - Fix the Multiple Sequence Alignment for datasets from Redefine Clonotypes
+  - Update the SDK and the charts
+  - @platforma-open/milaboratories.clonotype-clustering.model@4.7.4
+
 ## 4.7.3
 
 ### Patch Changes
