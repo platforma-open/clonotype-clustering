@@ -249,6 +249,7 @@ const clusterAxis = computed<AxisId>(() => {
       :settings="tableSettings"
       :not-ready-text="strings.callToActions.configureSettingsAndRun"
       :no-rows-text="strings.states.noDataAvailable"
+      show-export-button
       :show-cell-button-for-axis-id="app.model.outputs.isPeptide ? undefined : clusterAxis"
       @cell-button-clicked="onRowDoubleClicked"
     />

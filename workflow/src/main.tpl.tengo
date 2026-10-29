@@ -338,7 +338,7 @@ wf.body(func(args) {
 		columns: [{
 			column: "abundance",
 			spec: setTableProps(ac, abundanceLabel + " in Cluster", false, undefined,
-				abundanceLabel + " of each clonotype in this cluster, per sample.")
+				"Total " + text.to_lower(abundanceLabel) + " summed over all clonotypes in the cluster, per sample.")
 			},
 			{
 				column: "abundance_normalized",
@@ -350,7 +350,7 @@ wf.body(func(args) {
 						"pl7.app/abundance/unit": abundanceUnit
 					}
 					}), text.re_replace("Number", abundanceLabel, "Fraction") + " in Cluster", false, undefined,
-					"Within-sample fraction of " + text.to_lower(abundanceLabel) + " of each clonotype in this cluster, per sample.")
+					"Share of the sample's total " + text.to_lower(abundanceLabel) + " contributed by this cluster (0–1).")
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 1

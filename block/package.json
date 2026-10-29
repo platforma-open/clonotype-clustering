@@ -1,6 +1,6 @@
 {
   "name": "@platforma-open/milaboratories.clonotype-clustering",
-  "version": "3.8.0",
+  "version": "4.7.4",
   "files": [
     "dist",
     "block-pack"

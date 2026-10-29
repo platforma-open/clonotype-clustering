@@ -1,5 +1,30 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 4.7.4
+
+### Patch Changes
+
+- 9c6021a: - Fix the Multiple Sequence Alignment for datasets from Redefine Clonotypes
+  - Update the SDK and the charts
+
+## 4.7.3
+
+### Patch Changes
+
+- 5671ca6: Show export button for main table
+
+## 4.7.2
+
+### Patch Changes
+
+- e7d9f19: Release every package through npm trusted publishing (OIDC) so each package's trusted publisher is used before it expires.
+
+## 4.7.1
+
+### Patch Changes
+
+- c978d8d: Add per-sample cluster abundance (count and within-sample fraction) to the main clusters table, one column per sample, hidden by default. The table is now built with `createPlDataTableV3`. Fix the descriptions of the per-sample cluster abundance columns: they are sums over the cluster's clonotypes, not per-clonotype values.
+
 ## 3.8.0
 
 ### Minor Changes

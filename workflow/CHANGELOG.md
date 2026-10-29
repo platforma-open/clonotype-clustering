@@ -1,5 +1,23 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.7.4
+
+## 4.7.3
+
+## 4.7.2
+
+### Patch Changes
+
+- e7d9f19: Release every package through npm trusted publishing (OIDC) so each package's trusted publisher is used before it expires.
+- Updated dependencies [e7d9f19]
+  - @platforma-open/milaboratories.clonotype-clustering.software@4.2.2
+
+## 4.7.1
+
+### Patch Changes
+
+- c978d8d: Add per-sample cluster abundance (count and within-sample fraction) to the main clusters table, one column per sample, hidden by default. The table is now built with `createPlDataTableV3`. Fix the descriptions of the per-sample cluster abundance columns: they are sums over the cluster's clonotypes, not per-clonotype values.
+
 ## 4.7.0
 
 ### Minor Changes
