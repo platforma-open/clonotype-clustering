@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.7.6
+
+### Patch Changes
+
+- 906992f: Per-sample cluster abundance columns no longer carry pl7.app/isAnchor, so cluster axes are not mistaken for dataset axes.
+
 ## 4.7.5
 
 ### Patch Changes
