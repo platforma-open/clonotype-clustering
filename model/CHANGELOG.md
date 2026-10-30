@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 4.7.5
+
+### Patch Changes
+
+- 2e96085: Update the SDK and build the dataset list with buildDatasetOptions (requireEnrichments: false), replacing the custom merge of datasets and their subset filters.
+
 ## 4.7.4
 
 ## 4.7.3
