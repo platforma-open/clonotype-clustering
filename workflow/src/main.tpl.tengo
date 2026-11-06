@@ -826,8 +826,8 @@ wf.body(func(args) {
 	//     here never sees the table's centroid_*/reference_centroid_* columns.
 	// Block label (custom overrides default). Used both as the centroid dataset's picker name
 	// below and as the trace step label when building outputs/exports further down.
-	// The default is the native labels of the chosen sequence columns, in the order the user
-	// picked them, followed by the clustering settings.
+	// The default is the block name with the native labels of the chosen sequence columns, in
+	// the order the user picked them, followed by the clustering settings.
 	traceLabel := args.customBlockLabel
 	if traceLabel == "" {
 		sequenceLabels := []
@@ -845,10 +845,10 @@ wf.body(func(args) {
 		if args.paramsLabel != "" {
 			labelParts = append(labelParts, args.paramsLabel)
 		}
-		traceLabel = text.join(labelParts, ", ")
-	}
-	if traceLabel == "" {
 		traceLabel = "Sequence Clustering"
+		if len(labelParts) > 0 {
+			traceLabel = "Sequence Clustering (" + text.join(labelParts, ", ") + ")"
+		}
 	}
 
 	centroidDatasetPf := undefined
