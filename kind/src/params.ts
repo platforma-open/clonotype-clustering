@@ -134,6 +134,5 @@ const CONTRACT = {
   mem: check(isNumber, "a number"),
   cpu: check(isNumber, "a number"),
 
-  defaultBlockLabel: check(isString, "a string"),
   customBlockLabel: check(isString, "a string"),
 } satisfies { [K in keyof BlockParams]-?: Check<NonNullable<BlockParams[K]>> };

@@ -4,6 +4,7 @@ import strings from "@milaboratories/strings";
 import {
   centroidAlignmentOptions,
   clusteringToolOptions,
+  defaultSubtitle,
   similarityTypeOptions,
 } from "@platforma-open/milaboratories.clonotype-clustering.model";
 import type {
@@ -94,7 +95,10 @@ const datasetSelection = computed<DatasetSelection | undefined>({
     // them. Clear so the user re-picks against the new options and we never carry
     // over an unresolvable ref (which would crash the workflow at xsv import).
     // Changing only the filter keeps the dataset, so the picks stay valid.
-    if (datasetChanged) app.model.data.sequencesRef = [];
+    if (datasetChanged) {
+      app.model.data.sequencesRef = [];
+      refreshSubtitleLabel();
+    }
   },
 });
 
@@ -190,6 +194,7 @@ const hasCDR3Sequences = computed(() => {
 // or any concurrent write.
 function onSequencesRefChange(sequencesRef: SUniversalPColumnId[]) {
   app.model.data.sequencesRef = sequencesRef;
+  refreshSubtitleLabel();
 
   if (app.model.data.similarityType === "sequence-identity") return;
 
@@ -204,6 +209,16 @@ function onSequencesRefChange(sequencesRef: SUniversalPColumnId[]) {
   });
 
   app.model.data.similarityType = allFramework ? "blosum80" : "blosum62";
+}
+
+// The subtitle names the chosen sequence columns as the result pool labels them.
+// Called only from the pickers' setters, so reopening the block never rewrites it.
+function refreshSubtitleLabel() {
+  const sequenceOptions = app.model.outputs.sequenceOptions ?? [];
+  app.model.data.subtitleLabel = app.model.data.sequencesRef
+    .map((r) => sequenceOptions.find((o) => o.value === r)?.label.replace("InFrame", "") ?? "")
+    .filter(Boolean)
+    .join(" - ");
 }
 
 // Set instructions to track cluster axis
@@ -227,7 +242,7 @@ const clusterAxis = computed<AxisId>(() => {
 <template>
   <PlBlockPage
     v-model:subtitle="app.model.data.customBlockLabel"
-    :subtitle-placeholder="app.model.data.defaultBlockLabel"
+    :subtitle-placeholder="defaultSubtitle(app.model.data)"
     title="Sequence Clustering"
   >
     <template #append>
