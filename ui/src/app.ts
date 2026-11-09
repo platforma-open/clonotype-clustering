@@ -26,18 +26,19 @@ export const useApp = sdkPlugin.useApp;
 
 type AppModel = ReturnType<typeof useApp>["model"];
 
-// The subtitle names the chosen sequence columns as the result pool labels them:
-// "" when none is chosen, undefined while a chosen column's option is not loaded yet.
+// The subtitle names the chosen sequence columns as the result pool labels them: "" when none is
+// chosen, undefined while the options are loading; a chosen column the loaded options no longer
+// list is left out.
 function syncSubtitleLabel(model: AppModel) {
   const subtitleLabel = computed<string | undefined>(() => {
+    const sequencesRef = model.data.sequencesRef;
+    if (sequencesRef.length === 0) return "";
     const sequenceOptions = model.outputs.sequenceOptions;
-    const labels: string[] = [];
-    for (const r of model.data.sequencesRef) {
-      const label = sequenceOptions?.find((o) => o.value === r)?.label;
-      if (label === undefined) return undefined;
-      labels.push(label.replace("InFrame", ""));
-    }
-    return labels.filter(Boolean).join(" - ");
+    if (sequenceOptions === undefined) return undefined;
+    return sequencesRef
+      .map((ref) => sequenceOptions.find((o) => o.value === ref)?.label.replace("InFrame", ""))
+      .filter(Boolean)
+      .join(" - ");
   });
 
   watch(

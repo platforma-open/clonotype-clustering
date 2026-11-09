@@ -373,6 +373,9 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 9.39.2(supports-color@8.1.1)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.12(@types/node@24.5.2)(@vitest/coverage-istanbul@4.1.12)(vite@8.3.6(@types/node@24.5.2)(yaml@2.9.1))
 
   software:
     devDependencies:
