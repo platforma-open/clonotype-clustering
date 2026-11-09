@@ -72,6 +72,11 @@ def main():
         "cluster-radius.tsv", sep="\t", index=False
     )
 
+    # 6b. cluster-profile.tsv: clusterId, chain, position, residue, weight, frequency
+    pd.DataFrame(columns=["clusterId", "chain", "position", "residue", "weight", "frequency"]).to_csv(
+        "cluster-profile.tsv", sep="\t", index=False
+    )
+
     # 7. cluster-to-seq-top.tsv: same as cluster-to-seq.tsv
     pd.DataFrame(columns=cluster_to_seq_cols).to_csv(
         "cluster-to-seq-top.tsv", sep="\t", index=False

@@ -86,6 +86,10 @@ parser.add_argument('--peptide-input', action='store_true',
 parser.add_argument('--emit-plurality-centroid', action='store_true',
                     help='Also emit plurality-centroid.tsv: per-cluster abundance-weighted per-column '
                          'majority residue (consensus at threshold 0.0, so no "X").')
+parser.add_argument('--emit-cluster-profile', action='store_true',
+                    help='Also emit cluster-profile.tsv: the per-column residue frequencies the '
+                         'centroid vote already computes, one row per (cluster, chain, position, '
+                         'residue). Feeds sequence-logo plots of a cluster.')
 parser.add_argument('--no-abundance-weighting', action='store_true',
                     help='Ignore clonotype abundance when building the centroid (and the profile '
                          'distance/medoid measured against it): every clonotype counts equally '
@@ -106,6 +110,7 @@ remove_gaps = not args.keep_gaps
 requested_alignment_model = args.alignment_model
 peptide_input = args.peptide_input
 emit_plurality = args.emit_plurality_centroid
+emit_profile = args.emit_cluster_profile
 no_abundance_weighting = args.no_abundance_weighting
 
 clustersTsv = "clusters.tsv"
@@ -116,6 +121,7 @@ cloneToClusterTsv = "clone-to-cluster.tsv"
 abundancesTsv = "abundances.tsv"
 abundancesPerClusterTsv = "abundances-per-cluster.tsv"
 clusterRadiusTsv = "cluster-radius.tsv"
+clusterProfileTsv = "cluster-profile.tsv"
 trimmedSequencesTsv = "trimmed-sequences.tsv"
 
 # sampleId, clonotypeKey, clonotypeKeyLabel,sequence_..., 
@@ -578,6 +584,48 @@ def derive_consensus(bundle, threshold: float, gap_threshold: float,
     return _msa_consensus(aligned, member_weights, threshold, gap_threshold, remove_gaps)
 
 
+def derive_profile(bundle) -> list[tuple[int, str, float, float]]:
+    """Per-column residue frequencies from an _align_chain bundle.
+
+    The same column tally the consensus vote runs on (see _msa_consensus), kept instead
+    of collapsed to one symbol. One entry per (position, residue) actually observed:
+
+        (position, residue, weight, frequency)
+
+    `position` is 1-based in alignment coordinates, matching the consensus string the
+    block exports, so a column here lines up with that string's character at the same
+    index. `weight` is the summed abundance weight of the members carrying that residue
+    (member counts when abundance weighting is off); `frequency` is that weight over the
+    column's total, gaps included, so a column's frequencies sum to 1.
+
+    Gaps are reported as "-" rather than dropped: a logo built from this must be able to
+    show that a position is absent from part of the cluster, and dropping them would
+    renormalize the rest to a confidence they do not have.
+
+    0 members -> no rows. A single distinct member -> that sequence at frequency 1.0,
+    which is the honest profile of a cluster of one.
+    """
+    mode, payload = bundle
+    if mode == "empty":
+        return []
+    if mode == "single":
+        return [(i + 1, c, 1.0, 1.0) for i, c in enumerate(payload)]
+    aligned, member_weights = payload
+    rows: list[tuple[int, str, float, float]] = []
+    for col in range(len(aligned[0])):
+        tally: dict[str, float] = {}
+        for row, w in zip(aligned, member_weights):
+            c = row[col]
+            tally[c] = tally.get(c, 0.0) + w
+        total = sum(tally.values())
+        if total <= 0:
+            continue
+        # Deterministic row order: descending weight, then by residue.
+        for residue, weight in sorted(tally.items(), key=lambda kv: (-kv[1], kv[0])):
+            rows.append((col + 1, residue, weight, weight / total))
+    return rows
+
+
 def _msa_profile_distances(aligned: list[str], weights: list[float],
                            gap_threshold: float) -> tuple[dict[str, float], int]:
     """Positional profile distance of each aligned row to the column profile (§3).
@@ -657,6 +705,7 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
                                   remove_gaps: bool,
                                   alignment_model: str,
                                   emit_plurality: bool,
+                                  emit_profile: bool,
                                   no_trim: bool):
     """Single per-cluster pass: align each chain ONCE and derive everything from it.
 
@@ -682,6 +731,8 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
                        emit_plurality)
       - distance_df:  [clusterId, clonotypeKey, distanceToCentroid]
       - medoid_df:    [clusterId, medoid_key]
+      - profile_df:   [clusterId, chain, position, residue, weight, frequency] (empty
+                      when not emit_profile)
     """
     # One row per (clusterId, clonotypeKey) carrying every chain value (untrimmed +
     # trimmed) and the weight; grouped into per-cluster lists in a single pass. All list
@@ -738,6 +789,16 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
     medoid_clusters = []
     medoid_keys = []
 
+    # Per-column residue frequencies, one row per (cluster, chain, position, residue).
+    # Long format rather than a dense matrix: a cluster's alignment width varies, and
+    # most (position, residue) pairs are never observed.
+    prof_clusters: list[str] = []
+    prof_chains: list[str] = []
+    prof_positions: list[int] = []
+    prof_residues: list[str] = []
+    prof_weights: list[float] = []
+    prof_freqs: list[float] = []
+
     # centroid_trimmed_fullSequence / plurality_* join the trim chains in sorted chain
     # order (mirrors trimmed_fullSequence).
     sorted_trim_cols = sorted(trim_cols)
@@ -760,6 +821,16 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
             plur_trim[tc] = (derive_consensus(bundle_t, 0.0, gap_threshold, remove_gaps)
                              if emit_plurality else None)
             d_by_seq_chain[tc], l_cons_chain[tc] = derive_distances(bundle_t, gap_threshold)
+
+            # The column tally the consensus vote just ran, kept rather than discarded.
+            if emit_profile:
+                for position, residue, weight, freq in derive_profile(bundle_t):
+                    prof_clusters.append(cluster_id)
+                    prof_chains.append(tc)
+                    prof_positions.append(position)
+                    prof_residues.append(residue)
+                    prof_weights.append(weight)
+                    prof_freqs.append(freq)
 
             # Untrimmed centroid: identical to the trimmed one when trimming is off (the
             # trim_ column is a byte copy of the original), else align separately.
@@ -890,7 +961,25 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
         {"clusterId": medoid_clusters, "medoid_key": medoid_keys},
         schema={"clusterId": clusters_df.schema["clusterId"], "medoid_key": pl.String},
     )
-    return centroid_df, plurality_df, distance_df, medoid_df
+    profile_df = pl.DataFrame(
+        {
+            "clusterId": prof_clusters,
+            "chain": prof_chains,
+            "position": prof_positions,
+            "residue": prof_residues,
+            "weight": prof_weights,
+            "frequency": prof_freqs,
+        },
+        schema={
+            "clusterId": clusters_df.schema["clusterId"],
+            "chain": pl.String,
+            "position": pl.Int64,
+            "residue": pl.String,
+            "weight": pl.Float64,
+            "frequency": pl.Float64,
+        },
+    )
+    return centroid_df, plurality_df, distance_df, medoid_df, profile_df
 
 
 # --- Theoretical centroid + plurality centroid + profile distance/medoid ---
@@ -914,10 +1003,10 @@ if sequence_cols:
     alignment_model = _resolve_alignment_model(
         cloneTable, trimmed_cols, requested_alignment_model, peptide_input,
     )
-    centroid_df, plurality_df, distance_member_df, medoid_df = compute_centroid_and_distance(
+    centroid_df, plurality_df, distance_member_df, medoid_df, profile_df = compute_centroid_and_distance(
         clusters, cloneTable, clonotype_weights,
         sequence_cols, trimmed_cols, consensus_threshold, gap_threshold, remove_gaps,
-        alignment_model, emit_plurality, no_trim,
+        alignment_model, emit_plurality, emit_profile, no_trim,
     )
 else:
     # No sequence columns: still write a header-only plurality file (the clustering
@@ -925,6 +1014,16 @@ else:
     plurality_df = (
         clusters.select("clusterId").unique("clusterId", keep="first")
         .with_columns(pl.lit(None, dtype=pl.Utf8).alias("plurality_centroid_trimmed_fullSequence"))
+    )
+    profile_df = pl.DataFrame(
+        schema={
+            "clusterId": clusters.schema["clusterId"],
+            "chain": pl.String,
+            "position": pl.Int64,
+            "residue": pl.String,
+            "weight": pl.Float64,
+            "frequency": pl.Float64,
+        },
     )
 
 # clusterLabel: the CL-XXXX label, imported as the variantKey axis's own label column so the
@@ -994,6 +1093,12 @@ plurality_df = plurality_df.with_columns(
 # workflow only imports it when the "Generate centroid dataset" checkbox is on. Computing
 # it from the already-built MSA adds no extra kalign pass.
 plurality_df.write_csv("plurality-centroid.tsv", separator="\t")
+
+# cluster-profile.tsv follows the same contract: always written so the workflow can
+# getFiles it unconditionally, populated only when --emit-cluster-profile is set. It is
+# the column tally the centroid vote already performs, so it costs no extra alignment.
+profile_df.write_csv(clusterProfileTsv, separator="\t")
+print(f"Generated {clusterProfileTsv} ({profile_df.height} rows)")
 
 # Ordered list of centroid columns emitted into cluster-to-seq.tsv.
 centroid_cluster_to_seq_cols = (

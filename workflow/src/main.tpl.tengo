@@ -735,6 +735,76 @@ wf.body(func(args) {
 		partitionKeyLength: 0
 		}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
+	// Per-column residue frequencies of every cluster — the centroid's own column vote,
+	// kept instead of collapsed to one symbol per column. Long format on four axes so a
+	// consumer can build a sequence logo of a cluster: pick one cluster and one chain,
+	// then position on X and residue as the stacked category.
+	//
+	// `position` is 1-based in alignment coordinates, so it indexes the exported
+	// consensus string directly. Gap rows ("-") are kept: a logo has to be able to show
+	// that a column is absent from part of the cluster.
+	// Peptide inputs only; the software leaves the file header-only otherwise.
+	profileAlphabet := args.sequenceType == "aminoacid" ? "aminoacid" : "nucleotide"
+	clusterProfilePf := undefined
+	if isPeptide {
+	clusterProfilePf = xsv.importFile(clusteringAnalysis.output("clusterProfile"), "tsv", {
+		axes: [{
+			column: "clusterId",
+			spec: clusterIdAxisSpec
+		}, {
+			column: "chain",
+			spec: {
+				name: "pl7.app/clustering/profileChain",
+				type: "String",
+				domain: clusterDomain,
+				annotations: {
+					"pl7.app/label": "Chain",
+					"pl7.app/table/visibility": "optional"
+				}
+			}
+		}, {
+			column: "position",
+			spec: {
+				name: "pl7.app/clustering/profilePosition",
+				type: "Int",
+				domain: clusterDomain,
+				annotations: {
+					"pl7.app/label": "Position",
+					"pl7.app/table/visibility": "default"
+				}
+			}
+		}, {
+			column: "residue",
+			spec: {
+				name: "pl7.app/clustering/profileResidue",
+				type: "String",
+				// The alphabet is what lets a logo renderer colour the stack correctly.
+				domain: maps.deepMerge(clusterDomain, {"pl7.app/alphabet": profileAlphabet}),
+				annotations: {
+					"pl7.app/label": "Residue",
+					"pl7.app/table/visibility": "default"
+				}
+			}
+		}],
+		columns: [{
+			column: "frequency",
+			spec: setTableProps({
+				name: "pl7.app/clustering/residueFrequency",
+				valueType: "Float",
+				domain: profileDomain,
+				annotations: {
+					"pl7.app/min": "0",
+					"pl7.app/max": "1",
+					"pl7.app/format": ".2p"
+				}
+				}, "Residue frequency", true, "2850",
+				"Share of the cluster holding this residue at this position, by the same weighting the centroid uses.")
+		}],
+		storageFormat: "Parquet",
+		partitionKeyLength: 0
+		}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
+	}
+
 	// Optional X-free plurality-consensus centroid dataset (peptide inputs only,
 	// gated by the "Generate centroid dataset" checkbox). The "dataset" concept lives entirely here: one
 	// centroid PColumn per chain on the clusterId axis, with a distinct sequenceContent domain
@@ -1184,6 +1254,14 @@ wf.body(func(args) {
 			i = i + 1
 		}
 	}
+	// Per-column residue frequencies (peptide inputs only).
+	if !is_undefined(clusterProfilePf) {
+		for k, v in clusterProfilePf {
+			epf.add(k + string(i), trace.inject(v.spec), v.data)
+			i = i + 1
+		}
+	}
+
 	// Centroid-dataset linker (variantKey <-> clusterId). Kept HERE in the main export pframe,
 	// like cloneToClusterLinkPf, rather than inside the exported centroid dataset — otherwise its
 	// clusterId axis surfaces as a second axis in the dataset view. The linker still resolves at
