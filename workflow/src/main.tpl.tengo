@@ -780,11 +780,16 @@ wf.body(func(args) {
 		// exactly like a real peptide dataset, whose Peptide Id is a label column, not the axis
 		// value. deepMerge over clusterIdAxisSpec overrides label/orderPriority and adds
 		// segmentedBy/fontFamily, keeping name and domain intact.
+		// A synthetic-repertoire-profiler parent carries its run id under
+		// pl7.app/repertoire/extractionRunId instead, so that key is overridden too: otherwise the
+		// centroid axis is still a superset of the parent's and the parent's columns match it.
+		centroidAxisDomain := { "pl7.app/peptide/extractionRunId": blockId }
+		if !is_undefined(clusterIdAxisSpec.domain["pl7.app/repertoire/extractionRunId"]) {
+			centroidAxisDomain["pl7.app/repertoire/extractionRunId"] = blockId
+		}
 		centroidDatasetAxisSpec := maps.deepMerge(clusterIdAxisSpec, {
 			name: "pl7.app/variantKey",
-			domain: {
-				"pl7.app/peptide/extractionRunId": blockId
-			},
+			domain: centroidAxisDomain,
 			annotations: {
 				"pl7.app/label": "Peptide ID",
 				"pl7.app/segmentedBy": "[\"pl7.app/peptide/extractionRunId\"]",
