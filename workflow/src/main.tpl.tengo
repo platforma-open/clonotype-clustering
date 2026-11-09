@@ -1001,7 +1001,7 @@ wf.body(func(args) {
 		{
 			type: "milaboratories.clonotype-clustering.centroids",
 			importance: 30,
-			label: "Centroids"
+			label: "Centroids " + traceLabel
 		}
 	)
 
