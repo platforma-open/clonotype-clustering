@@ -1,5 +1,7 @@
 # @platforma-open/milaboratories.clonotype-clustering.model
 
+## 4.8.0
+
 ## 4.7.8
 
 ## 4.7.7
