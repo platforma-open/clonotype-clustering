@@ -1,5 +1,13 @@
 # @platforma-open/milaboratories.clonotype-clustering.workflow
 
+## 4.7.7
+
+### Patch Changes
+
+- ab8cd89: Centroid datasets are named after their clustering block ("Centroids <block label>"), so centroid datasets from different clustering blocks no longer share one name in dataset pickers. The plot pages no longer add extra space above the chart title.
+- Updated dependencies [ab8cd89]
+  - @platforma-open/milaboratories.clonotype-clustering.software@4.2.3
+
 ## 4.7.6
 
 ### Patch Changes
