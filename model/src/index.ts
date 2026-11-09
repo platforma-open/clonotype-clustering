@@ -78,9 +78,15 @@ type OldUiState = {
   graphStateHistogram: GraphMakerState;
 };
 
-export type BlockData = {
+type BlockDataV1 = Omit<BlockData, "subtitleLabel"> & {
   defaultBlockLabel: string;
+};
+
+export type BlockData = {
   customBlockLabel: string;
+  // Labels of the chosen sequence columns as the result pool shows them, kept in sync
+  // by the UI; feeds the subtitle only, never the workflow.
+  subtitleLabel?: string;
   datasetRef?: PlRef;
   // Optional `pl7.app/isSubset` column picked alongside the dataset (e.g. a
   // repertoire-labeling label). Only clonotypes present in it are clustered.
@@ -140,35 +146,32 @@ export type BlockData = {
   graphStateHistogram: GraphMakerState;
 };
 
-export function getDefaultBlockLabel(data: {
-  sequenceLabels: string[];
-  similarityType: BlockData["similarityType"];
-  identity: number;
-  coverageThreshold: number;
-  trimStart: number;
-  trimEnd: number;
-  // Included so two blocks placed side by side to compare centroid settings do not end up
-  // with identical auto-labels. Only the non-default values are appended, keeping the label
-  // short for the common case.
-  centroidAlignment?: BlockData["centroidAlignment"];
-}) {
+/** Settings part of the block label, shared by the trace label and the subtitle. */
+export function labelFromParams(data: BlockData): string {
   const parts: string[] = [];
-  parts.push(data.sequenceLabels.join(" - "));
   parts.push(
     similarityTypeOptions.find((o) => o.value === data.similarityType)?.label ?? "BLOSUM62",
   );
   parts.push(`ident:${data.identity}`);
   parts.push(`cov:${data.coverageThreshold}`);
-  if (data.trimStart > 0) {
+  if ((data.trimStart ?? 0) > 0) {
     parts.push(`trimStart: ${data.trimStart}`);
   }
-  if (data.trimEnd > 0) {
+  if ((data.trimEnd ?? 0) > 0) {
     parts.push(`trimEnd: ${data.trimEnd}`);
   }
-  if (data.centroidAlignment !== undefined && data.centroidAlignment !== "auto") {
+  // Included so two blocks placed side by side to compare centroid settings do not end up
+  // with identical labels. Only the non-default value is appended, keeping the label
+  // short for the common case.
+  if (data.centroidAlignment !== "auto") {
     parts.push(data.centroidAlignment);
   }
-  return parts.filter(Boolean).join(", ");
+  return parts.join(", ");
+}
+
+/** Subtitle shown when the user has not set a custom block label. */
+export function defaultSubtitle(data: BlockData): string {
+  return [data.subtitleLabel, labelFromParams(data)].filter(Boolean).join(", ");
 }
 
 /**
@@ -185,7 +188,7 @@ function splitPerSample(columns: ColumnRecipe[]): ColumnRecipe[] | undefined {
 const defaultSimilarityType = similarityTypeOptions[3];
 
 const dataModel = new DataModelBuilder({ kind })
-  .from<BlockData>("v1")
+  .from<BlockDataV1>("v1")
   .upgradeLegacy<OldArgs, OldUiState>(({ args, uiState }) => ({
     ...args,
     similarityType:
@@ -202,22 +205,18 @@ const dataModel = new DataModelBuilder({ kind })
     alignmentModel: uiState.alignmentModel,
     graphStateHistogram: uiState.graphStateHistogram,
   }))
+  // The old label mixed column labels from the result pool with settings; the settings part
+  // is recomputed from data, and the column part returns on the next sequence pick.
+  .migrate<BlockData>("v2", ({ defaultBlockLabel: _, ...rest }) => ({
+    ...rest,
+    subtitleLabel: "",
+  }))
   // `params` is absent when a block is created by hand rather than from a
   // template, so every field the contract carries keeps its own default.
   .init(({ params }) => ({
     ...params,
-    defaultBlockLabel:
-      params?.defaultBlockLabel ??
-      getDefaultBlockLabel({
-        sequenceLabels: [],
-        similarityType: defaultSimilarityType.value,
-        identity: 0.8,
-        coverageThreshold: 0.8,
-        trimStart: 0,
-        trimEnd: 0,
-        centroidAlignment: "auto",
-      }),
     customBlockLabel: params?.customBlockLabel ?? "",
+    subtitleLabel: "",
     sequencesRef: params?.sequencesRef ?? [],
     sequenceType: params?.sequenceType ?? "aminoacid",
     identity: params?.identity ?? 0.8,
@@ -300,7 +299,6 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
     mem: data.mem,
     cpu: data.cpu,
 
-    defaultBlockLabel: data.defaultBlockLabel,
     customBlockLabel: data.customBlockLabel,
   }))
 
@@ -308,8 +306,8 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
     if (!data.datasetRef) throw new Error("Dataset is required");
     if (!data.sequencesRef.length) throw new Error("Sequences are required");
     return {
-      defaultBlockLabel: data.defaultBlockLabel,
       customBlockLabel: data.customBlockLabel,
+      paramsLabel: labelFromParams(data),
       datasetRef: data.datasetRef,
       filterRef: data.filterRef,
       sequencesRef: data.sequencesRef,
@@ -693,7 +691,7 @@ export const platforma = BlockModelV3.create({ dataModel, kind })
 
   .title(() => "Sequence Clustering")
 
-  .subtitle((ctx) => ctx.data.customBlockLabel || ctx.data.defaultBlockLabel)
+  .subtitle((ctx) => ctx.data.customBlockLabel || defaultSubtitle(ctx.data))
 
   .sections((_ctx) => [
     { type: "link", href: "/", label: strings.titles.main },

@@ -1,0 +1,71 @@
+test := import("@platforma-sdk/workflow-tengo:test")
+traceLabel := import(":trace-label")
+
+specs := {
+	heavy: {annotations: {"pl7.app/label": "CDR3 aa Heavy"}},
+	light: {annotations: {"pl7.app/label": "CDR3 aa Light"}},
+	inFrame: {annotations: {"pl7.app/label": "VDJRegionInFrame aa"}},
+	unlabelled: {annotations: {}},
+	bare: {}
+}
+
+columns := {
+	getSpec: func(ref) {
+		return specs[ref]
+	}
+}
+
+args := func(overrides) {
+	res := {
+		customBlockLabel: "",
+		sequencesRef: [],
+		paramsLabel: ""
+	}
+	for k, v in overrides {
+		res[k] = v
+	}
+	return res
+}
+
+Test_custom_label_is_kept_verbatim := func() {
+	test.isEqual("My clusters", traceLabel.build(args({
+		customBlockLabel: "My clusters",
+		sequencesRef: ["heavy"],
+		paramsLabel: "BLOSUM62, ident:0.8, cov:0.8"
+	}), columns), "custom label wins")
+}
+
+Test_default_lists_column_labels_then_settings := func() {
+	test.isEqual("Sequence Clustering (CDR3 aa Heavy - CDR3 aa Light, BLOSUM62, ident:0.8, cov:0.8)", traceLabel.build(args({
+		sequencesRef: ["heavy", "light"],
+		paramsLabel: "BLOSUM62, ident:0.8, cov:0.8"
+	}), columns), "column labels joined by ' - ', then settings")
+}
+
+Test_column_labels_follow_the_selection_order := func() {
+	test.isEqual("Sequence Clustering (CDR3 aa Light - CDR3 aa Heavy)", traceLabel.build(args({
+		sequencesRef: ["light", "heavy"]
+	}), columns), "the order the user picked, not a sorted one")
+}
+
+Test_in_frame_is_removed_from_column_labels := func() {
+	test.isEqual("Sequence Clustering (VDJRegion aa)", traceLabel.build(args({
+		sequencesRef: ["inFrame"]
+	}), columns), "InFrame dropped from the label")
+}
+
+Test_unlabelled_columns_are_skipped := func() {
+	test.isEqual("Sequence Clustering (CDR3 aa Light)", traceLabel.build(args({
+		sequencesRef: ["unlabelled", "bare", "light"]
+	}), columns), "only labelled columns appear")
+}
+
+Test_settings_alone_follow_the_block_name := func() {
+	test.isEqual("Sequence Clustering (BLOSUM62, ident:0.8, cov:0.8)", traceLabel.build(args({
+		paramsLabel: "BLOSUM62, ident:0.8, cov:0.8"
+	}), columns), "settings without columns")
+}
+
+Test_nothing_chosen_gives_the_block_name := func() {
+	test.isEqual("Sequence Clustering", traceLabel.build(args({}), columns), "bare block name")
+}

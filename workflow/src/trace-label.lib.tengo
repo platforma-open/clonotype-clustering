@@ -1,0 +1,35 @@
+ll := import("@platforma-sdk/workflow-tengo:ll")
+text := import("text")
+
+// Block label (custom overrides default). The default is the block name with the native labels
+// of the chosen sequence columns, in the order the user picked them, followed by the clustering
+// settings.
+build := func(args, columns) {
+	traceLabel := args.customBlockLabel
+	if traceLabel == "" {
+		sequenceLabels := []
+		for ref in args.sequencesRef {
+			annotations := columns.getSpec(ref).annotations
+			label := is_undefined(annotations) ? undefined : annotations["pl7.app/label"]
+			if !is_undefined(label) && label != "" {
+				sequenceLabels = append(sequenceLabels, text.replace(label, "InFrame", "", 1))
+			}
+		}
+		labelParts := []
+		if len(sequenceLabels) > 0 {
+			labelParts = append(labelParts, text.join(sequenceLabels, " - "))
+		}
+		if args.paramsLabel != "" {
+			labelParts = append(labelParts, args.paramsLabel)
+		}
+		traceLabel = "Sequence Clustering"
+		if len(labelParts) > 0 {
+			traceLabel = "Sequence Clustering (" + text.join(labelParts, ", ") + ")"
+		}
+	}
+	return traceLabel
+}
+
+export ll.toStrict({
+	build: build
+})

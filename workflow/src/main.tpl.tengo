@@ -9,6 +9,7 @@ render := import("@platforma-sdk/workflow-tengo:render")
 pSpec := import("@platforma-sdk/workflow-tengo:pframes.spec")
 ll := import("@platforma-sdk/workflow-tengo:ll")
 subsetTable := import(":subset-table")
+traceLabelLib := import(":trace-label")
 
 text := import("text")
 math := import("math")
@@ -40,7 +41,6 @@ setTableProps := func(spec, label, visibility, orderPriority, ...description) {
 		annotations: annotations
 	})
 }
-
 
 wf.prepare(func(args) {
 	bundleBuilder := wf.createPBundleBuilder()
@@ -826,10 +826,7 @@ wf.body(func(args) {
 	//     here never sees the table's centroid_*/reference_centroid_* columns.
 	// Block label (custom overrides default). Used both as the centroid dataset's picker name
 	// below and as the trace step label when building outputs/exports further down.
-	traceLabel := args.customBlockLabel
-	if traceLabel == "" {
-		traceLabel = args.defaultBlockLabel
-	}
+	traceLabel := traceLabelLib.build(args, columns)
 
 	centroidDatasetPf := undefined
 	centroidAbundancePf := undefined

@@ -333,6 +333,9 @@ importers:
       '@platforma-sdk/block-tools':
         specifier: 'catalog:'
         version: 2.17.7(@types/node@24.5.2)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.12(@types/node@24.5.2)(@vitest/coverage-istanbul@4.1.12)(vite@8.3.6(@types/node@24.5.2)(yaml@2.9.1))
 
   model:
     dependencies:
@@ -370,6 +373,9 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 9.39.2(supports-color@8.1.1)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.12(@types/node@24.5.2)(@vitest/coverage-istanbul@4.1.12)(vite@8.3.6(@types/node@24.5.2)(yaml@2.9.1))
 
   software:
     devDependencies:
@@ -11610,7 +11616,7 @@ snapshots:
       magicast: 0.5.2
       obug: 2.2.1
       tinyrainbow: 3.1.0
-      vitest: 4.1.12(@types/node@24.19.2)(@vitest/coverage-istanbul@4.1.12)(vite@8.3.6(@types/node@24.19.2)(yaml@2.9.1))
+      vitest: 4.1.12(@types/node@24.5.2)(@vitest/coverage-istanbul@4.1.12)(vite@8.3.6(@types/node@24.5.2)(yaml@2.9.1))
     transitivePeerDependencies:
       - supports-color
 
@@ -11656,6 +11662,14 @@ snapshots:
       magic-string: 0.30.21
     optionalDependencies:
       vite: 8.3.6(@types/node@24.19.2)(yaml@2.9.1)
+
+  '@vitest/mocker@4.1.12(vite@8.3.6(@types/node@24.5.2)(yaml@2.9.1))':
+    dependencies:
+      '@vitest/spy': 4.1.12
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 8.3.6(@types/node@24.5.2)(yaml@2.9.1)
 
   '@vitest/mocker@4.1.5(vite@8.3.6(@types/node@24.19.2)(yaml@2.9.1))':
     dependencies:
@@ -14035,16 +14049,44 @@ snapshots:
       magic-string: 0.30.21
       obug: 2.2.1
       pathe: 2.0.3
-      picomatch: 4.0.4
+      picomatch: 4.0.7
       std-env: 4.0.0
       tinybench: 2.9.0
       tinyexec: 1.0.2
-      tinyglobby: 0.2.16
+      tinyglobby: 0.2.17
       tinyrainbow: 3.1.0
       vite: 8.3.6(@types/node@24.19.2)(yaml@2.9.1)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 24.19.2
+      '@vitest/coverage-istanbul': 4.1.12(supports-color@8.1.1)(vitest@4.1.12)
+    transitivePeerDependencies:
+      - msw
+
+  vitest@4.1.12(@types/node@24.5.2)(@vitest/coverage-istanbul@4.1.12)(vite@8.3.6(@types/node@24.5.2)(yaml@2.9.1)):
+    dependencies:
+      '@vitest/expect': 4.1.12
+      '@vitest/mocker': 4.1.12(vite@8.3.6(@types/node@24.5.2)(yaml@2.9.1))
+      '@vitest/pretty-format': 4.1.12
+      '@vitest/runner': 4.1.12
+      '@vitest/snapshot': 4.1.12
+      '@vitest/spy': 4.1.12
+      '@vitest/utils': 4.1.12
+      es-module-lexer: 2.0.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.2.1
+      pathe: 2.0.3
+      picomatch: 4.0.7
+      std-env: 4.0.0
+      tinybench: 2.9.0
+      tinyexec: 1.0.2
+      tinyglobby: 0.2.17
+      tinyrainbow: 3.1.0
+      vite: 8.3.6(@types/node@24.5.2)(yaml@2.9.1)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 24.5.2
       '@vitest/coverage-istanbul': 4.1.12(supports-color@8.1.1)(vitest@4.1.12)
     transitivePeerDependencies:
       - msw

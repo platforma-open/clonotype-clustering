@@ -65,6 +65,5 @@ export type BlockParams = {
   cpu?: number;
 
   // Display naming.
-  defaultBlockLabel?: string;
   customBlockLabel?: string;
 };

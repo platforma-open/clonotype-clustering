@@ -4,6 +4,7 @@ import strings from "@milaboratories/strings";
 import {
   centroidAlignmentOptions,
   clusteringToolOptions,
+  defaultSubtitle,
   similarityTypeOptions,
 } from "@platforma-open/milaboratories.clonotype-clustering.model";
 import type {
@@ -227,7 +228,7 @@ const clusterAxis = computed<AxisId>(() => {
 <template>
   <PlBlockPage
     v-model:subtitle="app.model.data.customBlockLabel"
-    :subtitle-placeholder="app.model.data.defaultBlockLabel"
+    :subtitle-placeholder="defaultSubtitle(app.model.data)"
     title="Sequence Clustering"
   >
     <template #append>
