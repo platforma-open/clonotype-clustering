@@ -84,8 +84,8 @@ type BlockDataV1 = Omit<BlockData, "subtitleLabel"> & {
 
 export type BlockData = {
   customBlockLabel: string;
-  // Labels of the chosen sequence columns as the result pool shows them. Written by the
-  // sequence picker on a user pick; feeds the subtitle only, never the workflow.
+  // Labels of the chosen sequence columns as the result pool shows them, kept in sync
+  // by the UI; feeds the subtitle only, never the workflow.
   subtitleLabel?: string;
   datasetRef?: PlRef;
   // Optional `pl7.app/isSubset` column picked alongside the dataset (e.g. a
