@@ -1,5 +1,17 @@
 # @platforma-open/milaboratories.clonotype-clustering.kind
 
+## 1.3.0
+
+### Minor Changes
+
+- d74c239: Compute the block label without the UI
+
+  The trace label is now built by the workflow from the native labels of the chosen
+  sequence columns plus the clustering settings, so opening the block no longer changes
+  its arguments and a block that was never opened still gets a meaningful label. The
+  subtitle shows the result-pool labels of the chosen columns. The init-params contract no longer carries `defaultBlockLabel`;
+  templates that still contain it keep loading.
+
 ## 1.2.0
 
 ### Minor Changes
