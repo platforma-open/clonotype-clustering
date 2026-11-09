@@ -41,6 +41,35 @@ setTableProps := func(spec, label, visibility, orderPriority, ...description) {
 	})
 }
 
+// Block label (custom overrides default). The default is the block name with the native labels
+// of the chosen sequence columns, in the order the user picked them, followed by the clustering
+// settings.
+buildTraceLabel := func(args, columns) {
+	traceLabel := args.customBlockLabel
+	if traceLabel == "" {
+		sequenceLabels := []
+		for ref in args.sequencesRef {
+			annotations := columns.getSpec(ref).annotations
+			label := is_undefined(annotations) ? undefined : annotations["pl7.app/label"]
+			if !is_undefined(label) && label != "" {
+				sequenceLabels = append(sequenceLabels, text.replace(label, "InFrame", "", 1))
+			}
+		}
+		labelParts := []
+		if len(sequenceLabels) > 0 {
+			labelParts = append(labelParts, text.join(sequenceLabels, " - "))
+		}
+		if args.paramsLabel != "" {
+			labelParts = append(labelParts, args.paramsLabel)
+		}
+		traceLabel = "Sequence Clustering"
+		if len(labelParts) > 0 {
+			traceLabel = "Sequence Clustering (" + text.join(labelParts, ", ") + ")"
+		}
+	}
+	return traceLabel
+}
+
 
 wf.prepare(func(args) {
 	bundleBuilder := wf.createPBundleBuilder()
@@ -826,30 +855,7 @@ wf.body(func(args) {
 	//     here never sees the table's centroid_*/reference_centroid_* columns.
 	// Block label (custom overrides default). Used both as the centroid dataset's picker name
 	// below and as the trace step label when building outputs/exports further down.
-	// The default is the block name with the native labels of the chosen sequence columns, in
-	// the order the user picked them, followed by the clustering settings.
-	traceLabel := args.customBlockLabel
-	if traceLabel == "" {
-		sequenceLabels := []
-		for ref in args.sequencesRef {
-			annotations := columns.getSpec(ref).annotations
-			label := is_undefined(annotations) ? undefined : annotations["pl7.app/label"]
-			if !is_undefined(label) && label != "" {
-				sequenceLabels = append(sequenceLabels, text.replace(label, "InFrame", "", 1))
-			}
-		}
-		labelParts := []
-		if len(sequenceLabels) > 0 {
-			labelParts = append(labelParts, text.join(sequenceLabels, " - "))
-		}
-		if args.paramsLabel != "" {
-			labelParts = append(labelParts, args.paramsLabel)
-		}
-		traceLabel = "Sequence Clustering"
-		if len(labelParts) > 0 {
-			traceLabel = "Sequence Clustering (" + text.join(labelParts, ", ") + ")"
-		}
-	}
+	traceLabel := buildTraceLabel(args, columns)
 
 	centroidDatasetPf := undefined
 	centroidAbundancePf := undefined
