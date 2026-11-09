@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering
 
+## 4.8.2
+
+### Patch Changes
+
+- 1b6e630: Republish the software: the 4.3.0 binary packages were not uploaded and still carry the previous scripts, so clustering failed on local (binary) backends with "unrecognized arguments: --emit-cluster-profile".
+
 ## 4.8.1
 
 ## 4.8.0
