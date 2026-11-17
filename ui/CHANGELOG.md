@@ -1,5 +1,11 @@
 # @platforma-open/milaboratories.clonotype-clustering.ui
 
+## 4.8.3
+
+### Patch Changes
+
+- @platforma-open/milaboratories.clonotype-clustering.model@4.8.3
+
 ## 4.8.2
 
 ### Patch Changes
