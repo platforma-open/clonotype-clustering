@@ -1236,24 +1236,30 @@ wf.body(func(args) {
 	msaPf := pframes.pFrameBuilder()
 	i := 0
 	for pf in [trimmedSeqPf, cloneToClusterLinkPf, distancesPf] {
-		for k, v in pf {
+		for k in maps.getKeys(pf) {
+			v := pf[k]
 			msaPf.add(k + string(i), trace.inject(v.spec), v.data)
 			i = i + 1
 		}
 	}
 	msaPf = msaPf.build()
 
+	// Export names carry the column's position, and downstream blocks and project templates save
+	// them (`pf.abundance0`). Tengo walks a map in random order, so every frame is walked by sorted
+	// key: the same column gets the same name in every run.
 	epf := pframes.pFrameBuilder()
 	i = 0
 	for pf in [abundancesPf, cloneToClusterPf, cloneToClusterLinkPf, clusterToSeqPf, abundancesPerClusterPf, distancesPf, clusterRadiusPf] {
-		for k, v in pf {
+		for k in maps.getKeys(pf) {
+			v := pf[k]
 			epf.add(k + string(i), trace.inject(v.spec), v.data) // label, specs, data
 			i = i + 1
 		}
 	}
 	// Per-column residue frequencies (peptide inputs only).
 	if !is_undefined(clusterProfilePf) {
-		for k, v in clusterProfilePf {
+		for k in maps.getKeys(clusterProfilePf) {
+			v := clusterProfilePf[k]
 			epf.add(k + string(i), trace.inject(v.spec), v.data)
 			i = i + 1
 		}
@@ -1265,7 +1271,8 @@ wf.body(func(args) {
 	// the result-pool level, so a downstream block anchoring the centroid dataset reaches every
 	// cluster property on the clusterId axis.
 	if !is_undefined(centroidLinkPf) {
-		for k, v in centroidLinkPf {
+		for k in maps.getKeys(centroidLinkPf) {
+			v := centroidLinkPf[k]
 			epf.add("centroidLink" + string(i), trace.inject(v.spec), v.data)
 			i = i + 1
 		}
@@ -1317,11 +1324,13 @@ wf.body(func(args) {
 	if !is_undefined(centroidDatasetPf) {
 		cdb := pframes.pFrameBuilder()
 		j := 0
-		for k, v in centroidAbundancePf {
+		for k in maps.getKeys(centroidAbundancePf) {
+			v := centroidAbundancePf[k]
 			cdb.add("a" + string(j), centroidTrace.inject(v.spec), v.data)
 			j = j + 1
 		}
-		for k, v in centroidDatasetPf {
+		for k in maps.getKeys(centroidDatasetPf) {
+			v := centroidDatasetPf[k]
 			cdb.add("s" + string(j), centroidTrace.inject(v.spec), v.data)
 			j = j + 1
 		}
