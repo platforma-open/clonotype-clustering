@@ -1,6 +1,7 @@
 import polars as pl
 import polars_ds as pds
 import argparse
+import math
 import re
 import base64
 import hashlib
@@ -18,14 +19,17 @@ from reassign_singletons import reassign_singletons
 # rather than which clones expanded; column ties then break deterministically
 # (non-gap over gap, then alphabetically). The same weight vector drives the
 # profile-distance/medoid, so centroid and distance-to-centroid stay consistent.
-#   MSA_MAX_MEMBERS — cap on distinct members per cluster fed to kalign; the
-#                     top-MSA_MAX_MEMBERS by weight are kept and the rest are
-#                     dropped (logged, never silent).
+#   MSA_MAX_DISTINCT — cap on distinct sequences per cluster fed to kalign, by alphabet
+#                      (see _cap_clonotypes). kalign's memory grows with the square of the
+#                      distinct nucleotide sequences and with their length (~1 GB at 1,000
+#                      of 60 nt, ~5.6 GB at 1,000 of 300 nt, ~26 GB at 3,000 of 150 nt);
+#                      amino acids stay near 0.1 GB at 10,000. Above ~16k distinct
+#                      sequences kalign can overflow the stack.
 # A column only commits a residue when its winning residue holds at least
 # --consensus-threshold of the column's total weight; otherwise the position is
 # ambiguous and emits "X". This keeps a 51/49 column from being reported with the
 # same confidence as a 70/30 one.
-MSA_MAX_MEMBERS = 1000
+MSA_MAX_DISTINCT = {"aminoacid": 5000, "nucleotide": 1000}
 
 # --alignment-model auto: share of input sequences that must sit at one single length
 # before the input counts as a fixed-length library and the ungapped layout is chosen.
@@ -87,9 +91,13 @@ parser.add_argument('--emit-plurality-centroid', action='store_true',
                     help='Also emit plurality-centroid.tsv: per-cluster abundance-weighted per-column '
                          'majority residue (consensus at threshold 0.0, so no "X").')
 parser.add_argument('--emit-cluster-profile', action='store_true',
-                    help='Also emit cluster-profile.tsv: the per-column residue frequencies the '
-                         'centroid vote already computes, one row per (cluster, chain, position, '
-                         'residue). Feeds sequence-logo plots of a cluster.')
+                    help='Also emit cluster-profile.tsv: per-column sequence-logo heights in bits '
+                         'from the tally the centroid vote already computes, one row per (cluster, '
+                         'chain, position, residue).')
+parser.add_argument('--sequence-alphabet', choices=['aminoacid', 'nucleotide'], default='aminoacid',
+                    help='Alphabet of the clustered sequences; sets the alignment cap '
+                         '(MSA_MAX_DISTINCT) and the letters the logo in cluster-profile.tsv '
+                         'counts, with its maximum (log2 20 or log2 4 bits). Default aminoacid.')
 parser.add_argument('--no-abundance-weighting', action='store_true',
                     help='Ignore clonotype abundance when building the centroid (and the profile '
                          'distance/medoid measured against it): every clonotype counts equally '
@@ -111,6 +119,12 @@ requested_alignment_model = args.alignment_model
 peptide_input = args.peptide_input
 emit_plurality = args.emit_plurality_centroid
 emit_profile = args.emit_cluster_profile
+# Letters the logo's information content counts (see derive_profile); its maximum is
+# log2 of their number.
+PROFILE_LETTERS = {"aminoacid": frozenset("ACDEFGHIKLMNPQRSTVWY"), "nucleotide": frozenset("ACGT")}
+profile_letters = PROFILE_LETTERS[args.sequence_alphabet]
+profile_max_bits = math.log2(len(profile_letters))
+msa_max_distinct = MSA_MAX_DISTINCT[args.sequence_alphabet]
 no_abundance_weighting = args.no_abundance_weighting
 
 clustersTsv = "clusters.tsv"
@@ -272,6 +286,15 @@ else:
         .unique("clonotypeKey", keep="first")
         .with_columns(pl.lit(1.0, dtype=pl.Float64).alias("weight"))
     )
+
+# --- Per-clonotype abundance for the MSA cap ---
+# Abundance summed over sampleId per clonotypeKey, whatever the weighting setting: the cap
+# keeps the most abundant clonotypes (see _cap_clonotypes).
+clonotype_abundances = (
+    cloneTable
+    .group_by("clonotypeKey")
+    .agg(pl.sum("abundance").alias("abundance"))
+)
 
 
 # kalign only understands biological-sequence letters. A stray non-letter — a stop
@@ -508,11 +531,10 @@ def _resolve_alignment_model(clone_table: pl.DataFrame, trim_cols: list[str],
     return resolved
 
 
-def _align_chain(values: list[str], weights: list[float], cluster_id: str,
-                 alignment_model: str = "gapped"):
+def _align_chain(values: list[str], weights: list[float], alignment_model: str = "gapped"):
     """Build one cluster's per-chain kalign MSA ONCE; everything else derives from it.
 
-    The alignment is a pure function of the (deduplicated, ordered, capped) sequence
+    The alignment is a pure function of the (deduplicated, ordered) sequence
     set — the abundance weights only matter to the column vote downstream, not to the
     alignment. So this runs kalign a single time and the consensus (theoretical
     centroid), the plurality consensus (threshold 0) and the profile distances/medoid
@@ -524,8 +546,7 @@ def _align_chain(values: list[str], weights: list[float], cluster_id: str,
     - Deduplicates identical sequences, summing their abundance weights, so kalign
       aligns each distinct sequence once and the weight still drives the column vote.
     - Sanitizes (see _sanitize_seq) before keying so stray non-letters never reach kalign.
-    - Caps distinct members at MSA_MAX_MEMBERS by descending weight; logs how many
-      dropped (no silent truncation).
+    The caller applies the alignment cap to the clonotypes before calling (see _cap_clonotypes).
 
     Returns a (mode, payload) bundle:
       - ("empty", None)               — 0 non-empty members.
@@ -545,14 +566,6 @@ def _align_chain(values: list[str], weights: list[float], cluster_id: str,
     # on the sequence. This fixes the MSA — and hence the centroid, the medoid and the
     # clusterId labels derived from them — run-to-run, removing the CID-conflict risk.
     pairs = sorted(weight_by_seq.items(), key=lambda p: (-p[1], p[0]))
-
-    # Cap distinct members per cluster, keeping the top MSA_MAX_MEMBERS in that same
-    # deterministic order (no silent truncation; the kept set is stable too).
-    if len(pairs) > MSA_MAX_MEMBERS:
-        dropped = len(pairs) - MSA_MAX_MEMBERS
-        pairs = pairs[:MSA_MAX_MEMBERS]
-        print(f"  cluster {cluster_id}: capped to {MSA_MAX_MEMBERS} distinct members "
-              f"by weight, dropped {dropped}")
 
     if len(pairs) == 1:
         return ("single", pairs[0][0])
@@ -584,45 +597,108 @@ def derive_consensus(bundle, threshold: float, gap_threshold: float,
     return _msa_consensus(aligned, member_weights, threshold, gap_threshold, remove_gaps)
 
 
-def derive_profile(bundle) -> list[tuple[int, str, float, float]]:
-    """Per-column residue frequencies from an _align_chain bundle.
+def _cap_clonotypes(row: dict, seq_cols: list[str], cluster_id: str,
+                    max_distinct: int) -> list[int] | None:
+    """Indices of the clonotypes fed to the alignment; None when the cluster is under the cap.
 
-    The same column tally the consensus vote runs on (see _msa_consensus), kept instead
-    of collapsed to one symbol. One entry per (position, residue) actually observed:
+    kalign's cost is in distinct sequences, so the cap counts distinct combinations of the
+    untrimmed sequences (one per chain). Trimming can only merge sequences, so this also
+    bounds the trimmed alignments. The `max_distinct` combinations with the highest summed
+    abundance, whatever the weighting, are kept with every clonotype that carries one, so
+    every chain is aligned on the same clonotypes. Ties go by summed weight, then sequence.
+    """
+    keys = row["__keys"]
+    # Fewer clonotypes than the cap: nothing to drop.
+    if len(keys) <= max_distinct:
+        return None
+    abunds, wts = row["__abundances"], row["__weights"]
+    # One string per clonotype: its untrimmed sequences, all chains joined.
+    joined = ["====".join(row[f"__vals_{sc}"][i] for sc in sorted(seq_cols)) for i in range(len(keys))]
+    # Summed abundance and weight per distinct combination.
+    abund_by_seq: dict[str, float] = {}
+    wt_by_seq: dict[str, float] = {}
+    for i, s in enumerate(joined):
+        abund_by_seq[s] = abund_by_seq.get(s, 0.0) + abunds[i]
+        wt_by_seq[s] = wt_by_seq.get(s, 0.0) + wts[i]
+    if len(abund_by_seq) <= max_distinct:
+        return None
+    # Most abundant first; ties by weight, then by sequence.
+    ranked = sorted(abund_by_seq, key=lambda s: (-abund_by_seq[s], -wt_by_seq[s], s))
+    kept_seqs = set(ranked[:max_distinct])
+    # Every clonotype that carries a kept combination, in input order.
+    kept = [i for i, s in enumerate(joined) if s in kept_seqs]
+    print(f"  cluster {cluster_id}: capped to the {max_distinct} most abundant of "
+          f"{len(abund_by_seq)} distinct sequences, {len(kept)} of {len(keys)} clonotypes kept")
+    return kept
 
-        (position, residue, weight, frequency)
 
-    `position` is 1-based in alignment coordinates, matching the consensus string the
-    block exports, so a column here lines up with that string's character at the same
-    index. `weight` is the summed abundance weight of the members carrying that residue
-    (member counts when abundance weighting is off); `frequency` is that weight over the
-    column's total, gaps included, so a column's frequencies sum to 1.
+def _take(values: list, idx: list[int] | None) -> list:
+    """The values at `idx`; all of them when `idx` is None (cluster under the cap)."""
+    return values if idx is None else [values[i] for i in idx]
 
-    Gaps are reported as "-" rather than dropped: a logo built from this must be able to
-    show that a position is absent from part of the cluster, and dropping them would
-    renormalize the rest to a confidence they do not have.
 
-    0 members -> no rows. A single distinct member -> that sequence at frequency 1.0,
-    which is the honest profile of a cluster of one.
+# Lowest information content of a logo position. Graph Maker's Normalize divides each
+# letter by its position's total, and a total of 0 draws the letters unscaled.
+PROFILE_MIN_BITS = 1e-6
+
+
+def derive_profile(bundle, letters: frozenset, max_bits: float, gap_threshold: float,
+                   remove_gaps: bool) -> list[tuple[int, str, float]]:
+    """Per-position sequence-logo heights, in bits, from an _align_chain bundle.
+
+    The same column tally the consensus vote runs on (see _msa_consensus). One entry per
+    (position, residue) actually observed:
+
+        (position, residue, bits)
+
+    `position` is 1-based in centroid coordinates: with `remove_gaps`, the columns the
+    consensus drops (see _is_absent_column) are left out and the rest renumbered, so
+    position k is letter k of the centroid. A position's information content is
+    `max_bits` (uniform background) minus the Shannon entropy of its `letters`, floored at
+    PROFILE_MIN_BITS. The gap "-" and letters outside `letters` (N, X, ...) are left out of
+    the entropy. Each residue, the gap included, gets its share of the column's vote weight
+    times that, so normalizing a position gives the vote shares, gaps included.
+
+    0 members -> no rows. A single distinct member -> that sequence at `max_bits`, letters
+    outside `letters` at PROFILE_MIN_BITS.
     """
     mode, payload = bundle
     if mode == "empty":
         return []
     if mode == "single":
-        return [(i + 1, c, 1.0, 1.0) for i, c in enumerate(payload)]
+        # One member: alphabet letters at full height, N/X at the floor.
+        return [(i + 1, c, max_bits if c in letters else PROFILE_MIN_BITS)
+                for i, c in enumerate(payload)]
     aligned, member_weights = payload
-    rows: list[tuple[int, str, float, float]] = []
+    rows: list[tuple[int, str, float]] = []
+    position = 0
     for col in range(len(aligned[0])):
+        # Summed member weight per character in this column ("-" = gap).
         tally: dict[str, float] = {}
         for row, w in zip(aligned, member_weights):
             c = row[col]
             tally[c] = tally.get(c, 0.0) + w
         total = sum(tally.values())
-        if total <= 0:
+        residue_total = total - tally.get("-", 0.0)
+        # The consensus writes "-" for this column; remove_gaps strips it from the centroid.
+        if remove_gaps and (residue_total <= 0 or _is_absent_column(tally, gap_threshold)):
             continue
+        # Position in centroid coordinates.
+        position += 1
+        # Only gaps: nothing to draw.
+        if residue_total <= 0:
+            continue
+        # Entropy over the alphabet's letters only; "-", N and X are left out.
+        known = [w for c, w in tally.items() if c in letters and w > 0]
+        known_total = sum(known)
+        entropy = (-sum(w / known_total * math.log2(w / known_total) for w in known)
+                   if known_total > 0 else max_bits)
+        # Stack height: max_bits when one letter, 0 when all equally common; never below the floor.
+        info = max(PROFILE_MIN_BITS, max_bits - entropy)
+        # Each character, "-" and N/X included, gets its share of the column times the height.
         # Deterministic row order: descending weight, then by residue.
-        for residue, weight in sorted(tally.items(), key=lambda kv: (-kv[1], kv[0])):
-            rows.append((col + 1, residue, weight, weight / total))
+        for residue, w in sorted(tally.items(), key=lambda kv: (-kv[1], kv[0])):
+            rows.append((position, residue, w / total * info))
     return rows
 
 
@@ -680,7 +756,8 @@ def derive_distances(bundle, gap_threshold: float) -> tuple[dict[str, float], in
       - L_cons is the number of consensus positions for this chain, decided by the same
         `gap_threshold` the centroid uses (see _is_absent_column). It is independent of
         the `remove_gaps` rendering flag.
-    Members dropped by the cap are not in D_by_seq; the caller charges them full length.
+    A sequence carried only by clonotypes the cap dropped is not in D_by_seq; the caller
+    charges it full length.
 
     Edge cases: 0 non-empty members -> ({}, 0); a single distinct member -> distance 0
     against itself, L_cons = its length.
@@ -698,6 +775,7 @@ def derive_distances(bundle, gap_threshold: float) -> tuple[dict[str, float], in
 def compute_centroid_and_distance(clusters_df: pl.DataFrame,
                                   cloneTable: pl.DataFrame,
                                   weights_df: pl.DataFrame,
+                                  abundances_df: pl.DataFrame,
                                   seq_cols: list[str],
                                   trim_cols: list[str],
                                   threshold: float,
@@ -731,8 +809,8 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
                        emit_plurality)
       - distance_df:  [clusterId, clonotypeKey, distanceToCentroid]
       - medoid_df:    [clusterId, medoid_key]
-      - profile_df:   [clusterId, chain, position, residue, weight, frequency] (empty
-                      when not emit_profile)
+      - profile_df:   [clusterId, chain, position, residue, logoHeight] (empty when not
+                       emit_profile)
     """
     # One row per (clusterId, clonotypeKey) carrying every chain value (untrimmed +
     # trimmed) and the weight; grouped into per-cluster lists in a single pass. All list
@@ -750,9 +828,10 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
         .unique(subset=["clusterId", "clonotypeKey"], keep="first")
         .join(value_lookup, on="clonotypeKey", how="left")
         .join(weights_df, on="clonotypeKey", how="left")
+        .join(abundances_df.rename({"abundance": "__abundance"}), on="clonotypeKey", how="left")
         .with_columns(
             [pl.col(f"__v_{c}").fill_null("") for c in all_cols]
-            + [pl.col("weight").fill_null(1.0)]
+            + [pl.col("weight").fill_null(1.0), pl.col("__abundance").fill_null(0)]
         )
     )
 
@@ -762,6 +841,7 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
         .agg(
             pl.col("clonotypeKey").alias("__keys"),
             pl.col("weight").alias("__weights"),
+            pl.col("__abundance").alias("__abundances"),
             *[pl.col(f"__v_{c}").alias(f"__vals_{c}") for c in all_cols],
         )
     )
@@ -789,15 +869,14 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
     medoid_clusters = []
     medoid_keys = []
 
-    # Per-column residue frequencies, one row per (cluster, chain, position, residue).
+    # Per-column logo heights, one row per (cluster, chain, position, residue).
     # Long format rather than a dense matrix: a cluster's alignment width varies, and
     # most (position, residue) pairs are never observed.
     prof_clusters: list[str] = []
     prof_chains: list[str] = []
     prof_positions: list[int] = []
     prof_residues: list[str] = []
-    prof_weights: list[float] = []
-    prof_freqs: list[float] = []
+    prof_bits: list[float] = []
 
     # centroid_trimmed_fullSequence / plurality_* join the trim chains in sorted chain
     # order (mirrors trimmed_fullSequence).
@@ -807,6 +886,9 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
         cluster_id = row["clusterId"]
         keys = row["__keys"]
         wts = row["__weights"]
+        # Clonotypes fed to the alignment (all of them under the cap).
+        kept = _cap_clonotypes(row, seq_cols, cluster_id, msa_max_distinct)
+        kept_wts = _take(wts, kept)
 
         cons_trim: dict[str, str] = {}            # trim_col -> theoretical centroid (@ threshold)
         plur_trim: dict[str, str] = {}            # trim_col -> plurality centroid (@ 0.0) or None
@@ -816,7 +898,8 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
 
         for sc, tc in zip(seq_cols, trim_cols):
             # Align the trimmed chain ONCE; consensus, plurality and distance share it.
-            bundle_t = _align_chain(row[f"__vals_{tc}"], wts, cluster_id, alignment_model)
+            vals_t = _take(row[f"__vals_{tc}"], kept)
+            bundle_t = _align_chain(vals_t, kept_wts, alignment_model)
             cons_trim[tc] = derive_consensus(bundle_t, threshold, gap_threshold, remove_gaps)
             plur_trim[tc] = (derive_consensus(bundle_t, 0.0, gap_threshold, remove_gaps)
                              if emit_plurality else None)
@@ -824,20 +907,21 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
 
             # The column tally the consensus vote just ran, kept rather than discarded.
             if emit_profile:
-                for position, residue, weight, freq in derive_profile(bundle_t):
+                for position, residue, bits in derive_profile(bundle_t, profile_letters,
+                                                              profile_max_bits, gap_threshold,
+                                                              remove_gaps):
                     prof_clusters.append(cluster_id)
                     prof_chains.append(tc)
                     prof_positions.append(position)
                     prof_residues.append(residue)
-                    prof_weights.append(weight)
-                    prof_freqs.append(freq)
+                    prof_bits.append(bits)
 
             # Untrimmed centroid: identical to the trimmed one when trimming is off (the
             # trim_ column is a byte copy of the original), else align separately.
             if no_trim:
                 cons_seq[sc] = cons_trim[tc]
             else:
-                bundle_u = _align_chain(row[f"__vals_{sc}"], wts, cluster_id, alignment_model)
+                bundle_u = _align_chain(_take(row[f"__vals_{sc}"], kept), kept_wts, alignment_model)
                 cons_seq[sc] = derive_consensus(bundle_u, threshold, gap_threshold, remove_gaps)
 
         # --- centroid row ---
@@ -891,8 +975,8 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
                     # d_by_seq is keyed by the sanitized sequence (see _sanitize_seq); look
                     # up with the same form or stray-char members would miss and be charged
                     # full distance. Sanitizing is length-preserving, so member_len is
-                    # unchanged. Dropped-by-cap members are absent from d_by_seq -> charge
-                    # full length.
+                    # unchanged. A sequence only dropped-by-cap clonotypes carry is absent
+                    # from d_by_seq -> charge full length.
                     d_s = d_by_seq_chain[tc].get(_sanitize_seq(seq), float(member_len))
                     sum_d += d_s
                     sum_norm += max(l_cons_chain[tc], member_len)
@@ -916,15 +1000,16 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
             dist_keys.append(k)
             dist_values.append(norm_by_key[k])
 
-        # Medoid (reference centroid): argmin D_i, tie-break (min D_i, -w_i, seq), but ONLY
+        # Medoid (reference centroid): argmin D_i, tie-break (min D_i, -w_i, seq, key), but ONLY
         # over COMPLETE members — a clone missing a chain (now unpenalized in the distance)
-        # must not be chosen as the biological reference. Dropped-by-cap members carry
-        # inflated D_i so they don't win the argmin. Fall back to all members only if no
-        # member is complete (degenerate cluster where every member lacks some chain).
+        # must not be chosen as the biological reference. A clonotype the cap dropped is
+        # charged full distance on each chain whose sequence was not aligned. Fall back to
+        # all members only if no member is complete (degenerate cluster where every member
+        # lacks some chain).
         candidate_keys = [k for k in keys if complete_by_key[k]] or keys
         best_key = min(
             candidate_keys,
-            key=lambda k: (d_total_by_key[k], -weight_by_key[k], seq_by_key[k])
+            key=lambda k: (d_total_by_key[k], -weight_by_key[k], seq_by_key[k], k)
         )
         medoid_clusters.append(cluster_id)
         medoid_keys.append(best_key)
@@ -967,16 +1052,14 @@ def compute_centroid_and_distance(clusters_df: pl.DataFrame,
             "chain": prof_chains,
             "position": prof_positions,
             "residue": prof_residues,
-            "weight": prof_weights,
-            "frequency": prof_freqs,
+            "logoHeight": prof_bits,
         },
         schema={
             "clusterId": clusters_df.schema["clusterId"],
             "chain": pl.String,
             "position": pl.Int64,
             "residue": pl.String,
-            "weight": pl.Float64,
-            "frequency": pl.Float64,
+            "logoHeight": pl.Float64,
         },
     )
     return centroid_df, plurality_df, distance_df, medoid_df, profile_df
@@ -1004,7 +1087,7 @@ if sequence_cols:
         cloneTable, trimmed_cols, requested_alignment_model, peptide_input,
     )
     centroid_df, plurality_df, distance_member_df, medoid_df, profile_df = compute_centroid_and_distance(
-        clusters, cloneTable, clonotype_weights,
+        clusters, cloneTable, clonotype_weights, clonotype_abundances,
         sequence_cols, trimmed_cols, consensus_threshold, gap_threshold, remove_gaps,
         alignment_model, emit_plurality, emit_profile, no_trim,
     )
@@ -1021,8 +1104,7 @@ else:
             "chain": pl.String,
             "position": pl.Int64,
             "residue": pl.String,
-            "weight": pl.Float64,
-            "frequency": pl.Float64,
+            "logoHeight": pl.Float64,
         },
     )
 

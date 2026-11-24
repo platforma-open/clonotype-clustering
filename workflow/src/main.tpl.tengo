@@ -140,6 +140,10 @@ wf.body(func(args) {
 	(keyAxisDomain["pl7.app/peptide/extractionRunId"] != undefined ||
 		keyAxisDomain["pl7.app/repertoire/extractionRunId"] != undefined)
 
+	// Alphabet of the clustered sequences: tags the residue profile's axis and sets the
+	// alignment cap and the logo maximum.
+	profileAlphabet := args.sequenceType == "aminoacid" ? "aminoacid" : "nucleotide"
+
 	baseMemGiB := 32
 	if !is_undefined(args.mem) {
 		baseMemGiB = args.mem
@@ -238,6 +242,7 @@ wf.body(func(args) {
 		cloneTable: cloneTable,
 		isSingleCell: isSingleCell,
 		isPeptide: isPeptide,
+		sequenceAlphabet: profileAlphabet,
 		minPeptideLength: minPeptideLength,
 		identity: args.identity,
 		similarityType: args.similarityType,
@@ -735,16 +740,16 @@ wf.body(func(args) {
 		partitionKeyLength: 0
 		}, {splitDataAndSpec: true, cpu: defaultConvCpu, mem: defaultConvMem})
 
-	// Per-column residue frequencies of every cluster — the centroid's own column vote,
-	// kept instead of collapsed to one symbol per column. Long format on four axes so a
-	// consumer can build a sequence logo of a cluster: pick one cluster and one chain,
-	// then position on X and residue as the stacked category.
+	// Per-column sequence-logo heights (bits) of every cluster, from the centroid's own
+	// column vote. Not normalized: the logo plot can scale each position to 1 itself.
+	// Long format on four axes so a consumer can build a sequence logo of a cluster: pick
+	// one cluster and one chain, then position on X and residue as the stacked category.
 	//
-	// `position` is 1-based in alignment coordinates, so it indexes the exported
-	// consensus string directly. Gap rows ("-") are kept: a logo has to be able to show
-	// that a column is absent from part of the cluster.
+	// `position` k is letter k of the trimmed theoretical centroid: columns with more gaps
+	// than Gap Threshold are left out, as the centroid drops them. In the kept columns the
+	// gap row ("-") holds the gap share, so a logo shows that a position is absent from
+	// part of the cluster.
 	// Peptide inputs only; the software leaves the file header-only otherwise.
-	profileAlphabet := args.sequenceType == "aminoacid" ? "aminoacid" : "nucleotide"
 	clusterProfilePf := undefined
 	if isPeptide {
 	clusterProfilePf = xsv.importFile(clusteringAnalysis.output("clusterProfile"), "tsv", {
@@ -787,18 +792,15 @@ wf.body(func(args) {
 			}
 		}],
 		columns: [{
-			column: "frequency",
+			column: "logoHeight",
 			spec: setTableProps({
-				name: "pl7.app/clustering/residueFrequency",
+				name: "pl7.app/clustering/logoHeight",
 				valueType: "Float",
 				domain: profileDomain,
 				annotations: {
-					"pl7.app/min": "0",
-					"pl7.app/max": "1",
-					"pl7.app/format": ".2p"
+					"pl7.app/min": "0"
 				}
-				}, "Residue frequency", true, "2850",
-				"Share of the cluster holding this residue at this position, by the same weighting the centroid uses.")
+				}, "Residue logo height (bits)", "hidden", undefined)
 		}],
 		storageFormat: "Parquet",
 		partitionKeyLength: 0
@@ -1256,7 +1258,7 @@ wf.body(func(args) {
 			i = i + 1
 		}
 	}
-	// Per-column residue frequencies (peptide inputs only).
+	// Residue logo heights (peptide inputs only).
 	if !is_undefined(clusterProfilePf) {
 		for k in maps.getKeys(clusterProfilePf) {
 			v := clusterProfilePf[k]

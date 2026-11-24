@@ -17,6 +17,7 @@ self.validateInputs({
     cloneTable: "any",
     isSingleCell: "boolean",
     "isPeptide,?": "boolean",
+    "sequenceAlphabet,?": "string",
     "minPeptideLength,?": "any",
     identity: "number",
     similarityType: "string",
@@ -80,6 +81,9 @@ self.body(func(inputs) {
     // Peptide libraries have no junctional indels; VDJ repertoires do. Consumed by the
     // mmseqs2 short-peptide guard below and by --alignment-model auto.
     isPeptide := is_undefined(inputs.isPeptide) ? false : inputs.isPeptide
+
+    // Alphabet of the clustered sequences; sets the alignment cap and the logo maximum.
+    sequenceAlphabet := is_undefined(inputs.sequenceAlphabet) ? "aminoacid" : inputs.sequenceAlphabet
 
     // Whether the centroid (and the profile distance/medoid measured against it) is
     // weighted by clonotype abundance. When false, every clonotype counts equally and
@@ -282,7 +286,8 @@ self.body(func(inputs) {
             arg("--min-seq-id").arg(string(identity)).
             arg("--consensus-threshold").arg(string(consensusThreshold)).
             arg("--gap-threshold").arg(string(gapThreshold)).
-            arg("--alignment-model").arg(centroidAlignment)
+            arg("--alignment-model").arg(centroidAlignment).
+            arg("--sequence-alphabet").arg(sequenceAlphabet)
 
         // Only --alignment-model auto reads it, but pass it unconditionally so the
         // recorded command line states what the input is either way.
@@ -306,7 +311,7 @@ self.body(func(inputs) {
             resultBuilder = resultBuilder.arg("--no-abundance-weighting")
         }
 
-        // Per-column residue frequencies for sequence-logo plots. Read off the centroid's
+        // Per-column sequence-logo heights (bits) for logo plots. Read off the centroid's
         // own column vote, so the cost is the TSV, not another alignment. Peptide inputs
         // only: a VDJ junction's alignment coordinates are not a position axis anyone
         // reads a logo along.
@@ -329,7 +334,7 @@ self.body(func(inputs) {
             // --emit-plurality-centroid flag above only gates whether process_results.py
             // computes real values vs a header-only file.
             saveFile("plurality-centroid.tsv").
-            saveFile("cluster-profile.tsv") // per (cluster, chain, position, residue) frequencies
+            saveFile("cluster-profile.tsv") // per (cluster, chain, position, residue) logo heights
 
         result := resultBuilder.run()
 

@@ -165,6 +165,9 @@ watch(
   },
 );
 
+// Peptide inputs also export the residue logo, which the centroid settings shape too
+const isPeptideModality = computed(() => app.model.outputs.modality === "peptide");
+
 // Check if any selected sequence is CDR3
 const hasCDR3Sequences = computed(() => {
   if (!app.model.data.sequencesRef || !app.model.outputs.sequenceOptions) {
@@ -331,10 +334,19 @@ const clusterAxis = computed<AxisId>(() => {
         <template #tooltip>
           How each clonotype counts when voting on the consensus residue at every alignment column
           (and in the distance/Reference Centroid measured against it).
-          <b>Equal weight</b> — every clonotype counts once, so the centroid reflects the cluster's
-          sequence set regardless of clonal expansion; ties break deterministically
-          (alphabetically). <b>By abundance</b> — each clonotype's vote is weighted by its summed
-          abundance, so expanded clones dominate.
+          <div style="padding-left: 0.5em">
+            <b>Equal weight</b> — every clonotype counts once, so the centroid reflects the
+            cluster's sequence set regardless of clonal expansion; ties break deterministically
+            (alphabetically).
+          </div>
+          <div style="padding-left: 0.5em">
+            <b>By abundance</b> — each clonotype's vote is weighted by its summed abundance, so
+            expanded clones dominate.
+          </div>
+          <template v-if="isPeptideModality">
+            The same weights set the letter heights of the <b>residue logo</b>, shown in Graph Maker
+            as "Residue logo height (bits)".
+          </template>
         </template>
       </PlBtnGroup>
       <PlNumberField
@@ -421,7 +433,9 @@ const clusterAxis = computed<AxisId>(() => {
           </PlTooltip>
         </PlCheckbox>
 
-        <PlSectionSeparator>Centroid</PlSectionSeparator>
+        <PlSectionSeparator>
+          {{ isPeptideModality ? "Centroid and Residue Logo" : "Centroid" }}
+        </PlSectionSeparator>
         <PlDropdown
           v-model="app.model.data.centroidAlignment"
           :options="centroidAlignmentOptions"
@@ -435,6 +449,10 @@ const clusterAxis = computed<AxisId>(() => {
             <b>Gapped (MSA)</b> aligns members and may insert gaps, so the centroid can be longer
             than any input sequence. <b>Ungapped</b> keeps the input length exactly — pick it only
             when indels are impossible by design.
+            <template v-if="isPeptideModality">
+              <br />The <b>residue logo</b> uses the same alignment, so its positions follow this
+              choice.
+            </template>
           </template>
         </PlDropdown>
 
@@ -453,6 +471,10 @@ const clusterAxis = computed<AxisId>(() => {
             This decides <i>whether</i> a position survives; <b>Consensus Threshold</b> decides
             <i>which</i> residue it carries. No effect on an <b>Ungapped</b> alignment of
             equal-length members, which has no gaps to weigh.
+            <template v-if="isPeptideModality">
+              <br />Positions dropped from the centroid are dropped from the
+              <b>residue logo</b> too. <b>0.5</b>, the default, is the usual cutoff for motif logos.
+            </template>
           </template>
         </PlNumberField>
 
