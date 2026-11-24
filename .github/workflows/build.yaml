@@ -33,7 +33,7 @@ jobs:
       test: true
       test-script-name: 'test'
       pnpm-recursive-tests: false
-      team-id: 'ciplopen'
+      team-id: 'ciplopen-2'
 
       publish-to-public: 'true'
       package-path: 'block'
@@ -43,6 +43,11 @@ jobs:
       # PRs (empty changeset or the `skip-changelog` label waives it). Needs
       # the input to exist on the pinned `@v4` reusable workflow.
       require-package-path-bump: true
+
+      # push software images re-layered by package: a one-package update then
+      # uploads and pulls about one package instead of the whole image
+      env: |
+        { "PL_DOCKER_RELAYER": "chunkah" }
 
       npmrc-config: |
         {
